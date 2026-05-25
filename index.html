@@ -2878,7 +2878,7 @@ function rpt2(){
     var sellerRera=sellerA?sellerA.rera||'—':'—';
     html+='<tr style="background:'+(i%2===0?'#fff':'var(--bg3)')+'"><td style="color:var(--t3)">'+(i+1)+'</td>'
       +'<td><b>'+s.projName+'</b></td>'
-      +'<td><span class="badge bbl2">'+s.plotNo+'</span></td>'
+      +'<td><span class="badge bbl2" data-sid="'+s.id+'" onclick="showChainPopup(this.dataset.sid)" style="cursor:pointer" title="Chain detail dekhein">'+s.plotNo+' 🔗</span></td>'
       +'<td>'+(s.plotSizeGaj||s.plotGaj)+'</td>'
       +'<td style="color:var(--pu);font-weight:700">'+s.plotGaj+'</td>'
       +'<td>'+(s.partyName||'—')+'</td>'
