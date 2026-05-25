@@ -312,6 +312,10 @@ function fmt(n){return Number(n||0).toLocaleString('en-IN');}
 function fmtL(n){return n>=100000?(n/100000).toFixed(2)+'L':n>=1000?(n/1000).toFixed(1)+'K':fmt(n);}
 function gv(id){var el=document.getElementById(id);return el?el.value.trim():'';}
 // ─── XSS PROTECTION ──────────────────────────────────
+function leftBadge(name){
+  return name&&name.includes('(Left)')?'<span style="font-size:10px;font-weight:500;padding:1px 5px;border-radius:3px;background:var(--reb);color:var(--re);margin-left:4px;vertical-align:middle">Left</span>':'';
+}
+function isLeft(name){return name&&name.includes('(Left)');}
 function esc(s){var d=document.createElement('div');d.textContent=String(s==null?'':s);return d.innerHTML;}
 
 // ─── AUTO LOGOUT (30 min idle) ───────────────────────
@@ -519,7 +523,7 @@ function renderSalesTable(){
       var sNo=(srPage-1)*PER_PAGE+i+1;
       html+='<tr><td style="color:var(--t3)">'+sNo+'</td><td><b>'+s.projName+'</b></td>'
         +'<td><span class="badge bbl2">'+s.plotNo+'</span></td><td>'+(s.partyName||'—')+'</td>'
-        +'<td>'+s.sellerName+'</td><td style="color:var(--pu);font-weight:700">'+s.plotGaj+'</td>'
+        +'<td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td><td style="color:var(--pu);font-weight:700">'+s.plotGaj+'</td>'
         +'<td>'+(s.bookingDate||'—')+'</td><td>'+(s.closeDate||'—')+'</td>'
         +'<td style="color:var(--gr);font-weight:700">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</td>'
         +'<td>'
@@ -602,9 +606,37 @@ function doAssocSearch(q){
   }
   tbody.innerHTML=html;
 
-  // Update pagination info
+  // Update pagination info  
   var pgEl=document.getElementById('aPagInfo');
-  if(pgEl)pgEl.textContent='Page 1 / '+totalPages+' ('+filtered.length+' associates)';
+  if(pgEl)pgEl.textContent='Page '+aPage+' / '+totalPages+' ('+filtered.length+' active)';
+
+  // Render Left associates section below main table
+  var leftEl=document.getElementById('aLeftBody');
+  var leftSec=document.getElementById('aLeftSection');
+  if(leftEl&&leftSec){
+    if(leftPageData&&leftPageData.length>0){
+      leftSec.style.display='block';
+      var lh='';
+      leftPageData.forEach(function(a,i){
+        var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
+        var waNum=a.phone?a.phone.replace(/\D/g,''):'';
+        if(waNum.length===10)waNum='91'+waNum;
+        lh+='<tr style="opacity:.65">'
+          +'<td style="color:var(--t3)">'+(i+1)+'</td>'
+          +'<td><span class="badge" style="background:var(--bg2);color:var(--t2)">Left</span></td>'
+          +'<td><span style="color:var(--t2);font-weight:500">'+esc(a.name)+'</span></td>'
+          +'<td style="font-size:12px">'+(a.fatherName||'—')+'</td>'
+          +'<td>'+(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" style="color:var(--gr);text-decoration:none;font-size:13px">📱 '+esc(a.phone)+'</a>':'—')+'</td>'
+          +'<td style="color:var(--bl);font-size:12px">'+(a.rera||'—')+'</td>'
+          +'<td style="font-size:12px;color:var(--t2)">'+(par?esc(par.name):'— Top Level —')+'</td>'
+          +'<td style="font-size:12px">'+(a.joiningDate||'—')+'</td>'
+          +'</tr>';
+      });
+      leftEl.innerHTML=lh;
+    } else {
+      leftSec.style.display='none';
+    }
+  }
 }
 
 // ─── PAGINATION DROPDOWN HELPERS ─────────────────────────
@@ -1406,8 +1438,8 @@ function pgAssoc(){if(!can('associates_view'))return '<div class="empty">⛔ Ass
 function aList(){
   var PER_PAGE=10;
 
-  // Filter associates by search
-  var filtered=D.associates.filter(function(a){
+  // Filter associates by search — Left associates separately
+  var allFiltered=D.associates.filter(function(a){
     if(!aFilter)return true;
     var q=aFilter.toLowerCase();
     return a.name.toLowerCase().includes(q)
@@ -1416,14 +1448,19 @@ function aList(){
       ||(a.code||'').toLowerCase().includes(q)
       ||(a.pan||'').toLowerCase().includes(q);
   }).sort(function(a,b){return a.name.localeCompare(b.name);});
+  // Separate active vs left
+  var filtered=allFiltered.filter(function(a){return !a.name.includes('(Left)');});
+  var leftFiltered=allFiltered.filter(function(a){return a.name.includes('(Left)');});
 
   // Pagination
   var totalPages=Math.max(1,Math.ceil(filtered.length/PER_PAGE));
   if(aPage>totalPages)aPage=1;
   var pageData=filtered.slice((aPage-1)*PER_PAGE, aPage*PER_PAGE);
+  // Left associates always show at bottom (no pagination)
+  var leftPageData=leftFiltered;
 
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
-    +'<h2 style="font-size:15px;font-weight:700">👥 Associates ('+D.associates.length+')</h2>'
+    +'<h2 style="font-size:15px;font-weight:700">👥 Associates ('+(function(){var a=D.associates.filter(function(x){return !x.name.includes("(Left)");}).length,l=D.associates.length-a;return a+(l>0?" + "+l+" Left":"");}())+')</h2>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
     +(can('associates_edit')?'<button class="btn bgh bsm" onclick="openTransferModal()" style="background:var(--amb);color:var(--am);border:1px solid var(--am)">🔄 Transfer</button>':'')
     +(can('associates_edit')?'<button class="btn bgh bsm" onclick="downloadAssocTemplate()" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr)">📥 Template</button>':'')
@@ -1487,9 +1524,40 @@ function aList(){
     });
     html+='</tbody></table></div>';
 
+    // Left associates section
+    if(leftFiltered.length>0){
+      html+='<div id="aLeftSection" style="margin-top:16px">'
+        +'<div style="font-size:12px;font-weight:600;color:var(--re);margin-bottom:6px;padding:6px 10px;background:var(--reb);border-radius:6px;border-left:3px solid var(--re)">'
+        +'🚪 Left Associates ('+leftFiltered.length+')</div>'
+        +'<div class="tbl-wrap"><table class="tbl"><thead><tr>'
+        +'<th>#</th><th>Status</th><th>Name</th><th>Father/Husband</th><th>Phone</th><th>RERA No.</th><th>Upliner</th><th>Joining</th><th>Records</th>'
+        +'</tr></thead><tbody id="aLeftBody">';
+      leftFiltered.forEach(function(a,i){
+        var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
+        var waNum=a.phone?a.phone.replace(/[^0-9]/g,''):'';
+        if(waNum.length===10)waNum='91'+waNum;
+        var aSales=D.sales.filter(function(s){return s.sellerId===a.id||(s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;}));});
+        html+='<tr style="opacity:.75">'
+          +'<td style="color:var(--t3)">'+(i+1)+'</td>'
+          +'<td><span class="badge" style="background:var(--reb);color:var(--re)">Left</span></td>'
+          +'<td><b data-aid="'+a.id+'" onclick="showAssocDetail(this.dataset.aid)" style="cursor:pointer;color:var(--re)">'
+          +esc(a.name.replace(' (Left)',''))+'</b>'
+          +(aSales.length>0?'<div style="font-size:10px;color:var(--t3)">'+aSales.length+' sale records</div>':'')
+          +'</td>'
+          +'<td style="font-size:12px">'+(a.fatherName||'—')+'</td>'
+          +'<td>'+(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" style="color:var(--gr);text-decoration:none;font-size:13px">📱 '+esc(a.phone)+'</a>':'—')+'</td>'
+          +'<td style="color:var(--bl);font-size:12px">'+(a.rera||'—')+'</td>'
+          +'<td style="font-size:12px;color:var(--t2)">'+(par?esc(par.name):'— Top Level —')+'</td>'
+          +'<td style="font-size:12px">'+(a.joiningDate||'—')+'</td>'
+          +'<td><button class="btn bsm" data-aid="'+a.id+'" onclick="showAssocDetail(this.dataset.aid)" style="font-size:11px;background:var(--reb);color:var(--re);border:1px solid var(--re)">📋 Records</button></td>'
+          +'</tr>';
+      });
+      html+='</tbody></table></div></div>';
+    }
+
     // Pagination
     html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px">'
-      +'<span id="aPagInfo" style="font-size:13px;color:var(--t2)">Page '+aPage+' / '+totalPages+' &nbsp;('+filtered.length+' associates)</span>'
+      +'<span id="aPagInfo" style="font-size:13px;color:var(--t2)">Page '+aPage+' / '+totalPages+' &nbsp;('+filtered.length+' active)</span>'
       +'<div style="display:flex;align-items:center;gap:5px;position:relative">'
       +'<button class="btn bgh bsm" onclick="if(aPage>1){aPage--;render()}" '+(aPage<=1?'disabled':'')+'>← Prev</button>'
       +'<div style="position:relative">'
@@ -2087,7 +2155,7 @@ function sS3(){
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:6px">💰 Brokerage Detail</div>'
     +'<div class="tw" style="margin-bottom:12px"><table><thead><tr><th>Associate</th><th>Slab</th><th>Diff</th><th>Base ₹</th><th>Rate Bonus</th><th>Close Adj</th><th>Final ₹</th></tr></thead><tbody>';
   sCh.forEach(function(c,i){
-    html+='<tr style="'+(i===0?'background:var(--grb)':'')+'"><td><b>'+c.name+'</b>'+(i===0?' 🌟':'')
+    html+='<tr style="'+(i===0?'background:var(--grb)':'')+'"><td><b>'+(isLeft(c.name)?'<span style="color:var(--re)">'+esc(c.name)+'</span>'+leftBadge(c.name):esc(c.name))+'</b>'+(i===0?' 🌟':'')
       +'<div style="font-size:11px;color:var(--t2)">'+dOf(c.curG)+(c.up?' → <b style="color:var(--gr)">'+dOf(c.newG)+' ⬆</b>':'')+'</div></td>'
       +'<td>₹'+c.myR+'/gaj</td><td>₹'+c.diff+'/gaj</td><td>₹'+fmt(c.base)+'</td>'
       +'<td style="color:var(--pu)">'+(c.rB>0?'+₹'+fmt(c.rB):'—')+'</td>'
@@ -2096,7 +2164,7 @@ function sS3(){
   });
   // Defence rows bhi isi table mein add karo
   sDf.forEach(function(c){
-    html+='<tr style="background:var(--pub)"><td><b>'+c.name+'</b>'
+    html+='<tr style="background:var(--pub)"><td><b>'+(isLeft(c.name)?'<span style="color:var(--re)">'+esc(c.name)+'</span>'+leftBadge(c.name):esc(c.name))+'</b>'
       +'<div style="font-size:11px;color:var(--t2)">'+c.des+' · '+c.totalGaj+' gaj</div></td>'
       +'<td style="font-size:11px"><span class="badge bpu">D'+c.depth+'</span> ₹'+c.rate+'/gaj</td>'
       +'<td>—</td>'
@@ -2181,7 +2249,7 @@ function pgSalesRec(){
         +'<td><b>'+s.projName+'</b></td>'
         +'<td><span class="badge bbl2">'+s.plotNo+'</span></td>'
         +'<td>'+(s.partyName||'—')+'</td>'
-        +'<td>'+s.sellerName+'</td>'
+        +'<td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td>'
         +'<td style="color:var(--pu);font-weight:700">'+s.plotGaj+'</td>'
         +'<td>'+(s.bookingDate||'—')+'</td>'
         +'<td>'+(s.closeDate||'—')+'</td>'
@@ -2741,7 +2809,7 @@ function rpt2(){
       +'<td>'+(s.plotSizeGaj||s.plotGaj)+'</td>'
       +'<td style="color:var(--pu);font-weight:700">'+s.plotGaj+'</td>'
       +'<td>'+(s.partyName||'—')+'</td>'
-      +'<td><b>'+s.sellerName+'</b></td>'
+      +'<td><b>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</b></td>'
       +'<td style="color:var(--bl);font-size:12px">'+sellerRera+'</td>'
       +'<td>'+(s.bookingDate||'—')+'</td>'
       +'<td>'+(s.closeDate||'—')+'</td>'
@@ -4544,7 +4612,7 @@ function pgSearch(){
   }
   if(sRes.length){
     html+='<div class="card"><div class="ct">💰 Sales ('+sRes.length+')</div><div class="tw"><table><thead><tr><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Gaj</th><th>Date</th><th>Total ₹</th></tr></thead><tbody>';
-    sRes.forEach(function(s){html+='<tr><td><b>'+s.projName+'</b></td><td>'+s.plotNo+'</td><td>'+(s.partyName||'—')+'</td><td>'+s.sellerName+'</td><td>'+s.plotGaj+'</td><td>'+(s.bookingDate||'—')+'</td><td style="color:var(--gr);font-weight:700">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</td></tr>';});
+    sRes.forEach(function(s){html+='<tr><td><b>'+s.projName+'</b></td><td>'+s.plotNo+'</td><td>'+(s.partyName||'—')+'</td><td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td><td>'+s.plotGaj+'</td><td>'+(s.bookingDate||'—')+'</td><td style="color:var(--gr);font-weight:700">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
   if(!aRes.length&&!pRes.length&&!sRes.length)html+='<div class="empty">No results found for "'+searchQ+'"</div>';
@@ -4947,15 +5015,29 @@ function expR1(){
   }
   var tree=bt(null,0);
 
-  // ── Sheet 1: All Associates Full Detail ──
+  // ── Sheet 1: Active Associates Full Detail ──
+  var activeTree=tree.filter(function(a){return !a.name.includes('(Left)');});
+  var leftTree=tree.filter(function(a){return a.name.includes('(Left)');});
   var s1=[['#','Level','Name','Father/Husband','Phone','Joining Date','Address','RERA No','Aadhaar','PAN','Code','Location','Email','Banking Name','Bank Name','Account No','IFSC','Upliner','Total Gaj','Slab Rate','Designation','Defence']];
-  tree.forEach(function(a,i){
+  activeTree.forEach(function(a,i){
     var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
     s1.push([i+1,'L'+(a._l+1),a.name,a.fatherName||'',a.phone||'',a.joiningDate||'',a.address||'',a.rera||'',a.aadhaar||'',a.pan||'',a.code||'',a.location||'',a.email||'',a.bankingName||'',a.bankName||'',a.accNo||'',a.ifsc||'',par?par.name:'Top Level',a.totalGaj,rOf(a.totalGaj),dOf(a.totalGaj),a.totalGaj>=10000?'Yes':'No']);
   });
   var ws1=XLSX.utils.aoa_to_sheet(s1);
   xlStyle(wb,ws1,[{wch:4},{wch:7},{wch:22},{wch:20},{wch:14},{wch:13},{wch:28},{wch:18},{wch:14},{wch:13},{wch:10},{wch:14},{wch:26},{wch:22},{wch:22},{wch:18},{wch:14},{wch:22},{wch:11},{wch:11},{wch:22},{wch:8}]);
-  XLSX.utils.book_append_sheet(wb,ws1,'All Associates');
+  XLSX.utils.book_append_sheet(wb,ws1,'Active Associates');
+
+  // ── Sheet: Left Associates ──
+  if(leftTree.length>0){
+    var sL=[['#','Name','Phone','RERA No','PAN','Upliner','Joining Date','Total Gaj']];
+    leftTree.forEach(function(a,i){
+      var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
+      sL.push([i+1,a.name,a.phone||'',a.rera||'',a.pan||'',par?par.name:'Top Level',a.joiningDate||'',a.totalGaj]);
+    });
+    var wsL=XLSX.utils.aoa_to_sheet(sL);
+    xlStyle(wb,wsL,[{wch:4},{wch:24},{wch:14},{wch:16},{wch:13},{wch:24},{wch:13},{wch:10}]);
+    XLSX.utils.book_append_sheet(wb,wsL,'Left Associates');
+  }
 
   // ── Sheet 2: Leg Hierarchy ──
   // Find max chain depth across all associates
@@ -4974,8 +5056,8 @@ function expR1(){
   for(var d=1;d<=maxDepth;d++) hdr.push('A-'+String(d).padStart(2,'0'));
   var s2=[hdr];
 
-  // Each associate = one row
-  D.associates.forEach(function(a){
+  // Each associate = one row (active only)
+  D.associates.filter(function(a){return !a.name.includes('(Left)');}).forEach(function(a){
     var chainArr=getChain(a.id).slice().reverse();
 
     // Personal sale gaj = direct sales by this associate
@@ -5732,7 +5814,7 @@ window.printAssocCard=function(id){
 
 window.showAssocDetail=function(id){
   var a=D.associates.find(function(x){return x.id===id;});
-  if(!a)return;
+  if(!a)return; // works for Left associates too — they are still in D.associates
   var par=a.parentId?D.associates.find(function(x){return x.id===a.parentId;}):null;
   var cs=slabOf(a.totalGaj);var ns=nSlab(a.totalGaj);
   var pct=ns?Math.min(100,Math.round(((a.totalGaj-cs.min)/(ns.min-cs.min))*100)):100;
@@ -5742,8 +5824,9 @@ window.showAssocDetail=function(id){
 
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     +'<div><div style="font-size:18px;font-weight:700">'+esc(a.name)+'</div>'
-    +'<div style="display:flex;gap:6px;margin-top:4px">'
+    +'<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">'
     +'<span class="badge bbl2">L'+(level+1)+'</span>'
+    +(isLeft(a.name)?'<span class="badge" style="background:var(--reb);color:var(--re)">🚪 Left Associate</span>':'')
     +'<span class="badge" style="background:var(--grb);color:var(--gr)">'+cs.des+'</span>'
     +'</div></div>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button>'
