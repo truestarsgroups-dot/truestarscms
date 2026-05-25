@@ -1818,17 +1818,15 @@ window.saveAInfo=function(id){
 // ── ASSOCIATE LEFT / TRANSFER ─────────────────────────
 // Get top level (L1) ancestor of an associate
 function isCompanyNode(name){
-  // Company/org nodes ko skip karo — TL sirf real person hona chahiye
   if(!name)return false;
   var n=name.toLowerCase().replace(/[^a-z0-9]/g,'');
-  return n.includes('truestars')||n.includes('truestar')||n.includes('company')||n.includes('organisation')||n.includes('organization');
+  return n.startsWith('truest')||n.includes('company')||n.includes('organisation')||n.includes('organization');
 }
 function getTopLeader(assocId){
   var a=D.associates.find(function(x){return x.id===assocId;});
   if(!a)return null;
-  if(!a.parentId)return isCompanyNode(a.name)?null:a; // Top level — return only if real person
   var visited={};
-  var chain=[]; // chain from self to top
+  var chain=[];
   var cur=a;
   while(cur&&!visited[cur.id]){
     visited[cur.id]=true;
@@ -1838,21 +1836,18 @@ function getTopLeader(assocId){
     if(!parent)break;
     cur=parent;
   }
-  // chain[last] = root
+  if(chain.length<=1)return null;
   var root=chain[chain.length-1];
-  if(isCompanyNode(root.name)){
-    // Root company hai — uske just neeche wala real person TL hai
-    // chain mein root se pehle wala = chain[length-2]
-    if(chain.length>=2){
-      var realTL=chain[chain.length-2];
-      // Agar realTL khud assocId hai (direct child of company) to TL nahi hai
-      if(realTL.id===assocId)return null;
-      return realTL;
-    }
-    return null;
+  // Root skip karo agar: (1) sirf 1 hi root hai = company node, ya (2) name se detect ho
+  var rootCount=D.associates.filter(function(x){return !x.parentId;}).length;
+  var skipRoot=(rootCount===1)||isCompanyNode(root.name);
+  if(skipRoot){
+    if(chain.length<2)return null;
+    var tl=chain[chain.length-2];
+    if(tl.id===assocId)return null;
+    return tl;
   }
-  // Normal case — root real person hai
-  if(root.id===assocId)return null; // khud hi top hai
+  if(root.id===assocId)return null;
   return root;
 }
 
