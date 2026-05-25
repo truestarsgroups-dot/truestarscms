@@ -424,8 +424,8 @@ function calcChain(sGaj,ch,projRate,bk,cl,bonusOverride){
 }
 
 function calcDef(ch,sGaj,bk,cl){
-  var d=daysBetween(bk,cl);
-  var cPct=closingPct(d);
+  // Defence commission mein sirf base rate milega
+  // Rate increment (rInc) aur closing day bonus/penalty NAHI lagega
   var wComm=new Set();
   ch.forEach(function(a,i){
     var myR=rOf((a.totalGaj||0)+sGaj);
@@ -442,10 +442,9 @@ function calcDef(ch,sGaj,bk,cl){
     if(liveG<10000)continue;
     dep++;
     var rate=DR[dep]||35;
-    var baseAmt=rate*sGaj;
-    var cAdj=Math.round(baseAmt*Math.abs(cPct)/100)*(cPct>=0?1:-1);
-    var finalAmt=Math.max(0,baseAmt+cAdj);
-    dc.push({id:s.id,name:s.name,depth:dep,rate:rate,baseAmt:baseAmt,cAdj:cAdj,cPct:cPct,amount:finalAmt,totalGaj:liveG,des:dOf(liveG)});
+    var baseAmt=rate*sGaj; // Sirf base rate × gaj — koi extra bonus nahi
+    var finalAmt=Math.max(0,baseAmt);
+    dc.push({id:s.id,name:s.name,depth:dep,rate:rate,baseAmt:baseAmt,cAdj:0,cPct:0,amount:finalAmt,totalGaj:liveG,des:dOf(liveG)});
   }
   return dc;
 }
