@@ -812,6 +812,98 @@ window.showChainPopup=function(saleId){
 };
 // ──────────────────────────────────────────────────────────
 
+
+// ─── BONUS ENTRY EDIT / DELETE ───────────────────────────
+window.editBonusEntry=function(projId,bi){
+  var p=D.projects.find(function(x){return x.id===projId;});if(!p)return;
+  var bh=p.bonusHistory[bi];if(!bh)return;
+  var isCurrent=bi===p.bonusHistory.length-1;
+  var salesAffected=D.sales.filter(function(s){
+    if(s.projId!==projId)return false;
+    // Sales jo is bonus entry ke baad ki hain
+    var nextDate=p.bonusHistory[bi+1]?p.bonusHistory[bi+1].date:'9999';
+    return s.bookingDate&&s.bookingDate>=bh.date&&s.bookingDate<nextDate;
+  });
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    +'<b style="font-size:15px">✏️ Bonus Entry Edit</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>';
+  if(salesAffected.length>0){
+    html+='<div class="info iam" style="margin-bottom:12px">⚠️ <b>'+salesAffected.length+' sales</b> is bonus period mein hain — edit karne se unka commission NAHI badlega (jo sale save ho gayi hai woh fixed rehti hai). Sirf nayi sales pe effect hoga.</div>';
+  }
+  html+='<div class="g2" style="margin-bottom:12px">'
+    +'<div class="fld"><label>Bonus % *</label>'
+    +'<select id="ebPct">'
+    +'<option value="0"'+(bh.pct===0?' selected':'')+'>No Bonus (0%)</option>'
+    +'<option value="10"'+(bh.pct===10?' selected':'')+'>+10% Bonus</option>'
+    +'<option value="25"'+(bh.pct===25?' selected':'')+'>+25% Bonus</option>'
+    +'<option value="50"'+(bh.pct===50?' selected':'')+'>+50% Bonus</option>'
+    +'<option value="100"'+(bh.pct===100?' selected':'')+'>+100% Bonus</option>'
+    +'</select></div>'
+    +'<div class="fld"><label>Date</label>'
+    +'<input id="ebDate" type="date" value="'+(bh.date||new Date().toISOString().split("T")[0])+'"/></div>'
+    +'<div class="fld" style="grid-column:1/-1"><label>Note</label>'
+    +'<input id="ebNote" value="'+(bh.note||'')+'"/></div>'
+    +'</div>'
+    +(isCurrent?'<div class="info ibl" style="margin-bottom:10px;font-size:12px">ℹ️ Yeh <b>current active bonus</b> hai — edit karne se project ka active bonus bhi update hoga.</div>':'')
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn bbl" id="btnSaveEB">💾 Save Changes</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
+    +'</div>';
+  openM(html);
+  document.getElementById('btnSaveEB').addEventListener('click',function(){
+    var newPct=parseInt((document.getElementById('ebPct')||{}).value||'0');
+    var newDate=(document.getElementById('ebDate')||{}).value||bh.date;
+    var newNote=((document.getElementById('ebNote')||{}).value||'').trim();
+    var pi=D.projects.findIndex(function(x){return x.id===projId;});if(pi<0)return;
+    D.projects[pi].bonusHistory[bi]={pct:newPct,date:newDate,note:newNote};
+    // Agar current entry hai to bonusPct bhi update karo
+    if(bi===D.projects[pi].bonusHistory.length-1){
+      D.projects[pi].bonusPct=newPct;
+    }
+    saveD();
+    toast('✅ Bonus entry update ho gayi!');
+    closeM();render();
+  });
+};
+
+window.deleteBonusEntry=function(projId,bi){
+  var p=D.projects.find(function(x){return x.id===projId;});if(!p)return;
+  var bh=p.bonusHistory[bi];if(!bh)return;
+  var isCurrent=bi===p.bonusHistory.length-1;
+  var isOnly=p.bonusHistory.length===1;
+  if(isOnly){toast('Sirf ek hi entry hai — delete nahi ho sakti!',false);return;}
+  var label=bh.pct>0?'+'+bh.pct+'%':'No Bonus';
+  var salesAffected=D.sales.filter(function(s){
+    if(s.projId!==projId)return false;
+    var nextDate=p.bonusHistory[bi+1]?p.bonusHistory[bi+1].date:'9999';
+    return s.bookingDate&&s.bookingDate>=bh.date&&s.bookingDate<nextDate;
+  });
+  var warnMsg=label+' ('+bh.date+') delete karna chahte ho?';
+  if(salesAffected.length>0){
+    warnMsg+='
+
+⚠️ '+salesAffected.length+' sales is period mein hain — unka commission nahi badlega.';
+  }
+  if(isCurrent){
+    warnMsg+='
+
+⚠️ Yeh CURRENT bonus hai! Delete hone ke baad pichla bonus active ho jaayega.';
+  }
+  if(!confirm(warnMsg))return;
+  var pi=D.projects.findIndex(function(x){return x.id===projId;});if(pi<0)return;
+  D.projects[pi].bonusHistory.splice(bi,1);
+  // Agar current tha to naya last entry current ban jaayegi
+  if(isCurrent&&D.projects[pi].bonusHistory.length>0){
+    var lastEntry=D.projects[pi].bonusHistory[D.projects[pi].bonusHistory.length-1];
+    D.projects[pi].bonusPct=lastEntry.pct;
+    toast('✅ Bonus entry delete! Ab current bonus: '+(lastEntry.pct>0?'+'+lastEntry.pct+'%':'No Bonus'));
+  } else {
+    toast('✅ Bonus entry delete ho gayi!');
+  }
+  saveD();closeM();render();
+};
+// ──────────────────────────────────────────────────────────
+
 // ─── RENDER ───────────────────────────────────────────
 function render(){
   if(!SESSION){showLoginScreen();return;}
@@ -1449,9 +1541,13 @@ function pPlots(){
     p.bonusHistory.forEach(function(bh,bi){
       var iL=bi===p.bonusHistory.length-1;
       var label=bh.pct>0?'+'+bh.pct+'%':'No Bonus';
-      bhHtml+='<div style="background:'+(iL?'var(--pub)':'var(--bg3)')+';border:1px solid '+(iL?'var(--pu)':'var(--bd)')+';border-radius:8px;padding:6px 12px;font-size:12px">'
+      bhHtml+='<div style="background:'+(iL?'var(--pub)':'var(--bg3)')+';border:1px solid '+(iL?'var(--pu)':'var(--bd)')+';border-radius:8px;padding:6px 12px;font-size:12px;position:relative">'
         +'<div style="font-weight:700;color:'+(iL?'var(--pu)':'var(--t2)')+'">'+label+(iL?' ← Current':'')+'</div>'
         +'<div style="color:var(--t3)">'+(bh.date||'—')+(bh.note?' · '+bh.note:'')+'</div>'
+        +'<div style="display:flex;gap:4px;margin-top:5px">'
+        +'<button class="btn bsm" data-pid="'+p.id+'" data-bi="'+bi+'" onclick="editBonusEntry(this.dataset.pid,parseInt(this.dataset.bi))" style="font-size:10px;padding:2px 7px;background:var(--blb);color:var(--bl);border:1px solid var(--bl)">✏️ Edit</button>'
+        +'<button class="btn bsm" data-pid="'+p.id+'" data-bi="'+bi+'" onclick="deleteBonusEntry(this.dataset.pid,parseInt(this.dataset.bi))" style="font-size:10px;padding:2px 7px;background:var(--reb);color:var(--re);border:1px solid var(--re)">🗑️ Del</button>'
+        +'</div>'
         +'</div>';
     });
     bhHtml+='</div></div>';
