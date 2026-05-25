@@ -1459,11 +1459,11 @@ function pEdit(){
   html+='<div class="fld"><label>Company Name</label><input id="epCo" value="'+esc(p.companyName||'')+'"/></div>';
   html+='<div class="fld"><label>RERA No.</label><input id="epRera" value="'+esc(p.rera||'')+'"/></div>';
   html+='<div class="fld"><label>Launch Date</label><input id="epLd" type="date" value="'+esc(p.launchingDate||'')+'"/></div>';
-  html+='<div class="fld"><label>Commission Bonus %</label><select id="epBonus">';
-  [0,10,25,50,100].forEach(function(b){
-    html+='<option value="'+b+'"'+((p.bonusPct||0)===b?' selected':'')+'>'+( b>0?'+'+b+'%':'No Bonus (0%)')+'</option>';
-  });
-  html+='</select></div>';
+  html+='<div class="fld"><label>Current Bonus</label>'
+    +'<div style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg2);font-size:13px;display:flex;align-items:center;gap:8px">'
+    +(getProjBonus(p)>0?'<span style="color:var(--pu);font-weight:700">+'+getProjBonus(p)+'% Active</span>':'<span style="color:var(--t3)">No Bonus</span>')
+    +'<span style="font-size:11px;color:var(--t3);margin-left:auto">Bonus change karne ke liye Bonus Change button use karo</span>'
+    +'</div></div>';
   html+='<div class="fld" style="grid-column:1/-1"><label>Description</label><input id="epDs" value="'+esc(p.description||'')+'"/></div>';
   html+='</div>';
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">🏦 Banking Details</div>';
@@ -4849,9 +4849,7 @@ function bindAll(){
     var pi=D.projects.findIndex(function(p){return p.id===pId;});if(pi<0)return;
     var n=((document.getElementById('epNm')||{}).value||'').trim();
     if(!n){toast('Project name is required!',false);return;}
-    var newBonus=parseInt(gv('epBonus')||'0');
     var p=D.projects[pi];
-    var oldBonus=p.bonusPct||0;
     p.name=n;
     p.companyName=gv('epCo');
     p.rera=gv('epRera');
@@ -4861,12 +4859,7 @@ function bindAll(){
     p.bankName=gv('epBnk');
     p.accNo=gv('epAc');
     p.ifsc=gv('epIfs');
-    // If bonus changed, add to history
-    if(newBonus!==oldBonus){
-      p.bonusPct=newBonus;
-      if(!p.bonusHistory)p.bonusHistory=[];
-      p.bonusHistory.push({pct:newBonus,date:new Date().toISOString().split('T')[0],note:'Updated from '+(oldBonus>0?'+'+oldBonus+'%':'0%')});
-    }
+    // Bonus edit form se nahi badlega — sirf 'Bonus Change' button se change hoga
     saveD();toast('Project updated successfully! ✓');pView='plots';render();
   });
 
