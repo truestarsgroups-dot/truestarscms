@@ -739,6 +739,79 @@ window.selectUpliner=function(pid,editId){
 };
 // ──────────────────────────────────────────────────────────
 
+
+// ─── CHAIN POPUP ─────────────────────────────────────────
+window.showChainPopup=function(saleId){
+  var s=D.sales.find(function(x){return x.id===saleId;});
+  if(!s)return;
+
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    +'<div>'
+    +'<b style="font-size:15px">🔗 Chain Detail</b>'
+    +'<div style="font-size:12px;color:var(--t2);margin-top:2px">'+esc(s.projName)+' — Plot <b>'+esc(s.plotNo)+'</b> | '+s.plotGaj+' gaj | '+(s.bookingDate||'—')+' → '+(s.closeDate||'—')+'</div>'
+    +'</div>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button>'
+    +'</div>';
+
+  // Buyer info
+  if(s.partyName){
+    html+='<div style="background:var(--blb);border-radius:8px;padding:8px 12px;margin-bottom:10px;font-size:13px">'
+      +'👤 <b>Buyer:</b> '+esc(s.partyName)+'</div>';
+  }
+
+  // Chain Commission table
+  if(s.commissions&&s.commissions.length>0){
+    html+='<div style="font-size:12px;font-weight:600;color:var(--bl);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">⛓️ Chain Commission</div>';
+    html+='<div class="tw" style="margin-bottom:12px"><table><thead><tr>'
+      +'<th>#</th><th>Name</th><th>Level</th><th>Gaj</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
+    s.commissions.forEach(function(cm,i){
+      var isLeftM=cm.name&&cm.name.includes('(Left)');
+      var isFirstSeller=(i===0);
+      html+='<tr style="'+(isFirstSeller?'background:var(--grb)':i%2===0?'':'background:var(--bg3)')+'">'
+        +'<td>'+(i+1)+'</td>'
+        +'<td><b>'+(isLeftM?'<span style="color:var(--re)">'+esc(cm.name)+'</span>'+leftBadge(cm.name):esc(cm.name||'—'))+'</b>'+(isFirstSeller?' 🌟 <span style="font-size:10px;color:var(--gr)">Seller</span>':'')+'</td>'
+        +'<td style="color:var(--t2);font-size:12px">'+(cm.depth!==undefined?'D'+cm.depth:'—')+'</td>'
+        +'<td style="color:var(--pu);font-weight:700">'+(cm.gaj||s.plotGaj)+'</td>'
+        +'<td style="font-size:12px">₹'+(cm.rate||0)+'/gaj</td>'
+        +'<td style="color:var(--gr);font-weight:700">₹'+fmt(cm.total||0)+'</td>'
+        +'</tr>';
+    });
+    html+='<tr style="background:var(--bg3);font-weight:700;border-top:2px solid var(--bd)">'
+      +'<td colspan="5" style="font-size:12px">Chain Total</td>'
+      +'<td style="color:var(--gr)">₹'+fmt(s.chainTotal||0)+'</td></tr>';
+    html+='</tbody></table></div>';
+  }
+
+  // Defence Commission table
+  if(s.defCommissions&&s.defCommissions.length>0){
+    html+='<div style="font-size:12px;font-weight:600;color:var(--pu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">🛡️ Defence Commission</div>';
+    html+='<div class="tw" style="margin-bottom:12px"><table><thead><tr>'
+      +'<th>#</th><th>Name</th><th>Level</th><th>Amount</th></tr></thead><tbody>';
+    s.defCommissions.forEach(function(cm,i){
+      var isLeftM=cm.name&&cm.name.includes('(Left)');
+      html+='<tr style="background:var(--pub)">'
+        +'<td>'+(i+1)+'</td>'
+        +'<td><b>'+(isLeftM?'<span style="color:var(--re)">'+esc(cm.name)+'</span>'+leftBadge(cm.name):esc(cm.name||'—'))+'</b></td>'
+        +'<td style="color:var(--t2);font-size:12px">'+(cm.depth!==undefined?'D'+cm.depth:'—')+'</td>'
+        +'<td style="color:var(--pu);font-weight:700">₹'+fmt(cm.amount||0)+'</td>'
+        +'</tr>';
+    });
+    html+='<tr style="background:var(--pub);font-weight:700;border-top:2px solid var(--bd)">'
+      +'<td colspan="3" style="font-size:12px">Defence Total</td>'
+      +'<td style="color:var(--pu)">₹'+fmt(s.defTotal||0)+'</td></tr>';
+    html+='</tbody></table></div>';
+  }
+
+  // Grand Total
+  html+='<div style="background:var(--grb);border-radius:8px;padding:10px 14px;display:flex;justify-content:space-between;align-items:center">'
+    +'<span style="font-weight:600;color:var(--gr)">💰 Total Brokerage</span>'
+    +'<span style="font-size:16px;font-weight:700;color:var(--gr)">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</span>'
+    +'</div>';
+
+  openM(html);
+};
+// ──────────────────────────────────────────────────────────
+
 // ─── RENDER ───────────────────────────────────────────
 function render(){
   if(!SESSION){showLoginScreen();return;}
@@ -2247,7 +2320,7 @@ function pgSalesRec(){
       html+='<tr>'
         +'<td style="color:var(--t3)">'+rowNum+'</td>'
         +'<td><b>'+s.projName+'</b></td>'
-        +'<td><span class="badge bbl2">'+s.plotNo+'</span></td>'
+        +'<td><span class="badge bbl2" data-sid="'+s.id+'" onclick="showChainPopup(this.dataset.sid)" style="cursor:pointer;text-decoration:underline" title="Chain detail dekhein">'+s.plotNo+' 🔗</span></td>'
         +'<td>'+(s.partyName||'—')+'</td>'
         +'<td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td>'
         +'<td style="color:var(--pu);font-weight:700">'+s.plotGaj+'</td>'
