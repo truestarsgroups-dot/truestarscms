@@ -840,7 +840,7 @@ window.editBonusEntry=function(projId,bi){
     +'<option value="100"'+(bh.pct===100?' selected':'')+'>+100% Bonus</option>'
     +'</select></div>'
     +'<div class="fld"><label>Date</label>'
-    +'<input id="ebDate" type="date" value="'+(bh.date||new Date().toISOString().split("T")[0])+'"/></div>'
+    +'<input id="ebDate" type="date" value="'+(bh.date||new Date().toISOString().slice(0,10))+'" style="width:100%"/></div>'
     +'<div class="fld" style="grid-column:1/-1"><label>Note</label>'
     +'<input id="ebNote" value="'+(bh.note||'')+'"/></div>'
     +'</div>'
@@ -880,14 +880,10 @@ window.deleteBonusEntry=function(projId,bi){
   });
   var warnMsg=label+' ('+bh.date+') delete karna chahte ho?';
   if(salesAffected.length>0){
-    warnMsg+='
-
-⚠️ '+salesAffected.length+' sales is period mein hain — unka commission nahi badlega.';
+    warnMsg+='\n\n⚠️ '+salesAffected.length+' sales is period mein hain — unka commission nahi badlega.';
   }
   if(isCurrent){
-    warnMsg+='
-
-⚠️ Yeh CURRENT bonus hai! Delete hone ke baad pichla bonus active ho jaayega.';
+    warnMsg+='\n\n⚠️ Yeh CURRENT bonus hai! Delete hone ke baad pichla bonus active ho jaayega.';
   }
   if(!confirm(warnMsg))return;
   var pi=D.projects.findIndex(function(x){return x.id===projId;});if(pi<0)return;
