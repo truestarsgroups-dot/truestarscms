@@ -5043,7 +5043,7 @@ function expR1(){
   // Find max chain depth across all associates
   var maxDepth=0;
   D.associates.forEach(function(a){
-    var d=getChain(a.id).length;
+    var d=getChain(a.id).length; // includes Left in chain
     if(d>maxDepth)maxDepth=d;
   });
 
@@ -5056,9 +5056,10 @@ function expR1(){
   for(var d=1;d<=maxDepth;d++) hdr.push('A-'+String(d).padStart(2,'0'));
   var s2=[hdr];
 
-  // Each associate = one row (active only)
-  D.associates.filter(function(a){return !a.name.includes('(Left)');}).forEach(function(a){
+  // Each associate = one row (ALL including Left — Left shown with marker)
+  D.associates.forEach(function(a){
     var chainArr=getChain(a.id).slice().reverse();
+    var isLeftAssoc=a.name.includes('(Left)');
 
     // Personal sale gaj = direct sales by this associate
     var personalSale=D.sales.filter(function(s){return s.sellerId===a.id;}).reduce(function(t,s){return t+s.plotGaj;},0);
@@ -5069,7 +5070,7 @@ function expR1(){
     }).reduce(function(t,s){return t+s.plotGaj;},0);
 
     var row=[
-      a.name,
+      isLeftAssoc?a.name+' [LEFT]':a.name,
       a.phone||'',
       a.rera||'',
       a.code||'',
@@ -5084,7 +5085,8 @@ function expR1(){
     ];
     for(var d=1;d<=maxDepth;d++){
       var member=chainArr[d-1];
-      row.push(member?member.name:'');
+      // Show Left members in chain with marker
+      row.push(member?(member.name.includes('(Left)')?member.name+' [LEFT]':member.name):'');
     }
     s2.push(row);
   });
