@@ -6500,29 +6500,21 @@ function fbLoadIfEmpty(){
       if(!r){fbStatus('ok');return;}
 
       var remoteTs=r.ts||0;
-      var localTs=window._localTs||0;
 
-
-      if(remoteTs>localTs){
-        // Firebase newer hai — Firebase ka data use karo
-        if(r.projects)D.projects=r.projects;
-        if(r.associates)D.associates=r.associates;
-        if(r.sales)D.sales=r.sales;
-        D.offers=r.offers||[];
-        if(r.deleted)D.deleted=r.deleted;else if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
-        if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
-        if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
-        window._localTs=remoteTs;
-        try{localStorage.setItem(SK,JSON.stringify(Object.assign({},D,{_ts:remoteTs})));}catch(e){}
-        fbStatus('ok');
-        if(SESSION)render();
-      } else if(localTs>remoteTs){
-        // Local newer hai — local data Firebase pe push karo
-        fbSave();
-      } else {
-        // Same — kuch nahi karna
-        fbStatus('ok');
-      }
+      // SAFETY: New file load pe hamesha Firebase ka data lo
+      // Kabhi bhi page load pe local data Firebase ko overwrite mat karo
+      // Sirf jab user explicitly kuch save kare (saveD) tab Firebase update ho
+      if(r.projects)D.projects=r.projects;
+      if(r.associates)D.associates=r.associates;
+      if(r.sales)D.sales=r.sales;
+      D.offers=r.offers||[];
+      if(r.deleted)D.deleted=r.deleted;else if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
+      if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
+      if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
+      window._localTs=remoteTs;
+      try{localStorage.setItem(SK,JSON.stringify(Object.assign({},D,{_ts:remoteTs})));}catch(e){}
+      fbStatus('ok');
+      if(SESSION)render();
     })
     .catch(function(e){
       fbStatus('err');
