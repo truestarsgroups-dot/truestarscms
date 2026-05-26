@@ -78,6 +78,58 @@ tbody tr:hover td{background:var(--blb)}
 #toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);padding:10px 22px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
 @media(max-width:600px){.main{padding:10px}th,td{padding:6px 7px;font-size:12px}}
+/* ── PRINT STYLES ─────────────────────────────────── */
+@media print{
+  /* Hide non-essential elements */
+  .hdr,.nav,#toast,.ov,
+  button:not(.print-btn),
+  .btn,input,select,textarea,
+  [onclick],
+  .sbar,.sfil,
+  #offlineBanner,
+  #remoteUpdateNotif,
+  .no-print
+  {display:none!important}
+
+  /* Show only main content */
+  body{background:#fff!important;color:#000!important;font-size:12pt;margin:0;padding:0}
+  .main{padding:0!important;max-width:100%!important;margin:0!important}
+
+  /* Tables print properly */
+  .tw{overflow:visible!important}
+  table{border-collapse:collapse;width:100%;page-break-inside:auto}
+  thead{display:table-header-group}
+  tr{page-break-inside:avoid}
+  th,td{border:1px solid #ccc!important;padding:5px 8px!important;font-size:10pt!important;color:#000!important;background:#fff!important}
+  thead th{background:#f0f0f0!important;font-weight:700!important}
+
+  /* Cards print cleanly */
+  .card{box-shadow:none!important;border:1px solid #ccc!important;break-inside:avoid;margin-bottom:12px}
+
+  /* Stats grid */
+  .stat{border:1px solid #ccc!important;background:#fff!important}
+  .sv{color:#000!important}
+
+  /* Page breaks */
+  .card{page-break-inside:avoid}
+  h2,h3,.ct{page-break-after:avoid}
+
+  /* Show print header */
+  .print-header{display:block!important}
+
+  /* Badges readable in BW */
+  .badge{border:1px solid #999!important;background:#f0f0f0!important;color:#000!important}
+
+  /* Progress bars */
+  .sbar{border:1px solid #ccc!important}
+  .sfil{background:#666!important}
+
+  /* Links */
+  a{color:#000!important;text-decoration:none!important}
+
+  /* Page setup */
+  @page{margin:15mm;size:A4}
+}
 </style>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
@@ -253,7 +305,7 @@ var BENS=[
 var RINC=[{min:25000,max:34999,pct:10},{min:35000,max:49999,pct:25},{min:50000,max:74999,pct:50},{min:75000,max:Infinity,pct:100}];
 
 // ─── DATA ────────────────────────────────────────────
-var D={projects:[],associates:[],sales:[],offers:[],deleted:{associates:[],sales:[],projects:[]},transfers:[]};
+var D={projects:[],associates:[],sales:[],offers:[],deleted:{associates:[],sales:[],projects:[]},transfers:[],payments:[]};
 
 function loadD(){
   try{
@@ -268,16 +320,22 @@ function loadD(){
       else D.deleted={associates:[],sales:[],projects:[]};
       if(p.transfers)D.transfers=p.transfers;
       else D.transfers=[];
+      if(p.payments)D.payments=p.payments;
+      else D.payments=[];
       window._localTs=p._ts||0;
     }
   }catch(e){}
 }
 function saveD(){
-  if(!isOnline()){toast('📴 Internet nahi hai — Data save nahi hoga!',false);return;}
+  if(!isOnline()){
+    toast('📴 Internet nahi hai — Koi bhi change save nahi hoga! Pehle internet connect karo.',false);
+    return;
+  }
   var ts=Date.now();
   window._localTs=ts;
-  try{localStorage.setItem(SK,JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted||{associates:[],sales:[],projects:[]},transfers:D.transfers||[],_ts:ts}));}catch(e){}
-  setTimeout(function(){fbSave(ts);},100);
+  try{localStorage.setItem(SK,JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted||{associates:[],sales:[],projects:[]},transfers:D.transfers||[],payments:D.payments||[],_ts:ts}));}catch(e){}
+  clearTimeout(window._saveDebounce);
+  window._saveDebounce=setTimeout(function(){fbSave(ts);},400);
 }
 
 // ─── HELPERS ─────────────────────────────────────────
@@ -349,7 +407,7 @@ function checkNet(){
 window.addEventListener('online',function(){
   var b=document.getElementById('offlineBanner');
   if(b)b.style.display='none';
-  toast('✅ Internet connected! Data sync ho raha hai...');
+  toast('✅ Internet connected! Ab kaam kar sakte hain.');
   if(_fbReady&&_fbDB)fbSave();
 });
 window.addEventListener('offline',function(){
@@ -359,8 +417,15 @@ window.addEventListener('offline',function(){
 });
 
 function getChain(id){
-  var ch=[];var c=D.associates.find(function(a){return a.id===id;});
-  while(c){ch.push(c);if(!c.parentId)break;c=D.associates.find(function(a){return a.id===c.parentId;});}
+  var ch=[];var visited={};
+  var c=D.associates.find(function(a){return a.id===id;});
+  while(c){
+    if(visited[c.id])break;
+    visited[c.id]=true;
+    ch.push(c);
+    if(!c.parentId)break;
+    c=D.associates.find(function(a){return a.id===c.parentId;});
+  }
   return ch;
 }
 function getDownline(id){
@@ -406,6 +471,8 @@ function statusBadge(st){
 
 // ─── COMMISSION CALC ──────────────────────────────────
 function calcChain(sGaj,ch,projRate,bk,cl,bonusOverride){
+  if(!ch||!ch.length)return [];
+  if(!sGaj||sGaj<0)sGaj=0; // Zero/negative gaj protection
   var rPct=(bonusOverride!==undefined)?bonusOverride:rInc(projRate);
   var d=daysBetween(bk,cl);
   var cPct=closingPct(d);
@@ -479,7 +546,10 @@ var r3F='';
 var r4ProjF='';
 var r4MonF='';
 var r4AssocF='';
-var r4Tab='assoc'; // assoc | plot | leg
+var r4Tab='assoc'; // assoc | plot | leg | pay
+var r4PaySearch='';
+var r4PayStatus=''; // '' | pending | paid | partial
+var r4PayAssoc=''; // selected associate for detail view
 var r4SecF='';     // leg tab: sector/location filter
 var r4LegAssocF=''; // leg tab: specific associate filter
 var r1F='';  // report1 search filter
@@ -899,6 +969,660 @@ window.deleteBonusEntry=function(projId,bi){
 };
 // ──────────────────────────────────────────────────────────
 
+
+// ═══════════════════════════════════════════════════════
+// PAYMENT TRACKER
+// ═══════════════════════════════════════════════════════
+function rpt4Pay(){
+  if(!D.payments)D.payments=[];
+
+  // Associate detail view
+  if(r4PayAssoc){return rpt4PayDetail(r4PayAssoc);}
+
+  // ── Build associate commission summary ──
+  var assocPay={};
+  D.sales.forEach(function(sl){
+    var allCm=(sl.commissions||[]).concat((sl.defCommissions||[]).map(function(d){return {id:d.id,name:d.name,total:d.amount||0};}));
+    allCm.forEach(function(cm){
+      if(!cm.id||!cm.total)return;
+      if(!assocPay[cm.id])assocPay[cm.id]={id:cm.id,name:cm.name,total:0};
+      assocPay[cm.id].total+=cm.total||0;
+    });
+  });
+
+  // Merge with actual payments
+  var paidMap={};
+  D.payments.forEach(function(p){
+    if(!paidMap[p.assocId])paidMap[p.assocId]=0;
+    paidMap[p.assocId]+=(p.paid||p.amount||0);
+  });
+
+  var rows=Object.values(assocPay).map(function(a){
+    var paid=paidMap[a.id]||0;
+    var pending=Math.max(0,a.total-paid);
+    var status=paid<=0?'pending':pending<=0?'paid':'partial';
+    return Object.assign({},a,{paid:paid,pending:pending,status:status});
+  }).filter(function(a){return a.total>0;});
+
+  // Search filter
+  var q=r4PaySearch.toLowerCase();
+  if(q)rows=rows.filter(function(a){return a.name.toLowerCase().includes(q);});
+  if(r4PayStatus)rows=rows.filter(function(a){return a.status===r4PayStatus;});
+  rows.sort(function(a,b){return a.name.localeCompare(b.name);});
+
+  // Summary
+  var totComm=rows.reduce(function(t,a){return t+a.total;},0);
+  var totPaid=rows.reduce(function(t,a){return t+a.paid;},0);
+  var totPending=rows.reduce(function(t,a){return t+a.pending;},0);
+  var pendCount=rows.filter(function(a){return a.status!=='paid';}).length;
+
+  var html='';
+
+  // Summary cards
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px">';
+  html+='<div class="stat"><div class="sl">💰 Total Commission</div><div class="sv">₹'+fmtL(totComm)+'</div></div>';
+  html+='<div class="stat" style="border-left:3px solid var(--gr)"><div class="sl">✅ Total Paid</div><div class="sv" style="color:var(--gr)">₹'+fmtL(totPaid)+'</div></div>';
+  html+='<div class="stat" style="border-left:3px solid var(--am)"><div class="sl">🟡 Pending</div><div class="sv" style="color:var(--am)">₹'+fmtL(totPending)+'<div style="font-size:10px">('+pendCount+' associates)</div></div></div>';
+  html+='</div>';
+
+  // Filters
+  html+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'
+    +'<input type="text" placeholder="🔍 Associate search..." value="'+esc(r4PaySearch)+'" oninput="r4PaySearch=this.value;render()" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
+    +'<select onchange="r4PayStatus=this.value;render()" style="font-size:13px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)">'
+    +'<option value="">All Status</option>'
+    +'<option value="pending"'+(r4PayStatus==='pending'?' selected':'')+'>🟡 Pending</option>'
+    +'<option value="partial"'+(r4PayStatus==='partial'?' selected':'')+'>🔵 Partial</option>'
+    +'<option value="paid"'+(r4PayStatus==='paid'?' selected':'')+'>✅ Paid</option>'
+    +'</select>'
+    +(r4PaySearch||r4PayStatus?'<button class="btn bgh bsm" onclick="clearPayFilters()">✕ Clear</button>':'')
+    +'</div>';
+
+  if(!rows.length){
+    return html+'<div class="empty">Koi commission data nahi mila</div>';
+  }
+
+  // Table
+  html+='<div class="tw"><table><thead><tr>'
+    +'<th>#</th><th>Associate</th><th>Total Commission</th><th>Paid</th><th>Pending</th><th>Status</th><th>Action</th>'
+    +'</tr></thead><tbody>';
+
+  rows.forEach(function(a,i){
+    var statusBadge=a.status==='paid'
+      ?'<span class="badge bgn">✅ Paid</span>'
+      :a.status==='partial'
+      ?'<span class="badge bbl2">🔵 Partial</span>'
+      :'<span class="badge bam">🟡 Pending</span>';
+
+    var lastPay=D.payments.filter(function(p){return p.assocId===a.id;}).sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');});
+    var lastDate=lastPay.length?lastPay[0].payDate:'—';
+
+    html+='<tr>'
+      +'<td style="color:var(--t3)">'+(i+1)+'</td>'
+      +'<td><b data-aid="'+a.id+'" onclick="r4PayAssoc=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
+      +'<div style="font-size:10px;color:var(--t3)">Last pay: '+lastDate+'</div></td>'
+      +'<td style="font-weight:700">₹'+fmt(a.total)+'</td>'
+      +'<td style="color:var(--gr);font-weight:700">₹'+fmt(a.paid)+'</td>'
+      +'<td style="color:var(--am);font-weight:700">₹'+fmt(a.pending)+'</td>'
+      +'<td>'+statusBadge+'</td>'
+      +'<td>'
+      +'<button class="btn bbl bsm" data-aid="'+a.id+'" onclick="r4PayAssoc=this.dataset.aid;render()" style="margin-right:4px">📋 Detail</button>'
+      +(a.status!=='paid'?'<button class="btn bsm" data-aid="'+a.id+'" onclick="openMarkPaidModal(this.dataset.aid)" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr)">💳 Pay</button>':'')
+      +'</td>'
+      +'</tr>';
+  });
+
+  html+='</tbody></table></div>';
+  return html;
+}
+
+// ── ASSOCIATE PAYMENT DETAIL PAGE ──────────────────────
+function rpt4PayDetail(assocId){
+  var a=D.associates.find(function(x){return x.id===assocId;});
+  if(!a)return '<div class="empty">Associate nahi mila</div>';
+  if(!D.payments)D.payments=[];
+
+  // All sales where this associate is in commission/defence chain
+  var mySales=D.sales.filter(function(s){
+    return (s.commissions&&s.commissions.some(function(c){return c.id===assocId;}))
+      ||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===assocId;}));
+  });
+
+  // Group by month
+  var monthMap={};
+  mySales.forEach(function(s){
+    var mon=s.bookingDate?s.bookingDate.substr(0,7):'Unknown';
+    if(!monthMap[mon])monthMap[mon]={sales:[],total:0};
+    var cm=(s.commissions||[]).find(function(c){return c.id===assocId;});
+    var df=(s.defCommissions||[]).find(function(c){return c.id===assocId;});
+    var amt=(cm?cm.total:0)+(df?df.amount:0);
+    monthMap[mon].sales.push({s:s,amt:amt});
+    monthMap[mon].total+=amt;
+  });
+
+  var months=Object.keys(monthMap).sort().reverse();
+
+  // Payment history for this associate
+  var myPays=D.payments.filter(function(p){return p.assocId===assocId;}).sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');});
+  var totalPaid=myPays.reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
+  var totalComm=mySales.reduce(function(t,s){
+    var cm=(s.commissions||[]).find(function(c){return c.id===assocId;});
+    var df=(s.defCommissions||[]).find(function(c){return c.id===assocId;});
+    return t+(cm?cm.total:0)+(df?df.amount:0);
+  },0);
+  var totalPending=Math.max(0,totalComm-totalPaid);
+
+  var html='';
+
+  // Back button + header
+  html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'
+    +'<button class="btn bgh bsm" onclick="goBackPayList()">← Back</button>'
+    +'<h3 style="font-size:15px;font-weight:700">💳 '+esc(a.name)+' — Payment Details</h3>'
+    +'</div>';
+
+  // Associate info card
+  html+='<div class="card" style="margin-bottom:10px;padding:10px 14px">'
+    +'<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px">'
+    +'<div><div style="font-size:11px;color:var(--t3)">Phone</div><div style="font-size:13px;font-weight:500">'+( a.phone||'—')+'</div></div>'
+    +'<div><div style="font-size:11px;color:var(--t3)">Bank</div><div style="font-size:13px;font-weight:500">'+(a.bankName||'—')+'</div></div>'
+    +'<div><div style="font-size:11px;color:var(--t3)">Account No</div><div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:4px">'+(a.accNo||'—')
+    +(a.accNo?'<button class="btn bsm" data-copy="'+esc(a.accNo||'')+'" onclick="navigator.clipboard.writeText(this.dataset.copy);toast(\'Copied!\')" style="font-size:10px;padding:1px 6px">📋</button>':'')
+    +'</div></div>'
+    +'<div><div style="font-size:11px;color:var(--t3)">IFSC</div><div style="font-size:13px;font-weight:500;display:flex;align-items:center;gap:4px">'+(a.ifsc||'—')
+    +(a.ifsc?'<button class="btn bsm" data-copy="'+esc(a.ifsc||'')+'" onclick="navigator.clipboard.writeText(this.dataset.copy);toast(\'Copied!\')" style="font-size:10px;padding:1px 6px">📋</button>':'')
+    +'</div></div>'
+    +'</div></div>';
+
+  // Summary row
+  html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:12px">'
+    +'<div class="stat"><div class="sl">Total Commission</div><div class="sv">₹'+fmt(totalComm)+'</div></div>'
+    +'<div class="stat" style="border-left:3px solid var(--gr)"><div class="sl">✅ Paid</div><div class="sv" style="color:var(--gr)">₹'+fmt(totalPaid)+'</div></div>'
+    +'<div class="stat" style="border-left:3px solid var(--am)"><div class="sl">🟡 Pending</div><div class="sv" style="color:var(--am)">₹'+fmt(totalPending)+'</div></div>'
+    +'</div>';
+
+  // Month-wise table
+  html+='<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--bl)">📅 Month-wise Commission</div>';
+  html+='<div class="tw" style="margin-bottom:14px"><table><thead><tr>'
+    +'<th>Month</th><th>Plots</th><th>Commission</th><th>Action</th>'
+    +'</tr></thead><tbody>';
+
+  months.forEach(function(mon){
+    var mg=monthMap[mon];
+    var monPaid=myPays.filter(function(p){return p.month===mon;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
+    var monPending=Math.max(0,mg.total-monPaid);
+    var isPaid=monPending<=0;
+    var plotList=mg.sales.map(function(x){return esc(x.s.plotNo);}).join(', ');
+
+    html+='<tr>'
+      +'<td style="font-weight:600">'+mon+'</td>'
+      +'<td style="font-size:12px;color:var(--t2)">'+plotList+'</td>'
+      +'<td>'
+      +'<div style="font-weight:700">₹'+fmt(mg.total)+'</div>'
+      +(monPaid>0?'<div style="font-size:11px;color:var(--gr)">Paid: ₹'+fmt(monPaid)+'</div>':'')
+      +(monPending>0?'<div style="font-size:11px;color:var(--am)">Pending: ₹'+fmt(monPending)+'</div>':'')
+      +'</td>'
+      +'<td>'
+      +(isPaid
+        ?'<span class="badge bgn">✅ Paid</span>'
+        :'<button class="btn bsm" data-aid="'+assocId+'" data-mon="'+mon+'" data-amt="'+monPending+'" onclick="openMarkPaidModal(this.dataset.aid,this.dataset.mon,parseFloat(this.dataset.amt))" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr)">💳 Mark Paid</button>')
+      +'</td>'
+      +'</tr>';
+  });
+
+  html+='</tbody></table></div>';
+
+  // Payment History
+  if(myPays.length>0){
+    html+='<div style="font-size:13px;font-weight:700;margin-bottom:8px;color:var(--bl)">📜 Payment History</div>';
+    html+='<div class="tw"><table><thead><tr>'
+      +'<th>Date</th><th>Month</th><th>Amount</th><th>Mode</th><th>UTR / Ref</th><th>Note</th><th>By</th>'
+      +'</tr></thead><tbody>';
+    myPays.forEach(function(p){
+      html+='<tr>'
+        +'<td style="font-size:12px">'+( p.payDate||'—')+'</td>'
+        +'<td style="font-size:12px">'+( p.month||'—')+'</td>'
+        +'<td style="font-weight:700;color:var(--gr)">₹'+fmt(p.paid||p.amount||0)+'</td>'
+        +'<td><span class="badge bbl2">'+( p.mode||'—')+'</span></td>'
+        +'<td style="font-size:12px;font-family:monospace">'+( p.utr||'—')+'</td>'
+        +'<td style="font-size:12px;color:var(--t2)">'+( p.note||'—')+'</td>'
+        +'<td style="font-size:11px;color:var(--t3)">'+( p.markedBy||'Admin')+'</td>'
+        +'</tr>';
+    });
+    html+='</tbody></table></div>';
+  }
+
+  return html;
+}
+
+// ── MARK PAID MODAL ─────────────────────────────────────
+window.openMarkPaidModal=function(assocId,month,pendingAmt){
+  var a=D.associates.find(function(x){return x.id===assocId;});
+  if(!a)return;
+  if(!D.payments)D.payments=[];
+
+  // Calculate pending if not passed
+  if(!pendingAmt){
+    var mySales=D.sales.filter(function(s){
+      return (s.commissions&&s.commissions.some(function(c){return c.id===assocId;}))
+        ||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===assocId;}));
+    });
+    var totalComm=mySales.reduce(function(t,s){
+      var cm=(s.commissions||[]).find(function(c){return c.id===assocId;});
+      var df=(s.defCommissions||[]).find(function(c){return c.id===assocId;});
+      return t+(cm?cm.total:0)+(df?df.amount:0);
+    },0);
+    var totalPaid=D.payments.filter(function(p){return p.assocId===assocId;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
+    pendingAmt=Math.max(0,totalComm-totalPaid);
+  }
+
+  var today=new Date().toISOString().slice(0,10);
+  // Get sales for this month
+  var saleIds=month?D.sales.filter(function(s){
+    return s.bookingDate&&s.bookingDate.startsWith(month)
+      &&((s.commissions&&s.commissions.some(function(c){return c.id===assocId;}))
+       ||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===assocId;})));
+  }).map(function(s){return s.id;}):[];
+
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">💳 Payment Mark Karo</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
+    +'<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:14px">'
+    +'<div style="font-weight:600;font-size:14px">'+esc(a.name)+'</div>'
+    +(month?'<div style="font-size:12px;color:var(--t2)">Month: <b>'+month+'</b></div>':'')
+    +'<div style="font-size:13px;color:var(--am);margin-top:4px">Pending Amount: <b>₹'+fmt(pendingAmt)+'</b></div>'
+    +'</div>'
+    +'<div class="g2" style="margin-bottom:12px">'
+    +'<div class="fld"><label>Payment Mode *</label>'
+    +'<select id="pmMode" style="font-size:13px">'
+    +'<option value="Online">🌐 Online (NEFT/IMPS)</option>'
+    +'<option value="UPI">📱 UPI</option>'
+    +'<option value="Cash">💵 Cash</option>'
+    +'<option value="NEFT">🏦 NEFT</option>'
+    +'<option value="IMPS">⚡ IMPS</option>'
+    +'<option value="Cheque">📄 Cheque</option>'
+    +'</select></div>'
+    +'<div class="fld"><label>Payment Date *</label>'
+    +'<input type="date" id="pmDate" value="'+today+'" max="'+today+'"/></div>'
+    +'<div class="fld"><label>Amount *</label>'
+    +'<input type="number" id="pmAmt" value="'+pendingAmt+'" min="1" step="0.01" placeholder="₹ Amount"/></div>'
+    +'<div class="fld"><label>UTR / Ref No <span style="color:var(--t3)">(Cash ke liye optional)</span></label>'
+    +'<input id="pmUtr" placeholder="e.g. 4521XXXXXXXX"/></div>'
+    +'<div class="fld" style="grid-column:1/-1"><label>Note (optional)</label>'
+    +'<input id="pmNote" placeholder="e.g. Monthly payment, advance ke against..."/></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;align-items:center">'
+    +'<button class="btn bbl" id="pmSaveBtn" data-aid="'+assocId+'" data-mon="'+(month||'')+'" data-sids="'+saleIds.join(',')+'" onclick="savePayment(this)">💾 Save Payment</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
+    +'</div>';
+
+  openM(html);
+};
+
+window.goBackPayList=function(){r4PayAssoc='';render();}
+window.clearPayFilters=function(){r4PaySearch='';r4PayStatus='';render();}
+window.savePayment=function(btn){
+  var assocId=btn.dataset.aid;
+  var month=btn.dataset.mon;
+  var saleIds=(btn.dataset.sids||'').split(',').filter(Boolean);
+  var mode=(document.getElementById('pmMode')||{}).value||'Online';
+  var payDate=(document.getElementById('pmDate')||{}).value||new Date().toISOString().slice(0,10);
+  var amt=parseFloat((document.getElementById('pmAmt')||{}).value||'0');
+  var utr=((document.getElementById('pmUtr')||{}).value||'').trim();
+  var note=((document.getElementById('pmNote')||{}).value||'').trim();
+
+  if(!amt||amt<=0){toast('Amount daalo!',false);return;}
+
+  if(!D.payments)D.payments=[];
+  D.payments.push({
+    id:'_pay'+Date.now(),
+    assocId:assocId,
+    assocName:(D.associates.find(function(x){return x.id===assocId;})||{}).name||'',
+    month:month,
+    saleIds:saleIds,
+    paid:amt,
+    amount:amt,
+    pending:0,
+    mode:mode,
+    payDate:payDate,
+    utr:utr,
+    note:note,
+    markedBy:SESSION?SESSION.name:'Admin',
+    createdAt:new Date().toISOString()
+  });
+
+  saveD();
+  closeM();
+
+  // WhatsApp message ready
+  var a=D.associates.find(function(x){return x.id===assocId;});
+  var waNum=a&&a.phone?a.phone.replace(/[^0-9]/g,''):'';
+  if(waNum.length===10)waNum='91'+waNum;
+  var msg='Namaste '+((a&&a.name)||'')+'ji,\\n\\nAapka'+(month?' '+month:'')+' commission payment ho gaya hai.\\n\\nAmount: Rs.'+fmt(amt)+'\\nMode: '+mode+(utr?'\\nUTR/Ref: '+utr:'')+'\\nDate: '+payDate+'\\n\\n— TrueStars Real Estate';
+
+  toast('✅ Payment saved!'+(waNum?' WhatsApp bhejo:':''));
+
+  if(waNum){
+    setTimeout(function(){
+      if(confirm('WhatsApp slip bhejna hai '+((a&&a.name)||'')+' ko?')){
+        window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
+      }
+    },300);
+  }
+
+  render();
+};
+
+// ── PAYMENT EXCEL EXPORT ────────────────────────────────
+function expPayReport(){
+  if(!D.payments||!D.payments.length){toast('Koi payment record nahi hai!',false);return;}
+  var rows=[['#','Associate','Month','Amount (Rs.)','Mode','UTR/Ref','Payment Date','Note','Marked By']];
+  D.payments.slice().sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');}).forEach(function(p,i){
+    rows.push([i+1,p.assocName||'',p.month||'',p.paid||p.amount||0,p.mode||'',p.utr||'',p.payDate||'',p.note||'',p.markedBy||'']);
+  });
+  var wb=XLSX.utils.book_new();
+  var ws=XLSX.utils.aoa_to_sheet(rows);
+  XLSX.utils.book_append_sheet(wb,'Payment Report',ws);
+  XLSX.writeFile(wb,'TrueStars_Payment_Report.xlsx');
+}
+// ──────────────────────────────────────────────────────────
+
+
+window.cleanOldDeleted=function(days){
+  var msg=days>0
+    ?days+' din se purane deleted items permanently delete karna chahte ho? Yeh restore nahi ho sakenge!'
+    :'Saare deleted items permanently delete karna chahte ho? Yeh restore nahi ho sakenge!';
+  if(!confirm(msg))return;
+  if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
+  var before=(D.deleted.associates||[]).length+(D.deleted.sales||[]).length+(D.deleted.projects||[]).length;
+  if(days>0){
+    var cutoff=new Date(Date.now()-days*24*60*60*1000).toISOString();
+    D.deleted.associates=(D.deleted.associates||[]).filter(function(x){return !x.deletedAt||x.deletedAt>=cutoff;});
+    D.deleted.sales=(D.deleted.sales||[]).filter(function(x){return !x.deletedAt||x.deletedAt>=cutoff;});
+    D.deleted.projects=(D.deleted.projects||[]).filter(function(x){return !x.deletedAt||x.deletedAt>=cutoff;});
+  } else {
+    D.deleted={associates:[],sales:[],projects:[]};
+  }
+  var after=(D.deleted.associates||[]).length+(D.deleted.sales||[]).length+(D.deleted.projects||[]).length;
+  var removed=before-after;
+  saveD();
+  toast('✅ '+removed+' items permanently delete ho gaye. ~'+Math.round(removed*0.5)+' KB free hua!');
+  render();
+};
+
+// ═══════════════════════════════════════════════════════
+// DATA INTEGRITY SCANNER
+// ═══════════════════════════════════════════════════════
+window.confirmRunScanner=function(){
+  var totalRecords=D.associates.length+D.sales.length+(D.payments||[]).length;
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">🔍 Data Integrity Scanner</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
+    +'<div class="info iam" style="margin-bottom:14px">'
+    +'<b>⚠️ Scan shuru karne se pehle jaano:</b>'
+    +'<ul style="margin:8px 0 0 16px;font-size:12px;line-height:1.8">'
+    +'<li>Yeh scan <b>read-only</b> hai — koi data change nahi hoga</li>'
+    +'<li>Auto-fix karne pe <b>data change hoga</b> — pehle backup lo</li>'
+    +'<li><b>'+totalRecords+' records</b> scan honge (Associates + Sales + Payments)</li>'
+    +'<li>Scan complete hone mein <b>1-2 seconds</b> lagenge</li>'
+    +'</ul></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn bbl" onclick="closeM();runIntegrityScanner()">✅ Samajh gaya — Scan Karo</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
+    +'</div>';
+  openM(html);
+};
+
+window.runIntegrityScanner=function(){
+  var issues=[];
+  var warnings=[];
+
+  // ── CHECK 1: Associate totalGaj vs actual sales ──
+  D.associates.forEach(function(a){
+    var actualGaj=D.sales.filter(function(s){
+      return s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;});
+    }).reduce(function(t,s){return t+(s.plotGaj||0);},0);
+    // Add defence sales gaj
+    var defGaj=D.sales.filter(function(s){
+      return s.defCommissions&&s.defCommissions.some(function(cm){return cm.id===a.id;})
+        &&!(s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;}));
+    }).reduce(function(t,s){return t+(s.plotGaj||0);},0);
+    var totalActual=actualGaj+defGaj;
+    var stored=Math.round((a.totalGaj||0)*100)/100;
+    var actual=Math.round(totalActual*100)/100;
+    if(Math.abs(stored-actual)>0.1){
+      issues.push({
+        type:'gaj_mismatch',cat:'associate',severity:'high',
+        id:a.id,name:a.name,
+        msg:'totalGaj mismatch: stored='+stored+', actual sales='+actual,
+        fix:{field:'totalGaj',correctVal:actual}
+      });
+    }
+  });
+
+  // ── CHECK 2: Orphan parentId ──
+  D.associates.forEach(function(a){
+    if(a.parentId){
+      var exists=D.associates.find(function(x){return x.id===a.parentId;});
+      if(!exists){
+        issues.push({
+          type:'orphan_parent',cat:'associate',severity:'medium',
+          id:a.id,name:a.name,
+          msg:'Upliner (parentId='+a.parentId+') exist nahi karta',
+          fix:{field:'parentId',correctVal:null}
+        });
+      }
+    }
+  });
+
+  // ── CHECK 3: Circular hierarchy ──
+  D.associates.forEach(function(a){
+    var visited={};
+    var cur=a;
+    while(cur&&cur.parentId){
+      if(visited[cur.id]){
+        issues.push({
+          type:'circular',cat:'associate',severity:'critical',
+          id:a.id,name:a.name,
+          msg:'Circular hierarchy detected! Loop mein hai.',
+          fix:{field:'parentId',correctVal:null}
+        });
+        break;
+      }
+      visited[cur.id]=true;
+      cur=D.associates.find(function(x){return x.id===cur.parentId;});
+    }
+  });
+
+  // ── CHECK 4: Duplicate phone ──
+  var phoneMap={};
+  D.associates.forEach(function(a){
+    if(a.phone&&a.phone.trim()){
+      var ph=a.phone.replace(/\D/g,'');
+      if(ph.length>=10){
+        if(phoneMap[ph]){
+          warnings.push({
+            type:'dup_phone',cat:'associate',severity:'low',
+            id:a.id,name:a.name,
+            msg:'Duplicate phone '+a.phone+' (same as '+phoneMap[ph]+')'
+          });
+        } else {
+          phoneMap[ph]=a.name;
+        }
+      }
+    }
+  });
+
+  // ── CHECK 5: Duplicate PAN ──
+  var panMap={};
+  D.associates.forEach(function(a){
+    if(a.pan&&a.pan.trim()){
+      var pan=a.pan.trim().toUpperCase();
+      if(panMap[pan]){
+        warnings.push({
+          type:'dup_pan',cat:'associate',severity:'medium',
+          id:a.id,name:a.name,
+          msg:'Duplicate PAN '+pan+' (same as '+panMap[pan]+')'
+        });
+      } else {
+        panMap[pan]=a.name;
+      }
+    }
+  });
+
+  // ── CHECK 6: Sale orphan (project/plot missing) ──
+  D.sales.forEach(function(s){
+    var proj=D.projects.find(function(p){return p.id===s.projId;});
+    if(!proj){
+      issues.push({
+        type:'orphan_sale_proj',cat:'sale',severity:'high',
+        id:s.id,name:s.projName+' Plot '+s.plotNo,
+        msg:'Project ('+s.projId+') exist nahi karta'
+      });
+    }
+    if(!s.sellerId||!D.associates.find(function(a){return a.id===s.sellerId;})){
+      warnings.push({
+        type:'orphan_seller',cat:'sale',severity:'medium',
+        id:s.id,name:s.projName+' Plot '+s.plotNo,
+        msg:'Seller associate ('+s.sellerId+') exist nahi karta'
+      });
+    }
+  });
+
+  // ── CHECK 7: Date mismatch ──
+  D.sales.forEach(function(s){
+    if(s.bookingDate&&s.closeDate&&s.closeDate<s.bookingDate){
+      issues.push({
+        type:'date_mismatch',cat:'sale',severity:'medium',
+        id:s.id,name:s.projName+' Plot '+s.plotNo,
+        msg:'Closing date ('+s.closeDate+') booking date ('+s.bookingDate+') se pehle hai!'
+      });
+    }
+  });
+
+  // ── CHECK 8: Payment stale saleIds ──
+  if(D.payments&&D.payments.length){
+    D.payments.forEach(function(p){
+      var stale=(p.saleIds||[]).filter(function(sid){
+        return !D.sales.find(function(s){return s.id===sid;});
+      });
+      if(stale.length>0){
+        warnings.push({
+          type:'stale_payment',cat:'payment',severity:'low',
+          id:p.id,name:p.assocName+' ('+p.month+')',
+          msg:stale.length+' deleted sale ke payment records hain',
+          fix:{removeSaleIds:stale}
+        });
+      }
+    });
+  }
+
+  // ── RENDER RESULT ──
+  var el=document.getElementById('scannerResult');
+  if(!el){
+    // Show in modal if called from modal
+    showScannerResult(issues,warnings);
+    return;
+  }
+  el.style.display='block';
+  
+  var totalIssues=issues.length+warnings.length;
+  if(totalIssues===0){
+    el.innerHTML='<div class="info igr" style="display:flex;align-items:center;gap:10px">'
+      +'<span style="font-size:24px">✅</span>'
+      +'<div><b>Sab theek hai!</b><div style="font-size:12px">'+D.associates.length+' associates, '+D.sales.length+' sales, '+(D.payments||[]).length+' payments — koi issue nahi mili.</div></div>'
+      +'</div>';
+    return;
+  }
+
+  var html='';
+  // Summary
+  html+='<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:10px">'
+    +'<div style="background:var(--reb);border-radius:8px;padding:8px;text-align:center">'
+    +'<div style="font-size:18px;font-weight:700;color:var(--re)">'+issues.filter(function(i){return i.severity==='critical';}).length+'</div>'
+    +'<div style="font-size:11px;color:var(--re)">Critical</div></div>'
+    +'<div style="background:var(--amb);border-radius:8px;padding:8px;text-align:center">'
+    +'<div style="font-size:18px;font-weight:700;color:var(--am)">'+issues.filter(function(i){return i.severity!=='critical';}).length+'</div>'
+    +'<div style="font-size:11px;color:var(--am)">Issues</div></div>'
+    +'<div style="background:var(--blb);border-radius:8px;padding:8px;text-align:center">'
+    +'<div style="font-size:18px;font-weight:700;color:var(--bl)">'+warnings.length+'</div>'
+    +'<div style="font-size:11px;color:var(--bl)">Warnings</div></div>'
+    +'</div>';
+
+  // Auto-fix button if fixable issues exist
+  var fixable=issues.filter(function(i){return i.fix;});
+  if(fixable.length>0){
+    html+='<button class="btn bsm" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr);margin-bottom:10px;width:100%" '
+      +'onclick="autoFixIssues()">🔧 Auto Fix Karo ('+fixable.length+' issues)</button>';
+    // Store issues globally for auto-fix
+    window._scanIssues=issues;
+    window._scanWarnings=warnings;
+  }
+
+  // Issues list
+  if(issues.length>0){
+    html+='<div style="font-size:12px;font-weight:700;color:var(--re);margin-bottom:6px">❌ Issues ('+issues.length+')</div>';
+    issues.forEach(function(issue){
+      html+='<div style="background:var(--reb);border:1px solid var(--re);border-radius:8px;padding:8px 10px;margin-bottom:5px;font-size:12px">'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
+        +'<div><b style="color:var(--re)">'+esc(issue.name)+'</b>'
+        +'<div style="color:var(--t2);margin-top:2px">'+issue.msg+'</div></div>'
+        +'<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--re);color:#fff;white-space:nowrap;margin-left:8px;flex-shrink:0">'
+        +(issue.severity==='critical'?'🚨 Critical':issue.severity==='high'?'🔴 High':'🟡 Medium')+'</span>'
+        +'</div></div>';
+    });
+  }
+
+  // Warnings list
+  if(warnings.length>0){
+    html+='<div style="font-size:12px;font-weight:700;color:var(--bl);margin:8px 0 6px">⚠️ Warnings ('+warnings.length+')</div>';
+    warnings.forEach(function(w){
+      html+='<div style="background:var(--blb);border:1px solid var(--bl);border-radius:8px;padding:8px 10px;margin-bottom:5px;font-size:12px">'
+        +'<b style="color:var(--bl)">'+esc(w.name)+'</b>'
+        +'<div style="color:var(--t2);margin-top:2px">'+w.msg+'</div>'
+        +'</div>';
+    });
+  }
+
+  el.innerHTML=html;
+};
+
+window.autoFixIssues=function(){
+  var issues=window._scanIssues||[];
+  var fixable=issues.filter(function(i){return i.fix;});
+  if(!fixable.length){toast('Koi fixable issue nahi!',false);return;}
+  if(!confirm('⚠️ '+fixable.length+' issues auto-fix hongi — data change hoga. Backup liya hai? Continue?'))return;
+
+  var fixed=0;
+  fixable.forEach(function(issue){
+    if(issue.cat==='associate'){
+      var ai=D.associates.findIndex(function(a){return a.id===issue.id;});
+      if(ai<0)return;
+      if(issue.fix.field==='totalGaj'){
+        D.associates[ai].totalGaj=Math.round(issue.fix.correctVal*100)/100;
+        fixed++;
+      } else if(issue.fix.field==='parentId'){
+        D.associates[ai].parentId=issue.fix.correctVal;
+        fixed++;
+      }
+    } else if(issue.cat==='payment'&&issue.fix.removeSaleIds){
+      var pi=D.payments.findIndex(function(p){return p.id===issue.id;});
+      if(pi>=0){
+        D.payments[pi].saleIds=(D.payments[pi].saleIds||[]).filter(function(sid){
+          return !issue.fix.removeSaleIds.includes(sid);
+        });
+        fixed++;
+      }
+    }
+  });
+
+  saveD();
+  toast('✅ '+fixed+' issues fix ho gayi! Re-scan karo confirm karne ke liye.');
+  // Re-run scanner
+  window._scanIssues=[];
+  window._scanWarnings=[];
+  runIntegrityScanner();
+};
+// ──────────────────────────────────────────────────────────
+
 // ─── RENDER ───────────────────────────────────────────
 function render(){
   if(!SESSION){showLoginScreen();return;}
@@ -969,6 +1693,7 @@ function restoreData(file){
       D=imported;
       if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(!D.transfers)D.transfers=[];
+      if(!D.payments)D.payments=[];
       saveD();
       toast('✅ Data restored! Projects:'+D.projects.length+' Associates:'+D.associates.length+' Sales:'+D.sales.length);
       TAB='dashboard';render();
@@ -985,6 +1710,7 @@ function pgSettings(){
   var html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
     +'<h2 style="font-size:16px;font-weight:700;color:var(--tx)">⚙️ Settings</h2>'
     +'<span id="fbStatusBadge" style="font-size:11px;font-weight:600;padding:3px 10px;border-radius:20px;background:var(--grb);color:var(--gr)">☁️ Firebase Synced</span>'
+    +(function(){var kb=Math.round(JSON.stringify(D).length/1024);var pct=Math.round(kb/1024*100);return '<span style="font-size:11px;padding:3px 10px;border-radius:20px;background:'+(pct>80?'var(--reb)':pct>50?'var(--amb)':'var(--bg2)')+';color:'+(pct>80?'var(--re)':pct>50?'var(--am)':'var(--t2)')+'">💾 ~'+kb+' KB / 1024 KB ('+pct+'%)</span>';}())
     +'</div>';
 
   // ── Staff Management ──
@@ -1025,9 +1751,28 @@ function pgSettings(){
   var totalDel=(del.associates||[]).length+(del.sales||[]).length+(del.projects||[]).length;
   if(totalDel>0){
     html+='<div class="card" style="margin-bottom:12px">';
-    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
-    html+='<div class="ct" style="margin:0">🗑️ Deleted Items <span style="font-size:12px;font-weight:400;color:var(--t2)">('+totalDel+' items)</span></div>';
-    html+='</div>';
+    // Calculate deleted data size estimate
+    var delSize=Math.round(JSON.stringify(del).length/1024);
+    var totalDataSize=Math.round(JSON.stringify(D).length/1024);
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
+    html+='<div class="ct" style="margin:0">🗑️ Deleted Items <span style="font-size:12px;font-weight:400;color:var(--t2)">('+totalDel+' items · ~'+delSize+' KB)</span></div>';
+    html+='<div style="display:flex;gap:6px;align-items:center">';
+    // Old entries (30+ days) count
+    var thirtyDaysAgo=new Date(Date.now()-30*24*60*60*1000).toISOString();
+    var oldCount=(del.associates||[]).filter(function(x){return x.deletedAt<thirtyDaysAgo;}).length
+      +(del.sales||[]).filter(function(x){return x.deletedAt<thirtyDaysAgo;}).length
+      +(del.projects||[]).filter(function(x){return x.deletedAt<thirtyDaysAgo;}).length;
+    if(oldCount>0){
+      html+='<button class="btn bsm" style="background:var(--amb);color:var(--am);border:1px solid var(--am)" onclick="cleanOldDeleted(30)">🧹 30+ days ke '+oldCount+' items clean karo</button>';
+    }
+    html+='<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re)" onclick="cleanOldDeleted(0)">🗑️ Sab Clean Karo</button>';
+    html+='</div></div>';
+    // Data size warning
+    if(totalDataSize>400){
+      html+='<div class="info iam" style="margin-bottom:8px;font-size:12px">⚠️ Total data size: ~'+totalDataSize+' KB — Firebase 1MB limit se '+Math.round((totalDataSize/1024)*100)+'% use ho chuka hai. Purana data clean karo.</div>';
+    } else {
+      html+='<div class="info ibl" style="margin-bottom:8px;font-size:12px">✅ Total data size: ~'+totalDataSize+' KB / ~1024 KB (Firebase limit)</div>';
+    }
 
     // Deleted Associates
     if((del.associates||[]).length>0){
@@ -1066,6 +1811,16 @@ function pgSettings(){
     }
     html+='</div>';
   }
+
+  // ── Data Integrity Scanner ──
+  html+='<div class="card" style="margin-bottom:12px">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  html+='<div class="ct" style="margin:0">🔍 Data Integrity Scanner</div>';
+  html+='<button class="btn bbl bsm" onclick="confirmRunScanner()">▶ Run Check</button>';
+  html+='</div>';
+  html+='<div style="font-size:12px;color:var(--t2);margin-bottom:8px">Associates, Sales, Payments ka complete health check — mismatches, orphans, duplicates sab ek jagah.</div>';
+  html+='<div id="scannerResult" style="display:none"></div>';
+  html+='</div>';
 
   // ── Security Card ──
   html+='<div class="card" style="margin-bottom:12px">';
@@ -1858,17 +2613,47 @@ window.editAssoc=function(id){
 window.prvG=function(id){
   var a=D.associates.find(function(x){return x.id===id;});if(!a)return;
   var el=document.getElementById('eAG');
-  var v=a.totalGaj+parseFloat(el?el.value||0:0);
-  if(isNaN(v)||v<0){document.getElementById('gPrv').style.display='none';return;}
-  var oR=rOf(a.totalGaj),nR=rOf(v),up=nR>oR,pv=document.getElementById('gPrv');
-  pv.style.display='block';pv.style.background=up?'var(--grb)':'var(--blb)';
-  pv.style.border='1px solid '+(up?'var(--gr)':'var(--bl)');pv.style.color=up?'var(--gr)':'var(--bld)';
-  pv.innerHTML=a.totalGaj+' → <b>'+v+' gaj</b> | ₹'+oR+' → <b>₹'+nR+'/gaj</b>'+(up?' 🎉 Slab Upgrade!':'');
+  var inp=parseFloat(el?el.value||0:0);
+  var v=a.totalGaj+inp;
+  var pv=document.getElementById('gPrv');
+  if(!pv)return;
+  // Negative result warning
+  if(inp<0&&v<0){
+    pv.style.display='block';
+    pv.style.background='var(--reb)';
+    pv.style.border='1px solid var(--re)';
+    pv.style.color='var(--re)';
+    pv.innerHTML='⛔ Gaj negative nahi ho sakta! Current: <b>'+a.totalGaj+'</b>, Input: <b>'+inp+'</b>, Result: <b>'+v+'</b>';
+    return;
+  }
+  if(isNaN(v)){pv.style.display='none';return;}
+  // Zero warning
+  if(v===0){
+    pv.style.display='block';
+    pv.style.background='var(--amb)';
+    pv.style.border='1px solid var(--am)';
+    pv.style.color='var(--am)';
+    pv.innerHTML='⚠️ Result 0 gaj hoga — associate Trainee slab pe aa jaayega!';
+    return;
+  }
+  // Normal preview
+  var oR=rOf(a.totalGaj),nR=rOf(v),up=nR>oR,down=nR<oR;
+  pv.style.display='block';
+  pv.style.background=up?'var(--grb)':down?'var(--reb)':'var(--blb)';
+  pv.style.border='1px solid '+(up?'var(--gr)':down?'var(--re)':'var(--bl)');
+  pv.style.color=up?'var(--gr)':down?'var(--re)':'var(--bld)';
+  pv.innerHTML=a.totalGaj+' → <b>'+v+' gaj</b> | ₹'+oR+' → <b>₹'+nR+'/gaj</b>'
+    +(up?' 🎉 Slab Upgrade!':down?' ⚠️ Slab Down hoga!':'');
 };
 window.doAG=function(id){
   var el=document.getElementById('eAG');
   var v=parseFloat(el?el.value:0);
-  if(isNaN(v)||v<=0){toast('Please enter a valid gaj value!',false);return;}
+  if(isNaN(v)||v===0){toast('Please enter a valid gaj value!',false);return;}
+  var a=D.associates.find(function(x){return x.id===id;});
+  if(a&&(a.totalGaj+v)<0){
+    toast('⛔ Gaj negative nahi ho sakta! Current: '+a.totalGaj+', Input: '+v+', Result: '+(a.totalGaj+v),false);
+    return;
+  }
   var i=D.associates.findIndex(function(x){return x.id===id;});if(i<0)return;
   var o=rOf(D.associates[i].totalGaj);
   // totalGaj badhao (slab for) — salesGaj nahi badhega (Tour/Tab for)
@@ -1903,7 +2688,15 @@ window.saveAInfo=function(id){
   D.associates[i].bankName=gv('eBnk');
   D.associates[i].accNo=gv('eAc');
   D.associates[i].ifsc=gv('eIfs');
-  D.associates[i].parentId=document.getElementById('ePr')?document.getElementById('ePr').value||null:null;
+  var newParentId=document.getElementById('ePr')?document.getElementById('ePr').value||null:null;
+  if(newParentId===id){toast('⛔ Associate apna khud upliner nahi ban sakta!',false);return;}
+  // Duplicate phone check (exclude self)
+  var ph2=(gv('ePh')||'').replace(/[^0-9]/g,'');
+  if(ph2.length>=10){
+    var dupP=D.associates.find(function(x){return x.id!==id&&x.phone&&x.phone.replace(/[^0-9]/g,'')===ph2;});
+    if(dupP){toast('⚠️ Yeh phone pehle se exist karta hai: '+dupP.name,false);return;}
+  }
+  D.associates[i].parentId=newParentId;
   saveD();logAct('Associate Update: '+n);toast('Info saved successfully! ✓');closeM();render();
 };
 // ── ASSOCIATE LEFT / TRANSFER ─────────────────────────
@@ -1977,14 +2770,19 @@ window.openTransferModal=function(){
   D.associates.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(a){
     aOpts+='<option value="'+a.id+'">'+a.name+(a.phone?' | '+a.phone:'')+(a.parentId?'':' (Top Level)')+'</option>';
   });
+  var today=new Date().toISOString().slice(0,10);
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     +'<b style="font-size:15px">🔄 Associate Left / Transfer</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div class="info iam" style="margin-bottom:14px;font-size:12px">'
-    +'Jo associate chhod ke gaya — uske <b>saare downline</b> automatically uske <b>parent ke neeche</b> shift ho jaayenge. Purani sales more commission bilkul safe rahegi.'
+    +'Jo associate chhod ke gaya — uske <b>saare downline</b> automatically uske <b>parent ke neeche</b> shift ho jaayenge. Left date se aage ki sales mein automatically scan hoga.'
     +'</div>'
-    +'<div class="fld" style="margin-bottom:12px"><label>Who Left? *</label>'
+    +'<div class="g2" style="margin-bottom:12px">'
+    +'<div class="fld"><label>Who Left? *</label>'
     +'<select id="trLeft" onchange="updateTransferPreview()">'+aOpts+'</select></div>'
+    +'<div class="fld"><label>Left Date * <span style="font-size:10px;color:var(--t3)">(Is date se pehle wali sales valid rahegi)</span></label>'
+    +'<input type="date" id="trLeftDate" value="'+today+'" max="'+today+'" onchange="updateTransferPreview()"/></div>'
+    +'</div>'
     +'<div id="trPreview" style="display:none;margin-bottom:14px"></div>'
     +'<div style="display:flex;gap:8px">'
     +'<button class="btn bgr" id="trBtn" onclick="doTransfer()" disabled style="opacity:.5">✅ Transfer</button>'
@@ -2005,26 +2803,52 @@ window.updateTransferPreview=function(){
   var directChildren=D.associates.filter(function(a){return a.parentId===leftId;});
   var totalDownline=getDownline(leftId).filter(function(a){return a.id!==leftId;});
 
-  var html='<div class="card" style="padding:12px 14px">'
-    +'<div style="font-size:12px;font-weight:700;color:var(--am);margin-bottom:10px">📋 Preview — What will happen:</div>'
+  var leftDate=(document.getElementById('trLeftDate')||{}).value||new Date().toISOString().slice(0,10);
 
-    // Left associate info
+  // Find affected sales — booking date > leftDate and associate is in chain
+  var affectedSales=D.sales.filter(function(s){
+    if(!s.bookingDate||s.bookingDate<=leftDate)return false;
+    var isSeller=s.sellerId===leftId;
+    var inChain=s.commissions&&s.commissions.some(function(cm){return cm.id===leftId;});
+    var inDef=s.defCommissions&&s.defCommissions.some(function(cm){return cm.id===leftId;});
+    return isSeller||inChain||inDef;
+  });
+
+  var html='<div class="card" style="padding:12px 14px">'
+    +'<div style="font-size:12px;font-weight:700;color:var(--am);margin-bottom:10px">📋 Preview — Kya hoga:</div>'
     +'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);margin-bottom:10px">'
     +'<div style="width:32px;height:32px;border-radius:50%;background:var(--re);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">'+leftA.name.charAt(0)+'</div>'
-    +'<div><div style="font-weight:700">'+leftA.name+' <span style="color:var(--re);font-size:11px">(Left)</span></div>'
-    +'<div style="font-size:11px;color:var(--t2)">'+leftA.phone+'  Gaj: '+leftA.totalGaj+'</div></div>'
+    +'<div><div style="font-weight:700">'+esc(leftA.name)+' <span style="color:var(--re);font-size:11px">(Left)</span></div>'
+    +'<div style="font-size:11px;color:var(--t2)">Left Date: <b>'+leftDate+'</b> | Phone: '+( leftA.phone||'—')+' | Gaj: '+leftA.totalGaj+'</div></div>'
     +'</div>'
-
-    // Arrow
     +'<div style="font-size:12px;margin-bottom:8px">'
-    +'<div>👤 <b>'+leftA.name+'</b> ka name <span style="color:var(--am)">→ "'+leftA.name+' (Left)"</span> ho jaayega</div>'
-    +'<div style="margin-top:6px">🔗 <b>'+directChildren.length+' direct children</b> (total downline: '+totalDownline.length+') '
-    +(newParent
-      ?'→ <span style="color:var(--gr)"><b>'+newParent.name+'</b> will shift under</span>'
-      :'→ <span style="color:var(--bl)"><b>Top Level</b> ban jaayenge</span>')
-    +'</div>'
-    +'<div style="margin-top:6px;color:var(--gr)">✅ Purani sales, gaj, commissions — <b>100% safe, koi change nahi</b></div>'
-    +'</div>';
+    +'<div>👤 <b>'+esc(leftA.name)+'</b> → <span style="color:var(--re)">"'+esc(leftA.name)+' (Left)"</span></div>'
+    +'<div style="margin-top:4px">🔗 <b>'+directChildren.length+' direct children</b> (downline: '+totalDownline.length+') '
+    +(newParent?'→ <b style="color:var(--gr)">'+esc(newParent.name)+'</b> ke neeche shift honge':'→ <b style="color:var(--bl)">Top Level</b> ban jaayenge')
+    +'</div></div>';
+
+  // Affected sales warning
+  if(affectedSales.length>0){
+    html+='<div style="background:var(--reb);border:1px solid var(--re);border-radius:8px;padding:10px 12px;margin-top:8px">'
+      +'<div style="font-size:12px;font-weight:700;color:var(--re);margin-bottom:8px">⚠️ '+affectedSales.length+' Sales mein '+esc(leftA.name)+' ka naam hai — Booking date '+leftDate+' ke baad:</div>';
+    affectedSales.slice(0,5).forEach(function(s){
+      var isSeller=s.sellerId===leftId;
+      html+='<div style="font-size:11px;padding:4px 0;border-bottom:.5px solid var(--re);display:flex;gap:8px;align-items:center">'
+        +'<span style="font-weight:700">'+esc(s.projName)+'</span>'
+        +'<span>Plot: <b>'+esc(s.plotNo)+'</b></span>'
+        +'<span>Booking: '+( s.bookingDate||'—')+'</span>'
+        +'<span class="badge" style="background:var(--reb);color:var(--re);font-size:10px">'+(isSeller?'SELLER':'CHAIN')+'</span>'
+        +'</div>';
+    });
+    if(affectedSales.length>5){
+      html+='<div style="font-size:11px;color:var(--re);margin-top:4px">...aur '+(affectedSales.length-5)+' aur sales</div>';
+    }
+    html+='<div style="font-size:11px;color:var(--re);margin-top:8px;font-weight:600">'
+      +'Transfer button dabane ke baad in sales ka automatic recalculation hoga.'
+      +'</div></div>';
+  } else {
+    html+='<div style="color:var(--gr);font-size:12px;margin-top:6px">✅ '+leftDate+' ke baad koi affected sale nahi mili.</div>';
+  }
 
   if(directChildren.length>0){
     html+='<div style="font-size:11px;color:var(--t2);margin-top:8px;border-top:1px solid var(--bd);padding-top:8px">'
@@ -2042,6 +2866,7 @@ window.updateTransferPreview=function(){
 window.doTransfer=function(){
   var leftId=(document.getElementById('trLeft')||{}).value||'';
   if(!leftId){toast('Please select an associate!',false);return;}
+  var leftDate=(document.getElementById('trLeftDate')||{}).value||new Date().toISOString().slice(0,10);
   var leftA=D.associates.find(function(a){return a.id===leftId;});
   if(!leftA){return;}
 
@@ -2055,15 +2880,70 @@ window.doTransfer=function(){
     if(ci>=0)D.associates[ci].parentId=newParentId;
   });
 
-  // Mark left associate name
+  // Mark left associate name + save left date
   var li=D.associates.findIndex(function(a){return a.id===leftId;});
-  if(li>=0&&!D.associates[li].name.includes('(Left)')){
-    D.associates[li].name=D.associates[li].name+' (Left)';
+  if(li>=0){
+    if(!D.associates[li].name.includes('(Left)'))
+      D.associates[li].name=D.associates[li].name+' (Left)';
+    D.associates[li].leftDate=leftDate;
   }
+
+  // ── Affected sales recalculate ──
+  var affected=D.sales.filter(function(s){
+    if(!s.bookingDate||s.bookingDate<=leftDate)return false;
+    var isSeller=s.sellerId===leftId;
+    var inChain=s.commissions&&s.commissions.some(function(cm){return cm.id===leftId;});
+    var inDef=s.defCommissions&&s.defCommissions.some(function(cm){return cm.id===leftId;});
+    return isSeller||inChain||inDef;
+  });
+
+  var recalcCount=0;
+  affected.forEach(function(s){
+    var si=D.sales.findIndex(function(x){return x.id===s.id;});
+    if(si<0)return;
+
+    var isSeller=s.sellerId===leftId;
+
+    if(isSeller){
+      // Seller left ho gaya — upar wale ko seller banao
+      var newSeller=newParentId?D.associates.find(function(a){return a.id===newParentId;}):null;
+      if(newSeller){
+        D.sales[si].sellerName=newSeller.name;
+        D.sales[si].sellerId=newSeller.id;
+      }
+    }
+
+    // Chain se leftId hatao + gaj reverse
+    var oldChain=s.commissions||[];
+    var newChain=oldChain.filter(function(cm){return cm.id!==leftId;});
+    var sGaj=s.plotGaj||0;
+
+    // Gaj reverse for left associate
+    var ai=D.associates.findIndex(function(a){return a.id===leftId;});
+    if(ai>=0){
+      D.associates[ai].totalGaj=Math.max(0,Math.round(((D.associates[ai].totalGaj||0)-sGaj)*100)/100);
+      D.associates[ai].salesGaj=Math.max(0,Math.round(((D.associates[ai].salesGaj||0)-sGaj)*100)/100);
+    }
+
+    // Defence se bhi hatao
+    var newDef=(s.defCommissions||[]).filter(function(cm){return cm.id!==leftId;});
+
+    D.sales[si].commissions=newChain;
+    D.sales[si].defCommissions=newDef;
+
+    // Recalculate totals
+    D.sales[si].chainTotal=newChain.reduce(function(t,cm){return t+(cm.total||0);},0);
+    D.sales[si].defTotal=newDef.reduce(function(t,cm){return t+(cm.amount||0);},0);
+
+    recalcCount++;
+  });
 
   saveD();
   closeM();
-  toast('✅ '+count+' associates shifted successfully! '+leftA.name+' marked as (Left).');
+  var msg='✅ '+leftA.name+' marked as Left ('+leftDate+')';
+  if(count>0)msg+=', '+count+' downline shifted';
+  if(recalcCount>0)msg+=', '+recalcCount+' sales recalculated';
+  toast(msg);
   render();
 };
 
@@ -2336,6 +3216,14 @@ function sS3(){
     +(c0.days!==null?'<span class="badge '+(c0.cPct>0?'bgn':c0.cPct<0?'bam':'bbl2')+'">'+c0.days+' din · '+(c0.cPct>0?'+10% Bonus':c0.cPct<0?'-10% Penalty':'Normal')+'</span>':'')
     +'</div>';
   
+  // Check for zero commission associates (same slab)
+  var zeroComm=sCh.filter(function(c){return c.total===0;});
+  if(zeroComm.length>0){
+    html+='<div class="info iam" style="margin-bottom:8px;font-size:12px">'
+      +'⚠️ <b>'+zeroComm.length+' associate(s) ko ₹0 commission milegi</b> — same slab pe hain (rate difference = 0): '
+      +zeroComm.map(function(c){return '<b>'+esc(c.name)+'</b>';}).join(', ')
+      +'<br>Agar yeh galat lagta hai to seller aur chain check karo.</div>';
+  }
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:6px">💰 Brokerage Detail</div>'
     +'<div class="tw" style="margin-bottom:12px"><table><thead><tr><th>Associate</th><th>Slab</th><th>Diff</th><th>Base ₹</th><th>Rate Bonus</th><th>Close Adj</th><th>Final ₹</th></tr></thead><tbody>';
   sCh.forEach(function(c,i){
@@ -2395,7 +3283,7 @@ function pgSalesRec(){
   var filtGaj=filtered.reduce(function(s,sl){return s+(sl.plotGaj||0);},0);
 
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
-    +'<h2 style="font-size:15px;font-weight:700">📋 Sales Record ('+D.sales.length+' total)</h2>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'+'<h2 style="font-size:15px;font-weight:700">📋 Sales Record ('+D.sales.length+' total)</h2>'+'<button class="btn bgh bsm no-print" onclick="window.print()">🖨️ Print</button>'+'</div>'
     +'</div>';
 
   // Filter bar
@@ -2555,11 +3443,48 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     var newBk=document.getElementById('esBk').value;
     var newCl=document.getElementById('esCl').value;
     if(newCl&&newBk&&new Date(newCl)<new Date(newBk)){toast('Closing date cannot be before booking date!',false);return;}
+    var s=D.sales[si];
+    var dateChanged=(newBk!==s.bookingDate)||(newCl!==s.closeDate);
+
+    // Basic fields update
     D.sales[si].partyName=document.getElementById('esParty').value.trim();
-    D.sales[si].bookingDate=newBk;
-    D.sales[si].closeDate=newCl;
     D.sales[si].remarks=document.getElementById('esRmk').value.trim();
-    saveD();logAct('Sale Edit: Proj '+D.sales.find(function(x){return x.id===saleId;})?D.sales.find(function(x){return x.id===saleId;}).projName:'');toast('Sale record updated successfully! ✓');closeM();render();
+
+    if(dateChanged){
+      // Recalculate commission with new dates
+      var proj=D.projects.find(function(p){return p.id===s.projId;});
+      var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===s.plotId;}):null;
+      var sGaj=plot?(plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj):(s.plotGaj||0);
+      var ch=getChain(s.sellerId);
+      var bonusPct=getProjBonus(proj,newBk||s.bookingDate);
+      var newChain=calcChain(sGaj,ch,0,newBk||s.bookingDate,newCl||s.closeDate,bonusPct);
+      var newDef=calcDef(ch,sGaj,newBk||s.bookingDate,newCl||s.closeDate);
+      var oldChainTotal=s.chainTotal||0;
+      var newChainTotal=newChain.reduce(function(t,c){return t+(c.total||0);},0);
+      var newDefTotal=newDef.reduce(function(t,c){return t+(c.amount||0);},0);
+
+      // Gaj difference update (gaj same rehta hai, commission change hoti hai)
+      D.sales[si].bookingDate=newBk;
+      D.sales[si].closeDate=newCl;
+      D.sales[si].commissions=newChain;
+      D.sales[si].defCommissions=newDef;
+      D.sales[si].chainTotal=newChainTotal;
+      D.sales[si].defTotal=newDefTotal;
+      D.sales[si].bonusPct=bonusPct;
+
+      var diff=newChainTotal-oldChainTotal;
+      var diffMsg=diff>0?'+₹'+fmt(diff)+' zyada':diff<0?'-₹'+fmt(Math.abs(diff))+' kam':'koi change nahi';
+      saveD();
+      logAct('Sale Edit + Recalc: '+s.projName+' Plot '+s.plotNo+' | Commission: '+diffMsg);
+      toast('✅ Sale updated! Commission recalculate ho gayi ('+diffMsg+')');
+    } else {
+      D.sales[si].bookingDate=newBk;
+      D.sales[si].closeDate=newCl;
+      saveD();
+      logAct('Sale Edit: '+s.projName+' | Plot '+s.plotNo);
+      toast('Sale record updated successfully! ✓');
+    }
+    closeM();render();
   });
 };
 
@@ -2583,6 +3508,33 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
     }
   });
   var _sd=D.sales.find(function(x){return x.id===saleId;});
+  // ── Payment reverse — is sale se linked payments adjust karo ──
+  if(!D.payments)D.payments=[];
+  var saleGaj=s.plotGaj||0;
+  D.payments.forEach(function(pay,pi){
+    if(!pay.saleIds||!pay.saleIds.includes(saleId))return;
+    // Is sale ki commission kaun kaun si thi
+    var salePays=(s.commissions||[]).filter(function(cm){return cm.id===pay.assocId;});
+    var saleAmt=salePays.reduce(function(t,cm){return t+(cm.total||0);},0);
+    // Defence bhi check karo
+    var defPays=(s.defCommissions||[]).filter(function(cm){return cm.id===pay.assocId;});
+    saleAmt+=defPays.reduce(function(t,cm){return t+(cm.amount||0);},0);
+
+    if(saleAmt<=0)return;
+
+    // saleId remove karo payment se
+    D.payments[pi].saleIds=pay.saleIds.filter(function(id){return id!==saleId;});
+
+    // Amount adjust karo
+    D.payments[pi].amount=Math.max(0,(pay.amount||0)-saleAmt);
+    D.payments[pi].pending=Math.max(0,(pay.pending||0)-saleAmt);
+
+    // Agar amount 0 ho jaaye — payment record delete karo
+    if(D.payments[pi].amount<=0){
+      D.payments.splice(pi,1);
+    }
+  });
+
   // Soft delete
   if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
   if(!D.deleted.sales)D.deleted.sales=[];
@@ -2604,7 +3556,7 @@ function pgRpt(){
   // Staff ka rTab sirf r1/r3/r4 ho sakta hai
   if(!isAdmin&&rTab!=='r1'&&rTab!=='r3'&&rTab!=='r4')rTab='r1';
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
-    +'<h2 style="font-size:15px;font-weight:700">📊 Reports</h2>'
+    +'<div style="display:flex;justify-content:space-between;align-items:center">'+'<h2 style="font-size:15px;font-weight:700">📊 Reports</h2>'+'<button class="btn bgh bsm no-print" onclick="window.print()">🖨️ Print</button>'+'</div>'
     +'</div>'
     +'<div style="display:flex;border-bottom:2px solid var(--bd);margin-bottom:14px;overflow-x:auto">';
   tabs.forEach(function(t){
@@ -3112,11 +4064,11 @@ function rpt4(){
 
   // ── Sub-tabs ──
   html+='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
-  [['assoc','👥 Associate Wise'],['plot','🗺️ Plot Wise'],['leg','📋 Associate Sales']].forEach(function(t){
+  [['assoc','👥 Associate Wise'],['plot','🗺️ Plot Wise'],['leg','📋 Associate Sales'],['pay','💳 Payment Details']].forEach(function(t){
     var active=r4Tab===t[0];
-    html+='<button onclick="r4Tab=\''+t[0]+'\';render()" class="btn '+(active?'bbl':'bgh')+'" style="font-size:13px">'+t[1]+'</button>';
+    html+='<button onclick="r4Tab=\''+t[0]+'\';r4PayAssoc=\'\';render()" class="btn '+(active?'bbl':'bgh')+' " style="font-size:13px">'+t[1]+'</button>';
   });
-  html+='<button class="btn bbl bsm" onclick="r4Tab===\'assoc\'?expBrokerage():r4Tab===\'plot\'?expBroPlot():expBroLeg()" style="margin-left:auto">📥 Excel Export</button>';
+  html+='<button class="btn bbl bsm" onclick="r4Tab===\'assoc\'?expBrokerage():r4Tab===\'plot\'?expBroPlot():r4Tab===\'leg\'?expBroLeg():expPayReport()" style="margin-left:auto">📥 Excel Export</button>';
   html+='</div>';
 
   // ── Filters ──
@@ -3130,7 +4082,8 @@ function rpt4(){
 
   if(r4Tab==='assoc')html+=rpt4Assoc(mOpts,pOpts,aOpts);
   else if(r4Tab==='plot')html+=rpt4Plot();
-  else html+=rpt4Leg();
+  else if(r4Tab==='leg')html+=rpt4Leg();
+  else html+=rpt4Pay();
 
   return html;
 }
@@ -4776,8 +5729,9 @@ window.deleteOffer=function(oid){
 };
 
 function pgSearch(){
-  var q=searchQ.toLowerCase();
-  if(!q)return '<div class="empty">Kuch type karein search karne for</div>';
+  var q=searchQ.trim().toLowerCase();
+  if(!q)return '<div class="empty">Kuch type karein search karne ke liye</div>';
+  if(q.length<2)return '<div class="empty">Kam se kam 2 characters type karein</div>';
   var aRes=D.associates.filter(function(a){return a.name.toLowerCase().includes(q)||(a.phone||'').includes(q)||(a.rera||'').toLowerCase().includes(q)||(a.code||'').toLowerCase().includes(q);});
   var pRes=[];
   D.projects.forEach(function(p){if(p.plots)p.plots.forEach(function(pl){if(pl.plotNo.toLowerCase().includes(q)||(pl.facing||'').toLowerCase().includes(q))pRes.push(Object.assign({},pl,{projName:p.name}));});});
@@ -5093,6 +6047,24 @@ function bindAll(){
       ifsc:gv('aIfs'),
       parentId:((document.getElementById('aPr')||{}).value||null),
       totalGaj:0,createdAt:new Date().toISOString()});
+    // Duplicate phone check
+    var ph=(gv('aPh')||'').replace(/[^0-9]/g,'');
+    if(ph.length>=10){
+      var dupPhone=D.associates.find(function(x){return x.phone&&x.phone.replace(/[^0-9]/g,'')===ph;});
+      if(dupPhone){toast('⚠️ Yeh phone number pehle se exist karta hai: '+dupPhone.name,false);return;}
+    }
+    // Duplicate PAN check
+    var pan=(gv('aPan')||'').trim().toUpperCase();
+    if(pan.length>0){
+      var dupPan=D.associates.find(function(x){return x.pan&&x.pan.trim().toUpperCase()===pan;});
+      if(dupPan){toast('⚠️ Yeh PAN pehle se exist karta hai: '+dupPan.name,false);return;}
+    }
+    // Duplicate code check
+    var code=(gv('aCd')||'').trim();
+    if(code.length>0){
+      var dupCode=D.associates.find(function(x){return x.code&&x.code.trim()===code;});
+      if(dupCode){toast('⚠️ Yeh Code pehle se exist karta hai: '+dupCode.name,false);return;}
+    }
     saveD();logAct('New Associate Add: '+n);toast(n+' added successfully! ✓');aView='list';render();
   });
   
@@ -5444,9 +6416,69 @@ function fbSave(ts){
   if(!_fbReady||!_fbDB)return;
   ts=ts||Date.now();
   fbStatus('sync');
-  var clean=JSON.parse(JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted||{associates:[],sales:[],projects:[]},transfers:D.transfers||[],ts:ts}));
-  _fbDB.collection('appdata').doc('main').set(clean)
-    .then(function(){fbStatus('ok');})
+  // Granular merge — Firebase ke saath merge karo, overwrite nahi
+  // Pehle latest data fetch karo, phir merge karke save karo
+  _fbDB.collection('appdata').doc('main').get()
+    .then(function(doc){
+      var remote=doc.exists?doc.data():{};
+      var remoteTs=remote.ts||0;
+
+      // Merge strategy: item level merge by ID
+      function mergeById(local,remoteArr){
+        if(!remoteArr||!remoteArr.length)return local||[];
+        var localMap={};
+        (local||[]).forEach(function(x){if(x.id)localMap[x.id]=x;});
+        var merged=[];
+        var seen={};
+        // Remote items — agar local mein newer version hai to local use karo
+        (remoteArr||[]).forEach(function(rx){
+          if(rx.id){
+            seen[rx.id]=true;
+            merged.push(localMap[rx.id]||rx);
+          }
+        });
+        // Local items jo remote mein nahi hain (newly added)
+        (local||[]).forEach(function(lx){
+          if(lx.id&&!seen[lx.id])merged.push(lx);
+        });
+        return merged;
+      }
+
+      var merged={
+        projects:mergeById(D.projects,remote.projects),
+        associates:mergeById(D.associates,remote.associates),
+        sales:mergeById(D.sales,remote.sales),
+        offers:mergeById(D.offers,remote.offers),
+        payments:mergeById(D.payments,remote.payments),
+        transfers:mergeById(D.transfers,remote.transfers),
+        deleted:{
+          associates:mergeById(D.deleted&&D.deleted.associates,remote.deleted&&remote.deleted.associates),
+          sales:mergeById(D.deleted&&D.deleted.sales,remote.deleted&&remote.deleted.sales),
+          projects:mergeById(D.deleted&&D.deleted.projects,remote.deleted&&remote.deleted.projects)
+        },
+        ts:ts
+      };
+
+      // Update local D with merged data
+      D.projects=merged.projects;
+      D.associates=merged.associates;
+      D.sales=merged.sales;
+      D.offers=merged.offers;
+      D.payments=merged.payments;
+      D.transfers=merged.transfers;
+      D.deleted=merged.deleted;
+
+      var clean=JSON.parse(JSON.stringify(merged));
+      return _fbDB.collection('appdata').doc('main').set(clean);
+    })
+    .then(function(){
+      fbStatus('ok');
+      // Pending save tha?
+      if(window._pendingSave){
+        window._pendingSave=false;
+        toast('☁️ Offline data sync ho gaya!',true);
+      }
+    })
     .catch(function(e){fbStatus('err');console.error('fbSave error:',e.code,e.message);});
 }
 
@@ -5479,6 +6511,7 @@ function fbLoadIfEmpty(){
         D.offers=r.offers||[];
         if(r.deleted)D.deleted=r.deleted;else if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
         if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
+        if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
         window._localTs=remoteTs;
         try{localStorage.setItem(SK,JSON.stringify(Object.assign({},D,{_ts:remoteTs})));}catch(e){}
         fbStatus('ok');
@@ -5520,11 +6553,32 @@ function fbInit(){
       if(r.offers)D.offers=r.offers||[];
       if(r.deleted)D.deleted=r.deleted;else if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
+      if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
       // localStorage bhi update
       try{localStorage.setItem(SK,JSON.stringify(Object.assign({},D,{_ts:r.ts})));}catch(e){}
       fbStatus('ok');
-      // Screen refresh — sirf agar login hua ho
-      if(SESSION)render();
+      // Smart refresh — agar user koi form fill kar raha ho to interrupt mat karo
+      if(SESSION){
+        var safeTabs=['dashboard','reports','salesrec','associates','search','settings','projects'];
+        var isInForm=(sStep>1)||(aView==='add')||(pView==='add'||pView==='edit');
+        if(isInForm){
+          // Sirf notification dikhao — page refresh mat karo
+          var notif=document.getElementById('remoteUpdateNotif');
+          if(!notif){
+            var n=document.createElement('div');
+            n.id='remoteUpdateNotif';
+            n.style.cssText='position:fixed;bottom:70px;right:16px;background:var(--blb);color:var(--bl);border:1px solid var(--bl);border-radius:10px;padding:10px 14px;font-size:12px;font-weight:500;z-index:999;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)';
+            n.innerHTML='🔄 Dusre admin ne kuch update kiya — <b>Refresh karo</b>';
+            n.onclick=function(){document.getElementById('remoteUpdateNotif').remove();render();};
+            document.body.appendChild(n);
+            setTimeout(function(){var el=document.getElementById('remoteUpdateNotif');if(el)el.remove();},10000);
+          }
+        } else {
+          // Safe page — seedha refresh karo
+          render();
+          toast('🔄 Data updated by another admin',true);
+        }
+      }
     }, function(e){
       fbStatus('err');
       console.warn('Realtime listener error:',e.message);
@@ -5554,9 +6608,23 @@ window.restoreSale=function(id){
   var s=D.deleted.sales.find(function(x){return x.id===id;});
   if(!s){toast('Item nahi mila!',false);return;}
   var clean=Object.assign({},s);delete clean.deletedAt;delete clean.deletedBy;
+  // ── Plot status wapas 'sold' karo ──
+  for(var pi=0;pi<D.projects.length;pi++){
+    var pli=D.projects[pi].plots?D.projects[pi].plots.findIndex(function(pl){return pl.id===s.plotId;}):-1;
+    if(pli>=0){D.projects[pi].plots[pli].status='sold';break;}
+  }
+  // ── Associate gaj wapas add karo ──
+  var sGaj=s.plotGaj||0;
+  if(s.commissions)s.commissions.forEach(function(cm){
+    var ai=D.associates.findIndex(function(a){return a.id===cm.id;});
+    if(ai>=0){
+      D.associates[ai].totalGaj=Math.round(((D.associates[ai].totalGaj||0)+sGaj)*100)/100;
+      D.associates[ai].salesGaj=Math.round(((D.associates[ai].salesGaj||0)+sGaj)*100)/100;
+    }
+  });
   D.sales.unshift(clean);
   D.deleted.sales=D.deleted.sales.filter(function(x){return x.id!==id;});
-  saveD();logAct('Sale Restore: '+s.projName+' Plot '+s.plotNo);toast('Sale restore ho gayi! ✓');render();
+  saveD();logAct('Sale Restore: '+s.projName+' Plot '+s.plotNo);toast('✅ Sale restore ho gayi! Plot aur gaj bhi update ho gaya. ✓');render();
 };
 window.restoreProject=function(id){
   if(!isOnline()){toast('📴 Internet nahi hai!',false);return;}
