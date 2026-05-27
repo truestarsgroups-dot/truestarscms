@@ -1548,14 +1548,9 @@ window.runIntegrityScanner=function(){
     +'</div>';
 
   // Auto-fix button if fixable issues exist
-  var fixable=issues.filter(function(i){return i.fix;});
-  if(fixable.length>0){
-    html+='<button class="btn bsm" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr);margin-bottom:10px;width:100%" '
-      +'onclick="autoFixIssues()">🔧 Auto Fix Karo ('+fixable.length+' issues)</button>';
-    // Store issues globally for auto-fix
-    window._scanIssues=issues;
-    window._scanWarnings=warnings;
-  }
+  // Store for reference only — no auto-fix button
+  window._scanIssues=issues;
+  window._scanWarnings=warnings;
 
   // Issues list
   if(issues.length>0){
