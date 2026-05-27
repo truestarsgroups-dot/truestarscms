@@ -6422,69 +6422,20 @@ function fbSave(ts){
   if(!_fbReady||!_fbDB)return;
   ts=ts||Date.now();
   fbStatus('sync');
-  // Granular merge — Firebase ke saath merge karo, overwrite nahi
-  // Pehle latest data fetch karo, phir merge karke save karo
-  _fbDB.collection('appdata').doc('main').get()
-    .then(function(doc){
-      var remote=doc.exists?doc.data():{};
-      var remoteTs=remote.ts||0;
-
-      // Merge strategy: item level merge by ID
-      function mergeById(local,remoteArr){
-        if(!remoteArr||!remoteArr.length)return local||[];
-        var localMap={};
-        (local||[]).forEach(function(x){if(x.id)localMap[x.id]=x;});
-        var merged=[];
-        var seen={};
-        // Remote items — agar local mein newer version hai to local use karo
-        (remoteArr||[]).forEach(function(rx){
-          if(rx.id){
-            seen[rx.id]=true;
-            merged.push(localMap[rx.id]||rx);
-          }
-        });
-        // Local items jo remote mein nahi hain (newly added)
-        (local||[]).forEach(function(lx){
-          if(lx.id&&!seen[lx.id])merged.push(lx);
-        });
-        return merged;
-      }
-
-      var merged={
-        projects:mergeById(D.projects,remote.projects),
-        associates:mergeById(D.associates,remote.associates),
-        sales:mergeById(D.sales,remote.sales),
-        offers:mergeById(D.offers,remote.offers),
-        payments:mergeById(D.payments,remote.payments),
-        transfers:mergeById(D.transfers,remote.transfers),
-        deleted:{
-          associates:mergeById(D.deleted&&D.deleted.associates,remote.deleted&&remote.deleted.associates),
-          sales:mergeById(D.deleted&&D.deleted.sales,remote.deleted&&remote.deleted.sales),
-          projects:mergeById(D.deleted&&D.deleted.projects,remote.deleted&&remote.deleted.projects)
-        },
-        ts:ts
-      };
-
-      // Update local D with merged data
-      D.projects=merged.projects;
-      D.associates=merged.associates;
-      D.sales=merged.sales;
-      D.offers=merged.offers;
-      D.payments=merged.payments;
-      D.transfers=merged.transfers;
-      D.deleted=merged.deleted;
-
-      var clean=JSON.parse(JSON.stringify(merged));
-      return _fbDB.collection('appdata').doc('main').set(clean);
-    })
-    .then(function(){
-      fbStatus('ok');
-      // Pending save tha?
-      if(window._pendingSave){
-        window._pendingSave=false;
-        toast('☁️ Offline data sync ho gaya!',true);
-      }
-    })
+  // Direct overwrite — D ka data as-is Firebase pe save karo
+  // Merge nahi — delete kiya hua wapas nahi aana chahiye
+  var clean=JSON.parse(JSON.stringify({
+    projects:D.projects||[],
+    associates:D.associates||[],
+    sales:D.sales||[],
+    offers:D.offers||[],
+    deleted:D.deleted||{associates:[],sales:[],projects:[]},
+    transfers:D.transfers||[],
+    payments:D.payments||[],
+    ts:ts
+  }));
+  _fbDB.collection('appdata').doc('main').set(clean)
+    .then(function(){fbStatus('ok');})
     .catch(function(e){fbStatus('err');console.error('fbSave error:',e.code,e.message);});
 }
 
