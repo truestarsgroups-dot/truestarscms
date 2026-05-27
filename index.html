@@ -332,8 +332,6 @@ function rOf(g){return slabOf(g).rate;}
 function dOf(g){return slabOf(g).des;}
 function nSlab(g){var c=slabOf(g);return SLABS.find(function(s){return s.l===c.l+1;})||null;}
 function nBen(g){return BENS.find(function(b){return g<b.g;})||null;}
-// salesGaj = sirf sales entry se aaya gaj (Tour/Tab for)
-function salesGajOf(a){return a.salesGaj||0;}
 // Get project rate based on booking date
 function rInc(r){var x=RINC.find(function(x){return r>=x.min&&r<=x.max;});return x?x.pct:0;}
 function getProjBonus(proj,bookingDate){
@@ -548,6 +546,7 @@ var r1P=1;   // report1 page (10 per page)
 var searchQ='';
 var srProjF='';  // sales record project filter
 var srPlotF='';  // sales record plot filter
+var r3SF='';  // rpt3 status filter
 var srPage=1;
 
 function sw(t){
@@ -667,33 +666,6 @@ function doAssocSearch(q){
   var pgEl=document.getElementById('aPagInfo');
   if(pgEl)pgEl.textContent='Page '+aPage+' / '+totalPages+' ('+filtered.length+' active)';
 
-  // Render Left associates section below main table
-  var leftEl=document.getElementById('aLeftBody');
-  var leftSec=document.getElementById('aLeftSection');
-  if(leftEl&&leftSec){
-    if(leftPageData&&leftPageData.length>0){
-      leftSec.style.display='block';
-      var lh='';
-      leftPageData.forEach(function(a,i){
-        var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
-        var waNum=a.phone?a.phone.replace(/\D/g,''):'';
-        if(waNum.length===10)waNum='91'+waNum;
-        lh+='<tr style="opacity:.65">'
-          +'<td style="color:var(--t3)">'+(i+1)+'</td>'
-          +'<td><span class="badge" style="background:var(--bg2);color:var(--t2)">Left</span></td>'
-          +'<td><span style="color:var(--t2);font-weight:500">'+esc(a.name)+'</span></td>'
-          +'<td style="font-size:12px">'+(a.fatherName||'—')+'</td>'
-          +'<td>'+(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" style="color:var(--gr);text-decoration:none;font-size:13px">📱 '+esc(a.phone)+'</a>':'—')+'</td>'
-          +'<td style="color:var(--bl);font-size:12px">'+(a.rera||'—')+'</td>'
-          +'<td style="font-size:12px;color:var(--t2)">'+(par?esc(par.name):'— Top Level —')+'</td>'
-          +'<td style="font-size:12px">'+(a.joiningDate||'—')+'</td>'
-          +'</tr>';
-      });
-      leftEl.innerHTML=lh;
-    } else {
-      leftSec.style.display='none';
-    }
-  }
 }
 
 // ─── PAGINATION DROPDOWN HELPERS ─────────────────────────
@@ -1311,39 +1283,7 @@ function expPayReport(){
   XLSX.utils.book_append_sheet(wb,'Payment Report',ws);
   XLSX.writeFile(wb,'TrueStars_Payment_Report.xlsx');
 }
-// ──────────────────────────────────────────────────────────
 
-
-window.cleanOldDeleted=function(days){
-  var msg=days>0
-    ?days+' din se purane deleted items permanently delete karna chahte ho? Yeh restore nahi ho sakenge!'
-    :'Saare deleted items permanently delete karna chahte ho? Yeh restore nahi ho sakenge!';
-  if(!confirm(msg))return;
-  if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
-  var before=(D.deleted.associates||[]).length+(D.deleted.sales||[]).length+(D.deleted.projects||[]).length;
-  if(days>0){
-    var cutoff=new Date(Date.now()-days*24*60*60*1000).toISOString();
-    D.deleted.associates=(D.deleted.associates||[]).filter(function(x){return !x.deletedAt||x.deletedAt>=cutoff;});
-    D.deleted.sales=(D.deleted.sales||[]).filter(function(x){return !x.deletedAt||x.deletedAt>=cutoff;});
-    D.deleted.projects=(D.deleted.projects||[]).filter(function(x){return !x.deletedAt||x.deletedAt>=cutoff;});
-  } else {
-    D.deleted={associates:[],sales:[],projects:[]};
-  }
-  var after=(D.deleted.associates||[]).length+(D.deleted.sales||[]).length+(D.deleted.projects||[]).length;
-  var removed=before-after;
-  // Direct Firebase save — no localStorage
-  var ts=Date.now();
-  window._localTs=ts;
-  if(!isOnline()){toast('📴 Internet nahi — online ho ke clean karo!',false);return;}
-  if(_fbReady&&_fbDB){
-    fbStatus('sync');
-    var clean=JSON.parse(JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted,transfers:D.transfers||[],payments:D.payments||[],ts:ts}));
-    _fbDB.collection('appdata').doc('main').set(clean)
-      .then(function(){fbStatus('ok');toast('✅ '+removed+' items permanently delete ho gaye!');})
-      .catch(function(e){fbStatus('err');toast('⚠️ Firebase sync nahi hua!',false);});
-  }
-  render();
-};
 
 // ═══════════════════════════════════════════════════════
 // DATA INTEGRITY SCANNER
@@ -1738,61 +1678,6 @@ function pgSettings(){
   }
   html+='</div>';
 
-  // ── Deleted Items Restore ──
-  var del=D.deleted||{associates:[],sales:[],projects:[]};
-  var totalDel=(del.associates||[]).length+(del.sales||[]).length+(del.projects||[]).length;
-  if(totalDel>0){
-    html+='<div class="card" style="margin-bottom:12px">';
-    // Calculate deleted data size estimate
-    var delSize=Math.round(JSON.stringify(del).length/1024);
-    var totalDataSize=Math.round(JSON.stringify(D).length/1024);
-    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
-    html+='<div class="ct" style="margin:0">🗑️ Deleted Items <span style="font-size:12px;font-weight:400;color:var(--t2)">('+totalDel+' items · ~'+delSize+' KB)</span></div>';
-    html+='</div>';
-    // Data size warning
-    if(totalDataSize>400){
-      html+='<div class="info iam" style="margin-bottom:8px;font-size:12px">⚠️ Total data size: ~'+totalDataSize+' KB — Firebase 1MB limit se '+Math.round((totalDataSize/1024)*100)+'% use ho chuka hai. Purana data clean karo.</div>';
-    } else {
-      html+='<div class="info ibl" style="margin-bottom:8px;font-size:12px">✅ Total data size: ~'+totalDataSize+' KB / ~1024 KB (Firebase limit)</div>';
-    }
-
-    // Deleted Associates
-    if((del.associates||[]).length>0){
-      html+='<div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">👥 Associates ('+del.associates.length+')</div>';
-      del.associates.forEach(function(a){
-        var dt=a.deletedAt?new Date(a.deletedAt).toLocaleDateString('en-IN'):'-';
-        html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg2);border-radius:8px;margin-bottom:4px;flex-wrap:wrap;gap:6px">'
-          +'<div><b>'+esc(a.name)+'</b><span style="font-size:11px;color:var(--t2);margin-left:8px">Deleted: '+dt+'</span></div>'
-          +'<button class="btn bgr bsm" data-aid="'+a.id+'" onclick="restoreAssoc(this.dataset.aid)">↩ Restore</button>'
-          +'</div>';
-      });
-    }
-
-    // Deleted Sales
-    if((del.sales||[]).length>0){
-      html+='<div style="font-size:12px;font-weight:700;color:var(--t2);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.4px">📋 Sales ('+del.sales.length+')</div>';
-      del.sales.forEach(function(s){
-        var dt=s.deletedAt?new Date(s.deletedAt).toLocaleDateString('en-IN'):'-';
-        html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg2);border-radius:8px;margin-bottom:4px;flex-wrap:wrap;gap:6px">'
-          +'<div><b>'+esc(s.projName)+'</b> — Plot '+esc(s.plotNo)+'<span style="font-size:11px;color:var(--t2);margin-left:8px">Deleted: '+dt+'</span></div>'
-          +'<button class="btn bgr bsm" data-sid="'+s.id+'" onclick="restoreSale(this.dataset.sid)">↩ Restore</button>'
-          +'</div>';
-      });
-    }
-
-    // Deleted Projects
-    if((del.projects||[]).length>0){
-      html+='<div style="font-size:12px;font-weight:700;color:var(--t2);margin:10px 0 6px;text-transform:uppercase;letter-spacing:.4px">🏗️ Projects ('+del.projects.length+')</div>';
-      del.projects.forEach(function(p){
-        var dt=p.deletedAt?new Date(p.deletedAt).toLocaleDateString('en-IN'):'-';
-        html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--bg2);border-radius:8px;margin-bottom:4px;flex-wrap:wrap;gap:6px">'
-          +'<div><b>'+esc(p.name)+'</b><span style="font-size:11px;color:var(--t2);margin-left:8px">Deleted: '+dt+'</span></div>'
-          +'<button class="btn bgr bsm" data-pid="'+p.id+'" onclick="restoreProject(this.dataset.pid)">↩ Restore</button>'
-          +'</div>';
-      });
-    }
-    html+='</div>';
-  }
 
   // ── Data Integrity Scanner ──
   html+='<div class="card" style="margin-bottom:12px">';
@@ -2425,37 +2310,6 @@ function aList(){
     });
     html+='</tbody></table></div>';
 
-    // Left associates section
-    if(leftFiltered.length>0){
-      html+='<div id="aLeftSection" style="margin-top:16px">'
-        +'<div style="font-size:12px;font-weight:600;color:var(--re);margin-bottom:6px;padding:6px 10px;background:var(--reb);border-radius:6px;border-left:3px solid var(--re)">'
-        +'🚪 Left Associates ('+leftFiltered.length+')</div>'
-        +'<div class="tbl-wrap"><table class="tbl"><thead><tr>'
-        +'<th>#</th><th>Status</th><th>Name</th><th>Father/Husband</th><th>Phone</th><th>RERA No.</th><th>Upliner</th><th>Joining</th><th>Records</th>'
-        +'</tr></thead><tbody id="aLeftBody">';
-      leftFiltered.forEach(function(a,i){
-        var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
-        var waNum=a.phone?a.phone.replace(/[^0-9]/g,''):'';
-        if(waNum.length===10)waNum='91'+waNum;
-        var aSales=D.sales.filter(function(s){return s.sellerId===a.id||(s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;}));});
-        html+='<tr style="opacity:.75">'
-          +'<td style="color:var(--t3)">'+(i+1)+'</td>'
-          +'<td><span class="badge" style="background:var(--reb);color:var(--re)">Left</span></td>'
-          +'<td><b data-aid="'+a.id+'" onclick="showAssocDetail(this.dataset.aid)" style="cursor:pointer;color:var(--re)">'
-          +esc(a.name.replace(' (Left)',''))+'</b>'
-          +(aSales.length>0?'<div style="font-size:10px;color:var(--t3)">'+aSales.length+' sale records</div>':'')
-          +'</td>'
-          +'<td style="font-size:12px">'+(a.fatherName||'—')+'</td>'
-          +'<td>'+(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" style="color:var(--gr);text-decoration:none;font-size:13px">📱 '+esc(a.phone)+'</a>':'—')+'</td>'
-          +'<td style="color:var(--bl);font-size:12px">'+(a.rera||'—')+'</td>'
-          +'<td style="font-size:12px;color:var(--t2)">'+(par?esc(par.name):'— Top Level —')+'</td>'
-          +'<td style="font-size:12px">'+(a.joiningDate||'—')+'</td>'
-          +'<td><button class="btn bsm" data-aid="'+a.id+'" onclick="showAssocDetail(this.dataset.aid)" style="font-size:11px;background:var(--reb);color:var(--re);border:1px solid var(--re)">📋 Records</button></td>'
-          +'</tr>';
-      });
-      html+='</tbody></table></div></div>';
-    }
-
     // Pagination
     html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px">'
       +'<span id="aPagInfo" style="font-size:13px;color:var(--t2)">Page '+aPage+' / '+totalPages+' &nbsp;('+filtered.length+' active)</span>'
@@ -2551,17 +2405,35 @@ window.editAssoc=function(id){
     +'</div>'
     +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">🔗 Chain / Hierarchy</div>'
     +'<div class="g2" style="margin-bottom:12px">'
-    +'<div class="fld" style="grid-column:1/-1"><label>Upliner</label>'
-    +'<div style="position:relative">'
-    +'<input id="eUpSrch" type="text" autocomplete="off" '
-    +'placeholder="🔍 Type naam ya — Top Level —" '
-    +'value="'+(a.parentId?(D.associates.find(function(x){return x.id===a.parentId;})||{name:''}).name:'')+'" '
-    +'oninput="filterUpSrch(this.value,\''+id+'\')" onfocus="filterUpSrch(this.value,\''+id+'\')" '
-    +'style="width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
-    +'<div id="eUpDrop" style="display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--bg);border:1px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:300;max-height:200px;overflow-y:auto"></div>'
+    +(function(){
+      var hasSalesForUpline=D.sales.some(function(s){
+        return s.sellerId===id||(s.commissions&&s.commissions.some(function(c){return c.id===id;}))||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===id;}));
+      });
+      var curUplinerName=a.parentId?(D.associates.find(function(x){return x.id===a.parentId;})||{name:'— Top Level —'}).name:'— Top Level —';
+      if(hasSalesForUpline){
+        return '<div class="fld" style="grid-column:1/-1"><label>Upliner</label>'
+          +'<div class="info" style="background:var(--reb);color:var(--re);border:1px solid #f5c6cb;border-radius:8px;padding:10px 12px;margin-top:2px">'
+          +'<b>🔒 Upliner change nahi kar sakte</b><br>'
+          +'<span style="font-size:12px">Is associate ki sales entries exist hain. Upliner sirf <b>Transfer</b> button se change hogi.<br>'
+          +'Agar galat upliner hai toh: 1️⃣ Sales delete karo → 2️⃣ Upliner update karo → 3️⃣ Sales dobara enter karo</span><br>'
+          +'<span style="font-size:12px;margin-top:6px;display:block">Current Upliner: <b>'+esc(curUplinerName)+'</b></span>'
+          +'</div>'
+          +'<input type="hidden" id="ePr" value="'+(a.parentId||'')+'"/>'
+          +'</div>';
+      }
+      return '<div class="fld" style="grid-column:1/-1"><label>Upliner</label>'
+        +'<div style="position:relative">'
+        +'<input id="eUpSrch" type="text" autocomplete="off" '
+        +'placeholder="🔍 Type naam ya — Top Level —" '
+        +'value="'+(a.parentId?(D.associates.find(function(x){return x.id===a.parentId;})||{name:''}).name:'')+'" '
+        +'oninput="filterUpSrch(this.value,\''+id+'\')" onfocus="filterUpSrch(this.value,\''+id+'\')" '
+        +'style="width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
+        +'<div id="eUpDrop" style="display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--bg);border:1px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:300;max-height:200px;overflow-y:auto"></div>'
+        +'</div>'
+        +'<input type="hidden" id="ePr" value="'+(a.parentId||'')+'"/>'
+        +'</div>';
+    }())
     +'</div>'
-    +'<input type="hidden" id="ePr" value="'+(a.parentId||'')+'"/>'
-    +'</div></div>'
         +'<button class="btn bbl" style="margin-bottom:14px" onclick="saveAInfo(\''+id+'\')">💾 Save Info</button>'
     +'<div class="divl"></div>'
     +'<b style="font-size:13px;display:block;margin-bottom:8px">📦 Update Gaj</b>'
@@ -2672,6 +2544,15 @@ window.saveAInfo=function(id){
   D.associates[i].ifsc=gv('eIfs');
   var newParentId=document.getElementById('ePr')?document.getElementById('ePr').value||null:null;
   if(newParentId===id){toast('⛔ Associate apna khud upliner nahi ban sakta!',false);return;}
+  // ── UPLINER CHANGE BLOCK: Sales hain toh upliner change allowed nahi ──
+  var oldParentId=D.associates[i].parentId||null;
+  var hasSalesBlock=D.sales.some(function(s){
+    return s.sellerId===id||(s.commissions&&s.commissions.some(function(c){return c.id===id;}))||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===id;}));
+  });
+  if(hasSalesBlock&&(newParentId!==oldParentId)){
+    toast('⛔ Upliner change nahi kar sakte — pehle sales delete karo, phir upliner update karo, phir sales dobara enter karo!',false);
+    return;
+  }
   // Duplicate phone check (exclude self)
   var ph2=(gv('ePh')||'').replace(/[^0-9]/g,'');
   if(ph2.length>=10){
@@ -2726,8 +2607,12 @@ window.filterStep2Assoc=function(q){
   var items=drop.querySelectorAll('div');
   var anyVisible=false;
   items.forEach(function(el){
-    var txt=el.textContent.toLowerCase();
-    var show=txt.includes(q);
+    // Only match on name (b tag) and phone (first span) — NOT on Team: label
+    var b=el.querySelector('b');
+    var spans=el.querySelectorAll('span');
+    var nm=b?b.textContent.toLowerCase():'';
+    var ph=spans.length>0?spans[0].textContent.toLowerCase():'';
+    var show=nm.includes(q)||ph.includes(q);
     el.style.display=show?'':'none';
     if(show)anyVisible=true;
   });
@@ -3152,9 +3037,9 @@ function sS2(){
     }).join('')
     +'</div>'
     +'</div>'
-    +'<div class="fld"><label>Booking Date</label><input type="date" id="sBk" value="'+(sD.bookingDate||'')+'" onchange="sD.bookingDate=this.value;render()"/></div>'
-    +'<div class="fld"><label>Close Date'+(sD.bookingDate?' (Booking se cannot be before)':'')+' </label><input type="date" id="sCl" value="'+(sD.closeDate||'')+'" min="'+(sD.bookingDate||'')+'" onchange="if(sD.bookingDate&&this.value<sD.bookingDate){this.value=\'\';toast(\'Closing date cannot be before booking date!\',false);}else{sD.closeDate=this.value;render();}"/></div>'
-    +'<div class="fld"><label>Party Name (Buyer)</label><input id="sPty" value="'+(sD.partyName||'')+'" placeholder="Buyer name" onchange="sD.partyName=this.value"/></div>'
+    +'<div class="fld"><label>Booking Date <span style=\"color:var(--re)\">*</span></label><input type="date" id="sBk" value="'+(sD.bookingDate||'')+'" onchange="sD.bookingDate=this.value;render()"/></div>'
+    +'<div class="fld"><label>Close Date <span style=\"color:var(--re)\">*</span>'+(sD.bookingDate?' (Booking se cannot be before)':'')+' </label><input type="date" id="sCl" value="'+(sD.closeDate||'')+'" min="'+(sD.bookingDate||'')+'" onchange="if(sD.bookingDate&&this.value<sD.bookingDate){this.value=\'\';toast(\'Closing date cannot be before booking date!\',false);}else{sD.closeDate=this.value;render();}"/></div>'
+    +'<div class="fld"><label>Party Name (Buyer) <span style=\"color:var(--re)\">*</span></label><input id="sPty" value="'+(sD.partyName||'')+'" placeholder="Buyer ka naam (compulsory)" onchange="sD.partyName=this.value"/></div>'
     +'<div class="fld"><label>Remarks</label><input id="sRmk" value="'+(sD.remarks||'')+'" onchange="sD.remarks=this.value"/></div>'
     +'</div>';
   
@@ -3624,6 +3509,7 @@ function rpt1(){
       +'style="flex:1;min-width:200px;font-size:13px;padding:8px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
       +(r1F?'<button class="btn bgh bsm" onclick="r1F=String();r1P=1;render()">✕ Clear</button>':'')
       +'<span style="font-size:12px;color:var(--t2);white-space:nowrap">'+filtered.length+' associates</span>'
+      +'<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re)" onclick="showLeftAssocModal()">🚪 Left Associates ('+(D.associates.filter(function(a){return isLeft(a.name);}).length)+')</button>'
       +'<button class="btn bbl bsm" onclick="expR1()">📥 Excel Export</button>'
       +'</div></div>';
 
@@ -3959,6 +3845,8 @@ function rpt3(){
 
   // Filter by project
   var filtered=r3F?allPlots.filter(function(x){return x.proj.id===r3F;}):allPlots;
+  // Filter by status
+  if(r3SF)filtered=filtered.filter(function(x){return x.pl.status===r3SF;});
 
   // Project filter options
   var pOpts='<option value="">— All Projects ('+D.projects.length+') —</option>';
@@ -3979,9 +3867,16 @@ function rpt3(){
   // ── Filter + Export bar ──
   html+='<div class="card" style="margin-bottom:10px;padding:10px 14px">'
     +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
-    +'<div class="fld" style="flex:1;min-width:200px;margin:0"><label>Project Filter</label>'
+    +'<div class="fld" style="flex:2;min-width:160px;margin:0"><label>Project Filter</label>'
     +'<select onchange="r3F=this.value;render()">'+pOpts+'</select></div>'
-    +(r3F?'<button class="btn bgh bsm" onclick="r3F=\'\';render()">✕ Clear</button>':'')
+    +'<div class="fld" style="min-width:130px;margin:0"><label>Status Filter</label>'
+    +'<select onchange="r3SF=this.value;render()">'
+    +'<option value=""'+(r3SF===''?' selected':'')+'>— All —</option>'
+    +'<option value="available"'+(r3SF==='available'?' selected':'')+'>Available</option>'
+    +'<option value="sold"'+(r3SF==='sold'?' selected':'')+'>Sold</option>'
+    +'<option value="booked"'+(r3SF==='booked'?' selected':'')+'>Booked</option>'
+    +'</select></div>'
+    +((r3F||r3SF)?'<button class="btn bgh bsm" style="align-self:flex-end" onclick="r3F=String();r3SF=String();render()">✕ Clear All</button>':'')
     +'<button class="btn bbl bsm" onclick="expR3()" style="align-self:flex-end">📥 Excel Export</button>'
     +'</div>'
     +'<div class="g4" style="margin-top:10px">'
@@ -6057,6 +5952,9 @@ function bindAll(){
     var proj=D.projects.find(function(p){return p.id===sD.projId;});
     var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
     if(!plot){toast('Plot not found',false);return;}
+    if(!sD.bookingDate){toast('⛔ Booking Date compulsory hai!',false);return;}
+    if(!sD.closeDate){toast('⛔ Close Date compulsory hai!',false);return;}
+    if(!(sD.partyName&&sD.partyName.trim())){toast('⛔ Party Name (Buyer) compulsory hai!',false);return;}
     if(sD.closeDate&&sD.bookingDate&&new Date(sD.closeDate)<new Date(sD.bookingDate)){toast('Closing date cannot be before booking date!',false);return;}
     var sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
     var ch=getChain(sD.assocId);
@@ -6394,6 +6292,36 @@ function fbStatus(s){
   var r=m[s]||['#888',''];el.style.color=r[0];el.textContent=r[1];
 }
 
+
+// ── Left Associates Modal (Reports se) ──────────────────
+window.showLeftAssocModal=function(){
+  var leftList=D.associates.filter(function(a){return a.name.includes('(Left)');});
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">🚪 Left Associates ('+leftList.length+')</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>';
+  if(!leftList.length){html+='<div class="empty">Koi Left associate nahi hai</div>';openM(html);return;}
+  html+='<div class="tw"><table style="font-size:12px"><thead><tr>'
+    +'<th>#</th><th>Name</th><th>Phone</th><th>RERA</th><th>Upliner</th><th>Joining</th><th>Sales</th>'
+    +'</tr></thead><tbody>';
+  leftList.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(a,i){
+    var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
+    var aSales=D.sales.filter(function(s){return s.sellerId===a.id||(s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;}));});
+    var waNum=a.phone?a.phone.replace(/[^0-9]/g,''):'';if(waNum.length===10)waNum='91'+waNum;
+    html+='<tr>'
+      +'<td style="color:var(--t3)">'+(i+1)+'</td>'
+      +'<td><b style="color:var(--re)">'+esc(a.name.replace(' (Left)',''))+'</b>'
+      +(aSales.length?'<div style="font-size:10px;color:var(--t3)">'+aSales.length+' sales</div>':'')+'</td>'
+      +'<td>'+(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" style="color:var(--gr);font-size:12px">📱 '+esc(a.phone)+'</a>':'—')+'</td>'
+      +'<td style="color:var(--bl);font-size:11px">'+(a.rera||'—')+'</td>'
+      +'<td style="color:var(--t2)">'+(par?esc(par.name):'Top Level')+'</td>'
+      +'<td>'+(a.joiningDate||'—')+'</td>'
+      +'<td><span class="badge" style="background:var(--blb);color:var(--bl)">'+aSales.length+'</span></td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div>';
+  openM(html);
+};
+
 function fbSave(ts){
   if(!_fbReady||!_fbDB)return;
   ts=ts||Date.now();
@@ -6514,51 +6442,9 @@ function fbInit(){
 }
 
 
-// ── Restore Functions ──────────────────────────────
-window.restoreAssoc=function(id){
-  if(!isOnline()){toast('📴 Internet nahi hai!',false);return;}
-  if(!D.deleted||!D.deleted.associates)return;
-  var a=D.deleted.associates.find(function(x){return x.id===id;});
-  if(!a){toast('Item nahi mila!',false);return;}
-  var clean=Object.assign({},a);delete clean.deletedAt;delete clean.deletedBy;
-  D.associates.push(clean);
-  D.deleted.associates=D.deleted.associates.filter(function(x){return x.id!==id;});
-  saveD();logAct('Associate Restore: '+a.name);toast(a.name+' restore ho gaya! ✓');render();
-};
-window.restoreSale=function(id){
-  if(!isOnline()){toast('📴 Internet nahi hai!',false);return;}
-  if(!D.deleted||!D.deleted.sales)return;
-  var s=D.deleted.sales.find(function(x){return x.id===id;});
-  if(!s){toast('Item nahi mila!',false);return;}
-  var clean=Object.assign({},s);delete clean.deletedAt;delete clean.deletedBy;
-  // ── Plot status wapas 'sold' karo ──
-  for(var pi=0;pi<D.projects.length;pi++){
-    var pli=D.projects[pi].plots?D.projects[pi].plots.findIndex(function(pl){return pl.id===s.plotId;}):-1;
-    if(pli>=0){D.projects[pi].plots[pli].status='sold';break;}
-  }
-  // ── Associate gaj wapas add karo ──
-  var sGaj=s.plotGaj||0;
-  if(s.commissions)s.commissions.forEach(function(cm){
-    var ai=D.associates.findIndex(function(a){return a.id===cm.id;});
-    if(ai>=0){
-      D.associates[ai].totalGaj=Math.round(((D.associates[ai].totalGaj||0)+sGaj)*100)/100;
-      D.associates[ai].salesGaj=Math.round(((D.associates[ai].salesGaj||0)+sGaj)*100)/100;
-    }
-  });
-  D.sales.unshift(clean);
-  D.deleted.sales=D.deleted.sales.filter(function(x){return x.id!==id;});
-  saveD();logAct('Sale Restore: '+s.projName+' Plot '+s.plotNo);toast('✅ Sale restore ho gayi! Plot aur gaj bhi update ho gaya. ✓');render();
-};
-window.restoreProject=function(id){
-  if(!isOnline()){toast('📴 Internet nahi hai!',false);return;}
-  if(!D.deleted||!D.deleted.projects)return;
-  var p=D.deleted.projects.find(function(x){return x.id===id;});
-  if(!p){toast('Item nahi mila!',false);return;}
-  var clean=Object.assign({},p);delete clean.deletedAt;delete clean.deletedBy;
-  D.projects.push(clean);
-  D.deleted.projects=D.deleted.projects.filter(function(x){return x.id!==id;});
-  saveD();logAct('Project Restore: '+p.name);toast(p.name+' restore ho gaya! ✓');render();
-};
+
+
+
 
 // ─── ASSOCIATE EXCEL TEMPLATE + IMPORT ────────────────
 window.downloadAssocTemplate=function(){
@@ -6832,140 +6718,7 @@ window.importAssocExcel=function(input){
   reader.readAsArrayBuffer(file);
 };
 
-// ─── ASSOCIATE PERFORMANCE CARD ───────────────────────
-window.showAssocProfile=function(id){
-  var a=D.associates.find(function(x){return x.id===id;});
-  if(!a)return;
 
-  // Get level
-  var level=0,cur=a;
-  while(cur&&cur.parentId){
-    level++;
-    cur=D.associates.find(function(x){return x.id===cur.parentId;});
-  }
-
-  // Top leader
-  var topLeader=getTopLeader(a.id);
-  var isTopLeader=!a.parentId;
-
-  // Direct downline
-  var directDown=D.associates.filter(function(x){return x.parentId===a.id;});
-  // Total downline
-  function countDown(aid){
-    var kids=D.associates.filter(function(x){return x.parentId===aid;});
-    return kids.reduce(function(t,k){return t+1+countDown(k.id);},0);
-  }
-  var totalDown=countDown(a.id);
-
-  // Personal sales
-  var personalSales=D.sales.filter(function(s){return s.sellerId===a.id;});
-  var personalGaj=personalSales.reduce(function(t,s){return t+(s.plotGaj||0);},0);
-
-  // Commission earned
-  var totalComm=D.sales.reduce(function(t,s){
-    var c=(s.commissions||[]).find(function(c){return c.id===a.id;});
-    if(c)t+=c.total||0;
-    var d=(s.defCommissions||[]).find(function(c){return c.id===a.id;});
-    if(d)t+=d.total||0;
-    return t;
-  },0);
-
-  // Rank among all associates by totalGaj
-  var sorted=D.associates.slice().sort(function(x,y){return (y.totalGaj||0)-(x.totalGaj||0);});
-  var rank=sorted.findIndex(function(x){return x.id===a.id;})+1;
-
-  // Active campaigns
-  var today=new Date();today.setHours(0,0,0,0);
-  var activeCamps=(D.offers||[]).filter(function(o){
-    return today>=new Date(o.startDate)&&today<=new Date(o.endDate);
-  });
-
-  var html='<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">'
-    +'<div>'
-    +'<div style="font-size:18px;font-weight:700;color:var(--tx)">'+esc(a.name)+'</div>'
-    +'<div style="display:flex;gap:8px;margin-top:5px;flex-wrap:wrap">'
-    +'<span class="badge bbl2">L'+(level+1)+'</span>'
-    +(isTopLeader?'<span class="badge" style="background:var(--grb);color:var(--gr)">🏆 Team Leader</span>':'<span style="font-size:12px;color:var(--t2)">Team: <b>'+esc(topLeader?topLeader.name:'—')+'</b></span>')
-    +(a.rera?'<span style="font-size:11px;color:var(--bl)">'+esc(a.rera)+'</span>':'')
-    +'</div>'
-    +'</div>'
-    +'<button class="btn bgh bsm" onclick="closeM()">✕</button>'
-    +'</div>';
-
-  // Stats grid
-  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">';
-  html+='<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--bl)">'+(a.totalGaj||0)+'</div><div style="font-size:11px;color:var(--t2)">Total Gaj</div></div>';
-  html+='<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--gr)">'+personalSales.length+'</div><div style="font-size:11px;color:var(--t2)">Direct Sales</div></div>';
-  html+='<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:18px;font-weight:700;color:var(--am)">'+totalDown+'</div><div style="font-size:11px;color:var(--t2)">Downline</div></div>';
-  html+='<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:16px;font-weight:700;color:var(--pu)">#'+rank+'</div><div style="font-size:11px;color:var(--t2)">Rank</div></div>';
-  html+='</div>';
-
-  // Commission
-  html+='<div style="background:var(--grb);border:1px solid var(--gr);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;justify-content:space-between;align-items:center">'
-    +'<div><div style="font-size:12px;color:var(--gr);font-weight:700">💰 Total Commission Earned</div>'
-    +'<div style="font-size:11px;color:var(--t2);margin-top:2px">Personal: '+personalGaj+' Sq.Yd</div></div>'
-    +'<div style="font-size:20px;font-weight:700;color:var(--gr)">₹'+fmtL(totalComm)+'</div>'
-    +'</div>';
-
-  // Team info
-  if(directDown.length>0){
-    html+='<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:12px">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">👥 Direct Team ('+directDown.length+')</div>'
-      +'<div style="display:flex;flex-wrap:wrap;gap:6px">';
-    directDown.slice(0,8).forEach(function(d){
-      html+='<span style="background:var(--bg);border:1px solid var(--bd);border-radius:6px;padding:3px 8px;font-size:12px">'+esc(d.name)+'</span>';
-    });
-    if(directDown.length>8)html+='<span style="font-size:12px;color:var(--t2)">+'+( directDown.length-8)+' more</span>';
-    html+='</div></div>';
-  }
-
-  // Active campaigns progress
-  if(activeCamps.length>0){
-    html+='<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:12px">'
-      +'<div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px">🎯 Campaign Progress</div>';
-    activeCamps.forEach(function(offer){
-      var stats=calcOfferStats(offer);
-      var aStats=stats.find(function(s){return s.id===a.id;});
-      if(!aStats){html+='<div style="font-size:12px;color:var(--t3);margin-bottom:6px">'+esc(offer.name)+' — No sales yet</div>';return;}
-      var qual=aStats.rewardLevel;
-      html+='<div style="margin-bottom:8px">'
-        +'<div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">'
-        +'<span><b>'+esc(offer.name)+'</b></span>'
-        +(qual?'<span style="color:var(--gr);font-weight:700">🏆 '+esc(qual.reward)+'</span>':'<span style="color:var(--am)">'+aStats.totalGaj+' Sq.Yd</span>')
-        +'</div></div>';
-    });
-    html+='</div>';
-  }
-
-  // Contact & Banking
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">';
-  html+='<div style="background:var(--bg2);border-radius:8px;padding:10px 12px">'
-    +'<div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Contact</div>'
-    +(a.phone?'<div style="font-size:13px;font-weight:600">📞 '+esc(a.phone)+'</div>':'')
-    +(a.pan?'<div style="font-size:12px;color:var(--t2);margin-top:3px">PAN: <b style="font-family:Courier New,monospace">'+esc(a.pan)+'</b></div>':'')
-    +(a.joiningDate?'<div style="font-size:12px;color:var(--t2);margin-top:3px">Joined: '+esc(a.joiningDate)+'</div>':'')
-    +'</div>';
-  html+='<div style="background:var(--bg2);border-radius:8px;padding:10px 12px">'
-    +'<div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:6px">Banking</div>'
-    +(a.bankName?'<div style="font-size:12px;color:var(--t2)">'+esc(a.bankName)+'</div>':'')
-    +(a.accNo?'<div style="font-size:12px;font-family:Courier New,monospace;font-weight:700;color:var(--tx)">'+esc(a.accNo)+'</div>':'')
-    +(a.ifsc?'<div style="font-size:11px;color:var(--t2)">IFSC: <b style="font-family:Courier New,monospace">'+esc(a.ifsc)+'</b></div>':'')
-    +'</div>';
-  html+='</div>';
-
-  // Action buttons
-  html+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
-  if(a.phone){
-    var waNum=a.phone.replace(/\D/g,'');
-    if(waNum.length===10)waNum='91'+waNum;
-    html+='<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;border:none;text-decoration:none">📱 WhatsApp</a>';
-  }
-  html+='<button class="btn bgh bsm" data-pid="'+a.id+'" onclick="printAssocCard(this.dataset.pid)">🖨️ Print</button>';
-  html+='<button class="btn bgh bsm" onclick="closeM()">Close</button>';
-  html+='</div>';
-
-  openM(html);
-};
 
 window.printAssocCard=function(id){
   var a=D.associates.find(function(x){return x.id===id;});
