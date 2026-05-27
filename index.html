@@ -1299,7 +1299,7 @@ window.confirmRunScanner=function(){
     +'<b>⚠️ Scan shuru karne se pehle jaano:</b>'
     +'<ul style="margin:8px 0 0 16px;font-size:12px;line-height:1.8">'
     +'<li>Yeh scan <b>read-only</b> hai — koi data change nahi hoga</li>'
-    +'<li>Auto-fix karne pe <b>data change hoga</b> — pehle backup lo</li>'
+    +'<li>Sirf <b>problems batayega</b> — aap manually fix kar sakte ho</li>'
     +'<li><b>'+totalRecords+' records</b> scan honge (Associates + Sales + Payments)</li>'
     +'<li>Scan complete hone mein <b>1-2 seconds</b> lagenge</li>'
     +'</ul></div>'
@@ -1316,23 +1316,39 @@ window.runIntegrityScanner=function(){
 
   // ── CHECK 1: Associate totalGaj vs actual sales ──
   D.associates.forEach(function(a){
-    var actualGaj=D.sales.filter(function(s){
+    // Sales se actual gaj (commissions array se)
+    var actualSalesGaj=D.sales.filter(function(s){
       return s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;});
     }).reduce(function(t,s){return t+(s.plotGaj||0);},0);
-    // Add defence sales gaj
+    // Defence sales gaj (separate chain mein)
     var defGaj=D.sales.filter(function(s){
       return s.defCommissions&&s.defCommissions.some(function(cm){return cm.id===a.id;})
         &&!(s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;}));
     }).reduce(function(t,s){return t+(s.plotGaj||0);},0);
-    var totalActual=actualGaj+defGaj;
+    var actualFromSales=Math.round((actualSalesGaj+defGaj)*100)/100;
+
+    // Manually added "Other Gaj" = totalGaj - salesGaj (jo system ne track kiya)
+    var storedSalesGaj=Math.round((a.salesGaj||0)*100)/100;
+    var otherGajManual=Math.max(0,Math.round(((a.totalGaj||0)-storedSalesGaj)*100)/100);
+
+    // Correct totalGaj = actual sales gaj + manually added gaj
+    var correctTotal=Math.round((actualFromSales+otherGajManual)*100)/100;
     var stored=Math.round((a.totalGaj||0)*100)/100;
-    var actual=Math.round(totalActual*100)/100;
-    if(Math.abs(stored-actual)>0.1){
+
+    // salesGaj mismatch check (stored vs actual)
+    var salesGajMismatch=Math.abs(storedSalesGaj-actualFromSales)>0.1;
+    // totalGaj mismatch — accounting for Other Gaj
+    var totalGajMismatch=Math.abs(stored-correctTotal)>0.1;
+
+    if(salesGajMismatch||totalGajMismatch){
+      var msg='';
+      if(salesGajMismatch)msg+='salesGaj mismatch: stored='+storedSalesGaj+', actual='+actualFromSales+'. ';
+      if(totalGajMismatch)msg+='totalGaj: stored='+stored+', correct='+correctTotal+' (sales '+actualFromSales+' + manual '+otherGajManual+')';
       issues.push({
         type:'gaj_mismatch',cat:'associate',severity:'high',
         id:a.id,name:a.name,
-        msg:'totalGaj mismatch: stored='+stored+', actual sales='+actual,
-        fix:{field:'totalGaj',correctVal:actual}
+        msg:msg.trim(),
+        fix:{field:'totalGaj',correctVal:correctTotal,salesGajVal:actualFromSales}
       });
     }
   });
@@ -1486,22 +1502,27 @@ window.runIntegrityScanner=function(){
     +'<div style="font-size:11px;color:var(--bl)">Warnings</div></div>'
     +'</div>';
 
-  // Auto-fix button if fixable issues exist
-  // Store for reference only — no auto-fix button
   window._scanIssues=issues;
-  window._scanWarnings=warnings;
 
   // Issues list
   if(issues.length>0){
     html+='<div style="font-size:12px;font-weight:700;color:var(--re);margin-bottom:6px">❌ Issues ('+issues.length+')</div>';
     issues.forEach(function(issue){
+      // What to do guidance
+      var guide='';
+      if(issue.type==='gaj_mismatch')guide='Manual fix: Associate Edit → Add Gaj se correct karo, ya Sales delete/re-enter karo';
+      else if(issue.type==='orphan_parent')guide='Manual fix: Associate Edit → Upliner sahi set karo';
+      else if(issue.type==='circular')guide='Manual fix: Associate Edit → Upliner hatao (Top Level karo)';
+      else if(issue.type==='orphan_sale_proj')guide='Manual fix: Is sale ko delete karo (Sales Record se)';
       html+='<div style="background:var(--reb);border:1px solid var(--re);border-radius:8px;padding:8px 10px;margin-bottom:5px;font-size:12px">'
-        +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
-        +'<div><b style="color:var(--re)">'+esc(issue.name)+'</b>'
-        +'<div style="color:var(--t2);margin-top:2px">'+issue.msg+'</div></div>'
+        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">'
+        +'<b style="color:var(--re)">'+esc(issue.name)+'</b>'
         +'<span style="font-size:10px;padding:2px 6px;border-radius:3px;background:var(--re);color:#fff;white-space:nowrap;margin-left:8px;flex-shrink:0">'
         +(issue.severity==='critical'?'🚨 Critical':issue.severity==='high'?'🔴 High':'🟡 Medium')+'</span>'
-        +'</div></div>';
+        +'</div>'
+        +'<div style="color:var(--t2);margin-bottom:'+(guide?'4':'0')+'px">'+issue.msg+'</div>'
+        +(guide?'<div style="color:var(--am);font-size:11px;background:var(--amb);padding:3px 8px;border-radius:5px">💡 '+guide+'</div>':'')
+        +'</div>';
     });
   }
 
@@ -1519,42 +1540,6 @@ window.runIntegrityScanner=function(){
   el.innerHTML=html;
 };
 
-window.autoFixIssues=function(){
-  var issues=window._scanIssues||[];
-  var fixable=issues.filter(function(i){return i.fix;});
-  if(!fixable.length){toast('Koi fixable issue nahi!',false);return;}
-  if(!confirm('⚠️ '+fixable.length+' issues auto-fix hongi — data change hoga. Backup liya hai? Continue?'))return;
-
-  var fixed=0;
-  fixable.forEach(function(issue){
-    if(issue.cat==='associate'){
-      var ai=D.associates.findIndex(function(a){return a.id===issue.id;});
-      if(ai<0)return;
-      if(issue.fix.field==='totalGaj'){
-        D.associates[ai].totalGaj=Math.round(issue.fix.correctVal*100)/100;
-        fixed++;
-      } else if(issue.fix.field==='parentId'){
-        D.associates[ai].parentId=issue.fix.correctVal;
-        fixed++;
-      }
-    } else if(issue.cat==='payment'&&issue.fix.removeSaleIds){
-      var pi=D.payments.findIndex(function(p){return p.id===issue.id;});
-      if(pi>=0){
-        D.payments[pi].saleIds=(D.payments[pi].saleIds||[]).filter(function(sid){
-          return !issue.fix.removeSaleIds.includes(sid);
-        });
-        fixed++;
-      }
-    }
-  });
-
-  saveD();
-  toast('✅ '+fixed+' issues fix ho gayi! Re-scan karo confirm karne ke liye.');
-  // Re-run scanner
-  window._scanIssues=[];
-  window._scanWarnings=[];
-  runIntegrityScanner();
-};
 // ──────────────────────────────────────────────────────────
 
 // ─── RENDER ───────────────────────────────────────────
