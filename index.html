@@ -1343,8 +1343,19 @@ window.cleanOldDeleted=function(days){
   }
   var after=(D.deleted.associates||[]).length+(D.deleted.sales||[]).length+(D.deleted.projects||[]).length;
   var removed=before-after;
-  saveD();
-  toast('✅ '+removed+' items permanently delete ho gaye. ~'+Math.round(removed*0.5)+' KB free hua!');
+  // Direct Firebase save — merge bypass karo, warna deleted data wapas aa jaata hai
+  var ts=Date.now();
+  window._localTs=ts;
+  try{localStorage.setItem(SK,JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted,transfers:D.transfers||[],payments:D.payments||[],_ts:ts}));}catch(e){}
+  if(_fbReady&&_fbDB){
+    fbStatus('sync');
+    var clean=JSON.parse(JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted,transfers:D.transfers||[],payments:D.payments||[],ts:ts}));
+    _fbDB.collection('appdata').doc('main').set(clean)
+      .then(function(){fbStatus('ok');toast('✅ '+removed+' items permanently delete ho gaye — Firebase se bhi hata diye!');})
+      .catch(function(e){fbStatus('err');toast('⚠️ Local se delete hua lekin Firebase sync nahi hua!',false);});
+  } else {
+    toast('✅ '+removed+' items delete ho gaye (offline — online hone pe sync hoga)');
+  }
   render();
 };
 
