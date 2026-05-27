@@ -308,23 +308,11 @@ var RINC=[{min:25000,max:34999,pct:10},{min:35000,max:49999,pct:25},{min:50000,m
 var D={projects:[],associates:[],sales:[],offers:[],deleted:{associates:[],sales:[],projects:[]},transfers:[],payments:[]};
 
 function loadD(){
-  try{
-    var r=localStorage.getItem(SK);
-    if(r){
-      var p=JSON.parse(r);
-      if(p.projects)D.projects=p.projects;
-      if(p.associates)D.associates=p.associates;
-      if(p.sales)D.sales=p.sales;
-      if(p.offers)D.offers=p.offers||[];
-      if(p.deleted)D.deleted=p.deleted;
-      else D.deleted={associates:[],sales:[],projects:[]};
-      if(p.transfers)D.transfers=p.transfers;
-      else D.transfers=[];
-      if(p.payments)D.payments=p.payments;
-      else D.payments=[];
-      window._localTs=p._ts||0;
-    }
-  }catch(e){}
+  // Data sirf Firebase se — localStorage use nahi
+  // D already initialized with empty arrays at top
+  D.deleted=D.deleted||{associates:[],sales:[],projects:[]};
+  D.transfers=D.transfers||[];
+  D.payments=D.payments||[];
 }
 function saveD(){
   if(!isOnline()){
@@ -333,7 +321,7 @@ function saveD(){
   }
   var ts=Date.now();
   window._localTs=ts;
-  try{localStorage.setItem(SK,JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted||{associates:[],sales:[],projects:[]},transfers:D.transfers||[],payments:D.payments||[],_ts:ts}));}catch(e){}
+  // Only Firebase — no localStorage for data
   clearTimeout(window._saveDebounce);
   window._saveDebounce=setTimeout(function(){fbSave(ts);},400);
 }
@@ -1343,18 +1331,16 @@ window.cleanOldDeleted=function(days){
   }
   var after=(D.deleted.associates||[]).length+(D.deleted.sales||[]).length+(D.deleted.projects||[]).length;
   var removed=before-after;
-  // Direct Firebase save — merge bypass karo, warna deleted data wapas aa jaata hai
+  // Direct Firebase save — no localStorage
   var ts=Date.now();
   window._localTs=ts;
-  try{localStorage.setItem(SK,JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted,transfers:D.transfers||[],payments:D.payments||[],_ts:ts}));}catch(e){}
+  if(!isOnline()){toast('📴 Internet nahi — online ho ke clean karo!',false);return;}
   if(_fbReady&&_fbDB){
     fbStatus('sync');
     var clean=JSON.parse(JSON.stringify({projects:D.projects||[],associates:D.associates||[],sales:D.sales||[],offers:D.offers||[],deleted:D.deleted,transfers:D.transfers||[],payments:D.payments||[],ts:ts}));
     _fbDB.collection('appdata').doc('main').set(clean)
-      .then(function(){fbStatus('ok');toast('✅ '+removed+' items permanently delete ho gaye — Firebase se bhi hata diye!');})
-      .catch(function(e){fbStatus('err');toast('⚠️ Local se delete hua lekin Firebase sync nahi hua!',false);});
-  } else {
-    toast('✅ '+removed+' items delete ho gaye (offline — online hone pe sync hoga)');
+      .then(function(){fbStatus('ok');toast('✅ '+removed+' items permanently delete ho gaye!');})
+      .catch(function(e){fbStatus('err');toast('⚠️ Firebase sync nahi hua!',false);});
   }
   render();
 };
@@ -1711,7 +1697,7 @@ function pgSettings(){
   if(!can('admin_only')&&SESSION&&SESSION.role!=='admin'){return '<div class="empty">⛔ Access Denied</div>';}
   var auth=getAuth();
   var staff=auth.staff||[];
-  var dataSize=0;try{var raw=localStorage.getItem(SK)||'';dataSize=Math.round(raw.length/1024);}catch(e){}
+  var dataSize=Math.round(JSON.stringify(D).length/1024);
 
   var html='<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">'
     +'<h2 style="font-size:16px;font-weight:700;color:var(--tx)">⚙️ Settings</h2>'
@@ -1762,17 +1748,7 @@ function pgSettings(){
     var totalDataSize=Math.round(JSON.stringify(D).length/1024);
     html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">';
     html+='<div class="ct" style="margin:0">🗑️ Deleted Items <span style="font-size:12px;font-weight:400;color:var(--t2)">('+totalDel+' items · ~'+delSize+' KB)</span></div>';
-    html+='<div style="display:flex;gap:6px;align-items:center">';
-    // Old entries (30+ days) count
-    var thirtyDaysAgo=new Date(Date.now()-30*24*60*60*1000).toISOString();
-    var oldCount=(del.associates||[]).filter(function(x){return x.deletedAt<thirtyDaysAgo;}).length
-      +(del.sales||[]).filter(function(x){return x.deletedAt<thirtyDaysAgo;}).length
-      +(del.projects||[]).filter(function(x){return x.deletedAt<thirtyDaysAgo;}).length;
-    if(oldCount>0){
-      html+='<button class="btn bsm" style="background:var(--amb);color:var(--am);border:1px solid var(--am)" onclick="cleanOldDeleted(30)">🧹 30+ days ke '+oldCount+' items clean karo</button>';
-    }
-    html+='<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re)" onclick="cleanOldDeleted(0)">🗑️ Sab Clean Karo</button>';
-    html+='</div></div>';
+    html+='</div>';
     // Data size warning
     if(totalDataSize>400){
       html+='<div class="info iam" style="margin-bottom:8px;font-size:12px">⚠️ Total data size: ~'+totalDataSize+' KB — Firebase 1MB limit se '+Math.round((totalDataSize/1024)*100)+'% use ho chuka hai. Purana data clean karo.</div>';
@@ -6469,7 +6445,6 @@ function fbLoadIfEmpty(){
       if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
       if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
       window._localTs=remoteTs;
-      try{localStorage.setItem(SK,JSON.stringify(Object.assign({},D,{_ts:remoteTs})));}catch(e){}
       fbStatus('ok');
       if(SESSION)render();
     })
@@ -6503,8 +6478,7 @@ function fbInit(){
       if(r.deleted)D.deleted=r.deleted;else if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
       if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
-      // localStorage bhi update
-      try{localStorage.setItem(SK,JSON.stringify(Object.assign({},D,{_ts:r.ts})));}catch(e){}
+      // Firebase only — no localStorage
       fbStatus('ok');
       // Smart refresh — agar user koi form fill kar raha ho to interrupt mat karo
       if(SESSION){
