@@ -543,6 +543,7 @@ var r1Mode='total'; // 'total' | 'legwise'
 var r1LegId='';     // selected leg (top-level associate)
 var r1FocusId='';   // highlighted associate in leg view
 var r1P=1;   // report1 page (10 per page)
+var r1ProfileId=''; // Associate Profile page id
 var searchQ='';
 var srProjF='';  // sales record project filter
 var srPlotF='';  // sales record plot filter
@@ -3427,9 +3428,10 @@ function pgRpt(){
     +'</div>'
     +'<div style="display:flex;border-bottom:2px solid var(--bd);margin-bottom:14px;overflow-x:auto">';
   tabs.forEach(function(t){
-    html+='<button onclick="rTab=\''+t[0]+'\';render()" style="padding:9px 14px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:3px solid '+(rTab===t[0]?'var(--bl)':'transparent')+';color:'+(rTab===t[0]?'var(--bl)':'var(--t2)')+'">'+t[1]+'</button>';
+    html+='<button onclick="rTab=\''+t[0]+'\';r1ProfileId=String();render()" style="padding:9px 14px;font-size:13px;font-weight:600;border:none;background:none;cursor:pointer;white-space:nowrap;border-bottom:3px solid '+(rTab===t[0]?'var(--bl)':'transparent')+';color:'+(rTab===t[0]?'var(--bl)':'var(--t2)')+'">'+t[1]+'</button>';
   });
   html+='</div>';
+  if(rTab==='r1'&&r1ProfileId)return rpt1Profile(r1ProfileId);
   if(rTab==='r1')html+=rpt1();
   else if(rTab==='r2')html+=rpt2();
   else if(rTab==='r3')html+=rpt3();
@@ -3640,7 +3642,7 @@ function r1Table(pageData,page,PER_PAGE,totalPages,totalCount,clrs,bgs,focusId,a
         +'<td>'+arr
           +(isFocus?'<span style="background:var(--am);color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;margin-right:4px;font-weight:700">★ Focus</span>':'')
           +(isAncestor?'<span style="background:var(--grb);color:var(--gr);padding:1px 6px;border-radius:4px;font-size:11px;margin-right:4px">↑ Upline</span>':'')
-          +'<b data-aid="'+a.id+'" onclick="showAssocView(this.dataset.aid)" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
+          +'<b data-aid="'+a.id+'" onclick="r1ProfileId=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
           +(function(){var tl=getTopLeader(a.id);return tl&&tl.id!==a.id?'<span style="font-size:10px;color:var(--t2);margin-left:5px">👑 '+esc(tl.name)+'</span>':'';}())
         +'</td>'
         +'<td style="font-size:12px">'+(a.fatherName?esc(a.fatherName):'—')+'</td>'
@@ -6811,6 +6813,275 @@ window.showAssocDetail=function(id){
 };
 
 // showAssocView — Reports page ke liye (NO Edit button)
+
+// ─── ASSOCIATE PROFILE PAGE (Reports > Associate Info) ───
+function rpt1Profile(id){
+  var a=D.associates.find(function(x){return x.id===id;});
+  if(!a){r1ProfileId='';render();return '';}
+
+  // Basic calculations
+  var par=a.parentId?D.associates.find(function(x){return x.id===a.parentId;}):null;
+  var cs=slabOf(a.totalGaj);
+  var ns=nSlab(a.totalGaj);
+  var pct=ns?Math.min(100,Math.round(((a.totalGaj-cs.min)/(ns.min-cs.min))*100)):100;
+  var level=0,cur=a;
+  while(cur&&cur.parentId){level++;var tmp=D.associates.find(function(x){return x.id===cur.parentId;});cur=tmp;}
+  var waNum=a.phone?(a.phone.replace(/\D/g,'').length===10?'91'+a.phone.replace(/\D/g,''):a.phone.replace(/\D/g,'')):'';
+
+  // Gaj breakdown
+  var personalGaj=Math.round(D.sales.filter(function(s){return s.sellerId===a.id;}).reduce(function(t,s){return t+s.plotGaj;},0)*100)/100;
+  var teamGaj=Math.round(D.sales.filter(function(s){return s.sellerId!==a.id&&s.commissions&&s.commissions.some(function(c){return c.id===a.id;});}).reduce(function(t,s){return t+s.plotGaj;},0)*100)/100;
+  var otherGaj=Math.max(0,Math.round(((a.totalGaj||0)-(a.salesGaj||0))*100)/100);
+
+  // Sales of this associate (as seller)
+  var mySales=D.sales.filter(function(s){return s.sellerId===a.id;});
+  var myTotalComm=mySales.reduce(function(t,s){
+    var myC=s.commissions?s.commissions.find(function(c){return c.id===a.id;}):null;
+    return t+(myC?myC.total||0:0);
+  },0);
+
+  // Team sales (commission recipient, not seller)
+  var teamSales=D.sales.filter(function(s){return s.sellerId!==a.id&&s.commissions&&s.commissions.some(function(c){return c.id===a.id;});});
+  var teamTotalComm=teamSales.reduce(function(t,s){
+    var myC=s.commissions.find(function(c){return c.id===a.id;});
+    return t+(myC?myC.total||0:0);
+  },0);
+
+  // Upliner chain (top → this)
+  var chain=getChain(a.id).slice().reverse();
+  var chainColors=['var(--bl)','var(--gr)','var(--am)','var(--pu)'];
+  var chainBgs=['var(--blb)','var(--grb)','var(--amb)','var(--pub)'];
+
+  // Direct downline
+  var directDown=D.associates.filter(function(x){return x.parentId===a.id;});
+
+  // Benefits
+  var salesGajForBen=a.salesGaj||0;
+
+  // ── HTML BUILD ──
+  var h='';
+
+  // ── Breadcrumb / Back bar ──
+  h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<button class="btn bgh bsm" onclick="r1ProfileId=String();render()">← Back</button>'
+    +'<span style="font-size:12px;color:var(--t2)">Reports / Associate Info</span>'
+    +'<span style="font-size:12px;color:var(--t3)">/</span>'
+    +'<span style="font-size:13px;font-weight:700">'+esc(a.name)+'</span>'
+    +'<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'
+    +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;border:none;text-decoration:none;padding:6px 12px">📱 WhatsApp</a>':'')
+    +(can('associates_edit')?'<button class="btn bsm" style="background:var(--blb);color:var(--bl);border:1px solid var(--bl)" data-aid="'+a.id+'" onclick="closeM();editAssoc(this.dataset.aid)">✏️ Edit</button>':'')
+    +'<button class="btn bsm" style="background:var(--bg3);color:var(--t2);border:1px solid var(--bd)" data-aid="'+a.id+'" onclick="expSingleAssoc(this.dataset.aid)">📤 Export</button>'
+    +'</div>'
+    +'</div>';
+
+  // ── Hero header ──
+  h+='<div class="card" style="margin-bottom:10px;background:var(--blb);border-color:var(--bl)">'
+    +'<div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+    +'<div style="width:52px;height:52px;border-radius:50%;background:var(--bl);color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;flex-shrink:0">'
+    +esc(a.name.trim()[0]||'?')+'</div>'
+    +'<div style="flex:1">'
+    +'<div style="font-size:18px;font-weight:700;color:var(--bld)">'+esc(a.name)+'</div>'
+    +'<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">'
+    +'<span class="badge bbl2">L'+(level+1)+'</span>'
+    +'<span class="badge bgn">'+cs.des+'</span>'
+    +'<span class="badge bbl2">₹'+fmt(cs.rate)+'/gaj</span>'
+    +(a.rera?'<span class="badge" style="background:var(--pub);color:var(--pu)">'+esc(a.rera)+'</span>':'')
+    +'</div>'
+    +'</div>'
+    +'<div style="text-align:right">'
+    +'<div style="font-size:28px;font-weight:700;color:var(--bl)">'+a.totalGaj+'</div>'
+    +'<div style="font-size:11px;color:var(--t2)">Total Gaj</div>'
+    +'</div>'
+    +'</div>'
+    +'<div style="margin-top:10px">'
+    +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:4px">'
+    +'<span>'+cs.des+' · ₹'+fmt(cs.rate)+'/gaj</span>'
+    +'<span>'+(ns?(ns.min-a.totalGaj)+' gaj → '+ns.des:'🏆 Max Level!')+'</span>'
+    +'</div>'
+    +'<div class="sbar"><div class="sfil" style="width:'+pct+'%"></div></div>'
+    +'</div>'
+    +'</div>';
+
+  // ── Row 1: Personal + Performance + Banking ──
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
+
+  // Personal Info
+  h+='<div class="card" style="margin:0">'
+    +'<div class="ct" style="margin-bottom:10px">👤 Personal Info</div>'
+    +'<div style="font-size:12px;display:grid;gap:5px">';
+  var pFields=[
+    ['Father/Husband',a.fatherName],['Phone',a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" style="color:var(--gr)">📱 '+esc(a.phone)+'</a>':null],
+    ['Email',a.email],['RERA',a.rera?'<span style="color:var(--bl)">'+esc(a.rera)+'</span>':null],
+    ['PAN',a.pan?'<b style="font-family:Courier New,monospace">'+esc(a.pan)+'</b>':null],
+    ['Aadhaar',a.aadhaar],['Code',a.code],['Location',a.location],
+    ['Joining',a.joiningDate],['Address',a.address],
+    ['Upliner',par?'<b style="color:var(--bl);cursor:pointer" onclick="r1ProfileId=\''+par.id+'\';render()">'+esc(par.name)+'</b>':'— Top Level —']
+  ];
+  pFields.forEach(function(f){
+    if(!f[1]&&f[1]!==0)return;
+    h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--bd)">'
+      +'<span style="color:var(--t3);white-space:nowrap">'+f[0]+'</span>'
+      +'<span style="font-weight:500;text-align:right">'+f[1]+'</span>'
+      +'</div>';
+  });
+  h+='</div></div>';
+
+  // Right column: Performance + Banking
+  h+='<div style="display:flex;flex-direction:column;gap:10px">';
+
+  // Performance stats
+  h+='<div class="card" style="margin:0">'
+    +'<div class="ct" style="margin-bottom:10px">📊 Performance</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+    +'<div class="stat"><div class="sl">Personal Gaj</div><div class="sv" style="color:var(--bl)">'+personalGaj+'</div></div>'
+    +'<div class="stat"><div class="sl">Team Gaj</div><div class="sv" style="color:var(--gr)">'+teamGaj+'</div></div>'
+    +'<div class="stat"><div class="sl">Other Gaj</div><div class="sv" style="color:var(--am)">'+otherGaj+'</div></div>'
+    +'<div class="stat"><div class="sl">Total Gaj</div><div class="sv" style="color:var(--pu)">'+a.totalGaj+'</div></div>'
+    +'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
+    +'<div class="stat"><div class="sl">Personal Sales</div><div class="sv" style="font-size:16px;color:var(--bl)">'+mySales.length+'</div></div>'
+    +'<div class="stat"><div class="sl">Personal Commission</div><div class="sv" style="font-size:15px;color:var(--gr)">₹'+fmtL(myTotalComm)+'</div></div>'
+    +'<div class="stat"><div class="sl">Team Sales</div><div class="sv" style="font-size:16px;color:var(--am)">'+teamSales.length+'</div></div>'
+    +'<div class="stat"><div class="sl">Team Commission</div><div class="sv" style="font-size:15px;color:var(--pu)">₹'+fmtL(teamTotalComm)+'</div></div>'
+    +'</div>'
+    +'</div>';
+
+  // Banking
+  h+='<div class="card" style="margin:0">'
+    +'<div class="ct" style="margin-bottom:10px">🏦 Banking</div>'
+    +'<div style="font-size:12px;display:grid;gap:5px">';
+  var bFields=[['Account Holder',a.bankingName],['Bank',a.bankName],
+    ['A/C No',a.accNo?'<b style="font-family:Courier New,monospace;font-size:13px">'+esc(a.accNo)+'</b>':null],
+    ['IFSC',a.ifsc?'<b style="font-family:Courier New,monospace">'+esc(a.ifsc)+'</b>':null],
+    ['Address',a.address]];
+  bFields.forEach(function(f){
+    h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--bd)">'
+      +'<span style="color:var(--t3);white-space:nowrap">'+f[0]+'</span>'
+      +'<span style="font-weight:500;text-align:right">'+(f[1]||'—')+'</span>'
+      +'</div>';
+  });
+  h+='</div></div>';
+
+  h+='</div></div>'; // end right col + row1 grid
+
+  // ── Row 2: Chain/Downline + Benefits ──
+  h+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">';
+
+  // Chain + Downline
+  h+='<div class="card" style="margin:0">';
+  h+='<div class="ct" style="margin-bottom:10px">🔗 Hierarchy Chain</div>';
+  // Upliner chain pills
+  h+='<div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:12px">';
+  chain.forEach(function(node,i){
+    var li=Math.min(i,3);
+    var isSelf=node.id===a.id;
+    h+='<span style="font-size:11px;padding:4px 10px;background:'+(isSelf?'var(--bl)':chainBgs[li])+';color:'+(isSelf?'#fff':chainColors[li])+';border-radius:20px;font-weight:600;cursor:'+(isSelf?'default':'pointer')+'"'
+      +(isSelf?'':' onclick="r1ProfileId=\''+node.id+'\';render()"')+'>'
+      +'L'+(i+1)+' · '+esc(node.name.replace(' (Left)',''))
+      +(isSelf?' ★':'')
+      +'</span>';
+    if(i<chain.length-1)h+='<span style="color:var(--t3);font-size:10px">→</span>';
+  });
+  h+='</div>';
+
+  // Direct downline
+  h+='<div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:6px">👇 Direct Downline ('+directDown.length+')</div>';
+  if(directDown.length===0){
+    h+='<div style="color:var(--t3);font-size:12px;padding:8px 0">Koi direct downline nahi</div>';
+  } else {
+    directDown.slice(0,8).forEach(function(d){
+      var dSales=D.sales.filter(function(s){return s.commissions&&s.commissions.some(function(c){return c.id===d.id;});}).length;
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd);cursor:pointer" onclick="r1ProfileId=\''+d.id+'\';render()">'
+        +'<span class="badge bbl2" style="font-size:10px">'+esc(dOf(d.totalGaj).substring(0,12))+'</span>'
+        +'<span style="flex:1;color:var(--bl);font-weight:600">'+esc(d.name)+'</span>'
+        +'<span style="font-size:11px;color:var(--t2)">'+d.totalGaj+' gaj · '+dSales+' sales</span>'
+        +'</div>';
+    });
+    if(directDown.length>8)h+='<div style="font-size:11px;color:var(--t3);padding:5px 0">...aur '+(directDown.length-8)+' aur</div>';
+  }
+  h+='</div>';
+
+  // Benefits
+  h+='<div class="card" style="margin:0">'
+    +'<div class="ct" style="margin-bottom:10px">🎁 Benefits Progress <span style="font-size:11px;font-weight:400;color:var(--t2)">(Sales Gaj: '+salesGajForBen+')</span></div>';
+  BENS.forEach(function(ben){
+    var done=salesGajForBen>=ben.g;
+    var isNext=!done&&nBen(salesGajForBen)&&nBen(salesGajForBen).g===ben.g;
+    var bpct=isNext?Math.min(100,Math.round((salesGajForBen/ben.g)*100)):0;
+    h+='<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;margin-bottom:4px;border-radius:7px;background:'+(done?'var(--grb)':isNext?'var(--amb)':'var(--bg3)')+';opacity:'+(done||isNext?1:.55)+'">'
+      +'<span style="font-size:16px">'+(done?'✅':isNext?'🎯':'🔒')+'</span>'
+      +'<div style="flex:1">'
+      +'<div style="font-size:12px;font-weight:600;color:'+(done?'var(--gr)':isNext?'var(--am)':'var(--t2)')+'">'+ben.l+'</div>'
+      +'<div style="font-size:10px;color:var(--t3)">'+fmt(ben.g)+' sales gaj needed</div>'
+      +(isNext?'<div class="sbar" style="margin:3px 0 0"><div class="sfil" style="width:'+bpct+'%;background:'+(isNext?'var(--am)':'var(--bl)')+'"></div></div>':'')
+      +'</div>'
+      +'<span class="badge" style="background:'+(done?'var(--grb)':isNext?'var(--amb)':'var(--bg2)')+';color:'+(done?'var(--gr)':isNext?'var(--am)':'var(--t3)')+';">'+(done?'Done ✓':isNext?bpct+'%':'—')+'</span>'
+      +'</div>';
+  });
+  h+='</div>';
+
+  h+='</div>'; // end row2 grid
+
+  // ── Personal Sales Table ──
+  h+='<div class="card" style="margin-bottom:10px">'
+    +'<div class="ct" style="margin-bottom:10px">📋 Personal Sales ('+mySales.length+' records)</div>';
+  if(mySales.length===0){
+    h+='<div class="empty" style="padding:16px">Koi personal sale nahi</div>';
+  } else {
+    h+='<div class="tw" style="border:none;border-radius:0;margin:-14px -18px 0"><table><thead><tr>'
+      +'<th>#</th><th>Project</th><th>Plot</th><th>Buyer</th><th>Gaj</th><th>Booking</th><th>Closing</th><th>My Commission</th>'
+      +'</tr></thead><tbody>';
+    mySales.forEach(function(s,i){
+      var myC=s.commissions?s.commissions.find(function(c){return c.id===a.id;}):null;
+      h+='<tr>'
+        +'<td style="color:var(--t3)">'+(i+1)+'</td>'
+        +'<td><b>'+esc(s.projName)+'</b></td>'
+        +'<td><span class="badge bbl2">'+esc(String(s.plotNo))+'</span></td>'
+        +'<td style="font-size:12px">'+(s.partyName?esc(s.partyName):'—')+'</td>'
+        +'<td style="color:var(--pu);font-weight:700">'+s.plotGaj+'</td>'
+        +'<td style="font-size:12px">'+(s.bookingDate||'—')+'</td>'
+        +'<td style="font-size:12px">'+(s.closeDate||'—')+'</td>'
+        +'<td style="color:var(--gr);font-weight:700">'+(myC?'₹'+fmt(Math.round(myC.total||0)):'—')+'</td>'
+        +'</tr>';
+    });
+    h+='</tbody></table></div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;margin-top:10px;border-top:1px solid var(--bd)">'
+      +'<span style="font-size:12px;color:var(--t2)">Total: <b>'+personalGaj+'</b> gaj from <b>'+mySales.length+'</b> sales</span>'
+      +'<span style="font-size:13px;font-weight:700;color:var(--gr)">Total Commission: ₹'+fmt(Math.round(myTotalComm))+'</span>'
+      +'</div>';
+  }
+  h+='</div>';
+
+  // ── Team Sales Table ──
+  if(teamSales.length>0){
+    h+='<div class="card" style="margin-bottom:10px">'
+      +'<div class="ct" style="margin-bottom:10px">👥 Team Sales Commission ('+teamSales.length+' records)</div>'
+      +'<div class="tw" style="border:none;border-radius:0;margin:-14px -18px 0"><table><thead><tr>'
+      +'<th>#</th><th>Project</th><th>Plot</th><th>Seller</th><th>Gaj</th><th>Booking</th><th>My Commission</th>'
+      +'</tr></thead><tbody>';
+    teamSales.forEach(function(s,i){
+      var myC=s.commissions.find(function(c){return c.id===a.id;});
+      h+='<tr>'
+        +'<td style="color:var(--t3)">'+(i+1)+'</td>'
+        +'<td><b>'+esc(s.projName)+'</b></td>'
+        +'<td><span class="badge bbl2">'+esc(String(s.plotNo))+'</span></td>'
+        +'<td style="font-size:12px;color:var(--t2)">'+esc(s.sellerName)+'</td>'
+        +'<td style="color:var(--pu);font-weight:700">'+s.plotGaj+'</td>'
+        +'<td style="font-size:12px">'+(s.bookingDate||'—')+'</td>'
+        +'<td style="color:var(--gr);font-weight:700">'+(myC?'₹'+fmt(Math.round(myC.total||0)):'—')+'</td>'
+        +'</tr>';
+    });
+    h+='</tbody></table></div>'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;margin-top:10px;border-top:1px solid var(--bd)">'
+      +'<span style="font-size:12px;color:var(--t2)">Team sales: <b>'+teamGaj+'</b> gaj · <b>'+teamSales.length+'</b> records</span>'
+      +'<span style="font-size:13px;font-weight:700;color:var(--pu)">Team Commission: ₹'+fmt(Math.round(teamTotalComm))+'</span>'
+      +'</div>'
+      +'</div>';
+  }
+
+  return h;
+}
+
 window.showAssocView=function(id){
   var a=D.associates.find(function(x){return x.id===id;});
   if(!a)return;
