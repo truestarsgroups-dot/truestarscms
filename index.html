@@ -1053,7 +1053,7 @@ function rpt4PayDetail(assocId){
   // Group by month
   var monthMap={};
   mySales.forEach(function(s){
-    var mon=s.bookingDate?s.bookingDate.substr(0,7):'Unknown';
+    var mon=s.closeDate?s.closeDate.substr(0,7):(s.bookingDate?s.bookingDate.substr(0,7):'Unknown');
     if(!monthMap[mon])monthMap[mon]={sales:[],total:0};
     var cm=(s.commissions||[]).find(function(c){return c.id===assocId;});
     var df=(s.defCommissions||[]).find(function(c){return c.id===assocId;});
@@ -1192,7 +1192,8 @@ window.openMarkPaidModal=function(assocId,month,pendingAmt,isEdit){
   var today=new Date().toISOString().slice(0,10);
   // Get sales for this month
   var saleIds=month?D.sales.filter(function(s){
-    return s.bookingDate&&s.bookingDate.startsWith(month)
+    var sMon=s.closeDate?s.closeDate.substr(0,7):(s.bookingDate?s.bookingDate.substr(0,7):'');
+    return sMon===month
       &&((s.commissions&&s.commissions.some(function(c){return c.id===assocId;}))
        ||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===assocId;})));
   }).map(function(s){return s.id;}):[];
