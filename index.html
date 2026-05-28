@@ -191,9 +191,14 @@ function saveLog(){try{localStorage.setItem(SK_LOG,JSON.stringify(ACTLOG));}catc
 
 function logAct(action){
   if(!SESSION)return;
-  ACTLOG.unshift({uid:SESSION.id,uname:SESSION.name,role:SESSION.role,action:action,time:new Date().toISOString()});
+  var entry={uid:SESSION.id,uname:SESSION.name,role:SESSION.role,action:action,time:new Date().toISOString()};
+  ACTLOG.unshift(entry);
   if(ACTLOG.length>200)ACTLOG=ACTLOG.slice(0,200);
-  saveLog();
+  saveLog(); // localStorage backup
+  // Firebase mein bhi save karo (async, non-blocking)
+  if(_fbReady&&_fbDB){
+    _fbDB.collection('_actlog').add(entry).catch(function(){});
+  }
 }
 
 var PERM_LABELS={
@@ -217,21 +222,35 @@ function can(perm){
   return!!(SESSION.perms&&SESSION.perms[perm]);
 }
 
+var SESSION_TIMEOUT=8*60*60*1000; // 8 hours
+var _sessionTimer=null;
+
+function resetSessionTimer(){
+  if(_sessionTimer)clearTimeout(_sessionTimer);
+  if(!SESSION)return;
+  _sessionTimer=setTimeout(function(){
+    toast('⏰ Session expire ho gaya (8 hours). Dobara login karo.',false);
+    doLogout();
+  },SESSION_TIMEOUT);
+}
+
 function doLogin(uid,pwd){
   var auth=getAuth();
   if(uid.toLowerCase()==='admin'&&auth.admin.pwd===hashPwd(pwd)){
-    SESSION={id:'admin',name:'Admin',role:'admin',perms:null};
-    logAct('Login kiya');hideLoginScreen();TAB='dashboard';render();return true;
+    SESSION={id:'admin',name:'Admin',role:'admin',perms:null,loginTime:Date.now()};
+    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
   }
   var s=(auth.staff||[]).find(function(x){return x.id.toLowerCase()===uid.toLowerCase();});
   if(s&&s.pwd===hashPwd(pwd)){
-    SESSION={id:s.id,name:s.name,role:'staff',perms:s.perms||{}};
-    logAct('Login kiya');hideLoginScreen();TAB='dashboard';render();return true;
+    SESSION={id:s.id,name:s.name,role:'staff',perms:s.perms||{},loginTime:Date.now()};
+    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
   }
   return false;
 }
 
 function doLogout(){
+  if(_sessionTimer)clearTimeout(_sessionTimer);
+  _sessionTimer=null;
   if(SESSION)logAct('Logout kiya');
   SESSION=null;
   document.getElementById('nav').innerHTML='';
@@ -258,30 +277,55 @@ function doLoginBtn(){
     if(err){err.style.display='block';err.textContent='❌ User ID aur Password dono daalo!';}
     return;
   }
-  // ── Brute force protection ──
-  var BF_KEY='bf_'+uid;
-  var bfRaw=null;try{bfRaw=JSON.parse(localStorage.getItem(BF_KEY)||'null');}catch(e){}
+  // ── Brute force protection — Firebase mein store hoga ──
+  var BF_KEY='bf_'+uid.toLowerCase().replace(/[^a-z0-9]/g,'_');
   var now=Date.now();
-  if(bfRaw&&bfRaw.lockedUntil&&now<bfRaw.lockedUntil){
-    var secsLeft=Math.ceil((bfRaw.lockedUntil-now)/1000);
-    if(err){err.style.display='block';err.textContent='🔒 Bahut zyada galat attempts! '+secsLeft+' seconds mein dobara try karo.';}
-    return;
-  }
-  if(!doLogin(uid,pwd)){
-    // Increment fail count
-    var fails=(bfRaw&&bfRaw.fails||0)+1;
+
+  function _bfFail(bfData){
+    var fails=(bfData&&bfData.fails||0)+1;
     var lockedUntil=fails>=5?now+5*60*1000:0;
-    try{localStorage.setItem(BF_KEY,JSON.stringify({fails:fails,lockedUntil:lockedUntil}));}catch(e){}
+    var data={fails:fails,lockedUntil:lockedUntil,updatedAt:now};
+    // Firebase save
+    if(_fbReady&&_fbDB)_fbDB.collection('_security').doc(BF_KEY).set(data).catch(function(){});
+    // localStorage fallback bhi
+    try{localStorage.setItem(BF_KEY,JSON.stringify(data));}catch(e){}
     var msg=fails>=5?'🔒 5 galat attempts! Account 5 minute ke liye lock hai.':'❌ Galat User ID ya Password! ('+(5-fails)+' attempts baaki)';
     if(err){err.style.display='block';err.textContent=msg;}
     var pwdEl=document.getElementById('loginPwd');
     if(pwdEl){pwdEl.value='';pwdEl.focus();}
-  } else {
-    // Clear fail count on success
+  }
+
+  function _bfSuccess(){
+    if(_fbReady&&_fbDB)_fbDB.collection('_security').doc(BF_KEY).delete().catch(function(){});
     try{localStorage.removeItem(BF_KEY);}catch(e){}
     if(err)err.style.display='none';
   }
+
+  function _bfCheck(bfData){
+    if(bfData&&bfData.lockedUntil&&now<bfData.lockedUntil){
+      var secsLeft=Math.ceil((bfData.lockedUntil-now)/1000);
+      if(err){err.style.display='block';err.textContent='🔒 Bahut zyada galat attempts! '+secsLeft+' seconds mein dobara try karo.';}
+      return;
+    }
+    if(!doLogin(uid,pwd)){_bfFail(bfData);}
+    else{_bfSuccess();}
+  }
+
+  // Firebase se check karo pehle (primary), localStorage fallback
+  if(_fbReady&&_fbDB){
+    _fbDB.collection('_security').doc(BF_KEY).get()
+      .then(function(doc){_bfCheck(doc.exists?doc.data():null);})
+      .catch(function(){
+        // Firebase fail — localStorage fallback
+        var bfRaw=null;try{bfRaw=JSON.parse(localStorage.getItem(BF_KEY)||'null');}catch(e){}
+        _bfCheck(bfRaw);
+      });
+  } else {
+    var bfRaw=null;try{bfRaw=JSON.parse(localStorage.getItem(BF_KEY)||'null');}catch(e){}
+    _bfCheck(bfRaw);
+  }
 }
+
 
 var SLABS=[
   {l:1,min:0,max:249,rate:300,des:'Trainee'},
@@ -1514,6 +1558,47 @@ window.runIntegrityScanner=function(){
     });
   }
 
+  // ── CHECK 9: Duplicate sale (same project + same plot) ──
+  var saleKey={};
+  D.sales.forEach(function(s){
+    var key=(s.projId||s.projName)+'__'+String(s.plotNo).trim().toLowerCase();
+    if(!saleKey[key]){
+      saleKey[key]=[];
+    }
+    saleKey[key].push(s);
+  });
+  Object.keys(saleKey).forEach(function(key){
+    var group=saleKey[key];
+    if(group.length>1){
+      var names=group.map(function(s){
+        return s.projName+' Plot '+s.plotNo+' (Seller: '+(s.sellerName||'?')+', Date: '+(s.bookingDate||'?')+')';
+      });
+      issues.push({
+        type:'duplicate_sale',cat:'sale',severity:'high',
+        id:group[0].id,
+        name:group[0].projName+' — Plot '+group[0].plotNo,
+        msg:group.length+' baar sold hua hai — '+names.join(' | ')
+      });
+    }
+  });
+
+  // ── CHECK 10: Plot already sold but status mismatch ──
+  D.sales.forEach(function(s){
+    var proj=D.projects.find(function(p){return p.id===s.projId;});
+    if(!proj||!proj.plots)return;
+    var plot=proj.plots.find(function(pl){
+      return String(pl.plotNo).trim().toLowerCase()===String(s.plotNo).trim().toLowerCase();
+    });
+    if(plot&&plot.status!=='sold'){
+      issues.push({
+        type:'plot_status_mismatch',cat:'sale',severity:'medium',
+        id:s.id,
+        name:s.projName+' Plot '+s.plotNo,
+        msg:'Sale exist karta hai lekin plot ka status "'+( plot.status||'available')+'" hai — "sold" hona chahiye'
+      });
+    }
+  });
+
   // ── RENDER RESULT ──
   var el=document.getElementById('scannerResult');
   if(!el){
@@ -1558,6 +1643,8 @@ window.runIntegrityScanner=function(){
       else if(issue.type==='orphan_parent')guide='Manual fix: Associate Edit → Upliner sahi set karo';
       else if(issue.type==='circular')guide='Manual fix: Associate Edit → Upliner hatao (Top Level karo)';
       else if(issue.type==='orphan_sale_proj')guide='Manual fix: Is sale ko delete karo (Sales Record se)';
+      else if(issue.type==='duplicate_sale')guide='Manual fix: Sales Record mein jaao — duplicate entry delete karo, ek hi entry rakho';
+      else if(issue.type==='plot_status_mismatch')guide='Manual fix: Projects → Plot edit karo → status "Sold" set karo';
       html+='<div style="background:var(--reb);border:1px solid var(--re);border-radius:8px;padding:8px 10px;margin-bottom:5px;font-size:12px">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">'
         +'<b style="color:var(--re)">'+esc(issue.name)+'</b>'
@@ -1950,7 +2037,7 @@ function pgDash(){
     if(!sl.sellerId)return;
     var sname=sl.sellerName||sl.sellerId;
     if(!aMap[sl.sellerId])aMap[sl.sellerId]={name:sname,gaj:0,sales:0};
-    aMap[sl.sellerId].gaj+=(sl.plotGaj||0);  // sirf is sale ka gaj
+    aMap[sl.sellerId].gaj=Math.round((aMap[sl.sellerId].gaj+(sl.plotGaj||0))*100)/100;
     aMap[sl.sellerId].sales++;
   });
   Object.keys(aMap).forEach(function(id){
@@ -6014,6 +6101,14 @@ function bindAll(){
     var proj=D.projects.find(function(p){return p.id===sD.projId;});
     var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
     if(!proj||!plot)return;
+    // ── Duplicate sale check ──
+    var dupSale=D.sales.find(function(s){
+      return s.projId===sD.projId&&String(s.plotNo).trim().toLowerCase()===String(plot.plotNo).trim().toLowerCase();
+    });
+    if(dupSale){
+      toast('⛔ '+proj.name+' Plot '+plot.plotNo+' ki sale pehle se exist karta hai (Seller: '+( dupSale.sellerName||'?')+', Date: '+(dupSale.bookingDate||'?')+')! Duplicate entry nahi ho sakti.',false);
+      return;
+    }
     var pi=D.projects.findIndex(function(p){return p.id===proj.id;});
     var pli=D.projects[pi].plots.findIndex(function(pl){return pl.id===plot.id;});
     D.projects[pi].plots[pli].status='sold';
