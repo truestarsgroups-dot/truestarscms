@@ -21,30 +21,30 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);font-
 .hdr-l{display:flex;align-items:center;gap:10px}
 .hdr h1{font-size:16px;font-weight:700;margin:0}
 .hdr p{font-size:11px;opacity:.8;margin:0}
-.nav{background:#fff;border-bottom:1px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 16px;gap:0}
+.nav{background:#fff;border-bottom:.5px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 16px;gap:0}
 .nav a{padding:10px 14px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0}
 .nav a.on{color:var(--bl);border-color:var(--bl)}
 #srchWrap{margin-left:auto;padding:4px 0;flex-shrink:0}
-#srchWrap input{font-size:12px;padding:5px 10px;border:1px solid var(--bd);border-radius:6px;width:200px}
+#srchWrap input{font-size:12px;padding:5px 10px;border:.5px solid var(--bd);border-radius:6px;width:200px}
 .main{max-width:1200px;margin:0 auto;padding:16px}
-.card{background:#fff;border:1px solid var(--bd);border-radius:10px;padding:14px 18px;margin-bottom:12px}
+.card{background:#fff;border:.5px solid var(--bd);border-radius:10px;padding:14px 18px;margin-bottom:12px}
 .ct{font-size:14px;font-weight:700;margin-bottom:12px}
 .g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
 .g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
 .g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
-.stat{background:var(--bg3);border:1px solid var(--bd);border-radius:8px;padding:12px;text-align:center}
+.stat{background:var(--bg3);border:.5px solid var(--bd);border-radius:8px;padding:12px;text-align:center}
 .sv{font-size:22px;font-weight:700;margin-top:2px}
 .sl{font-size:11px;color:var(--t3);font-weight:500}
 .fld{display:flex;flex-direction:column;gap:3px}
 .fld label{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.3px}
-input,select{font-size:13px;padding:7px 9px;border:1px solid var(--bd);border-radius:7px;background:#fff;color:var(--tx);width:100%}
+input,select{font-size:13px;padding:7px 9px;border:.5px solid var(--bd);border-radius:7px;background:#fff;color:var(--tx);width:100%}
 input:focus,select:focus{outline:none;border-color:var(--bl)}
 input:disabled,select:disabled{background:var(--bg3);color:var(--t3)}
 .btn{padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:5px}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 .bbl{background:var(--bl);color:#fff}
 .bgr{background:var(--gr);color:#fff}
-.bgh{background:var(--bg3);color:var(--t2);border:1px solid var(--bd);cursor:pointer}
+.bgh{background:var(--bg3);color:var(--t2);border:.5px solid var(--bd);cursor:pointer}
 .bsm{padding:4px 10px;font-size:12px;border-radius:5px}
 .bot{background:transparent;color:var(--bl);border:1px solid var(--bl)}
 .badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
@@ -52,10 +52,10 @@ input:disabled,select:disabled{background:var(--bg3);color:var(--t3)}
 .bam{background:var(--amb);color:var(--am)}
 .bbl2{background:var(--blb);color:var(--bl)}
 .bpu{background:var(--pub);color:var(--pu)}
-.tw{overflow-x:auto;border:1px solid var(--bd);border-radius:8px}
+.tw{overflow-x:auto;border:.5px solid var(--bd);border-radius:8px}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{padding:8px 10px;text-align:left;background:var(--bg3);border-bottom:1px solid var(--bd);font-size:11px;font-weight:700;color:var(--t2);white-space:nowrap;text-transform:uppercase}
-td{padding:8px 10px;border-bottom:1px solid var(--bd);vertical-align:middle}
+th{padding:8px 10px;text-align:left;background:var(--bg3);border-bottom:.5px solid var(--bd);font-size:11px;font-weight:700;color:var(--t2);white-space:nowrap;text-transform:uppercase}
+td{padding:8px 10px;border-bottom:.5px solid var(--bd);vertical-align:middle}
 tr:last-child td{border-bottom:none}
 tbody tr:hover td{background:var(--blb)}
 .empty{padding:32px;text-align:center;color:var(--t3);border:2px dashed var(--bd);border-radius:10px}
@@ -146,7 +146,7 @@ tbody tr:hover td{background:var(--blb)}
   <div style="background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:360px;box-shadow:0 24px 64px rgba(0,0,0,.4)">
     <div style="text-align:center;margin-bottom:22px">
       <img src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACYAAAAsCAYAAAAJpsrIAAAF8UlEQVR42u2Xe2xT1x3Hv+fce+3rVxInToLtlJRRCouhL020a9oGEG1R1dEKalRSSrv+k06txgbq0BRttjXtUaYqaBqi0Ae0FYHFGqXhUUqLSkMzURiw8QyYBJIQkjiJ4/gRP67v/e2P1FEyhaUTfQzNH+lI91zpHH31+53f+X0PkCNHjhw5cvxPwMZOiIh9Z0IYo5snYkRgjIGiPfWlqTSVW2QhE0kkv/HoGUSZMqoqgtBfUP5MW1bHuFR2dW0yyorp7rRe+0eyRVVvnWfSzp4dv5ELQKCjm6Wnhsjlctxw6AOBJJekPGbmfDYR7yq59dluImKMMRKzKlncatIkZcBuXxn/ttMW7anvTCiUN/YfHz34mkKcK8JIavdYichERJLBoAcAmIx6EJH55KerCr4uQdliC0diEpE6LgNi9sNiAVJpUomIn2ted/yjz/5qCMfSxzy1z0cXPza3/I23PqCNf3wucnt5wYJSm+Wl3v7o2243BL8f6lcXAga/m8PdoI2tQoOso3/fZFQY4kmmyVIGOJT3C8+2zr0HT9UB+Ft7YMfvtrz7UWXdhsYnAByu87lXOabkP/jiS6u3jpxRHwNAk4vycMZ8GuBXAQbyePh/WjcqLKrJZBG5xNj8CIDHRVGIapqGqbc5Zmpqpg9Ao6zX4ecevxfA1JNnfBoAbTQSANh16rihwc0Z86lNDe5inSasIg0NrNp36u+ObgmAMtEaPnaSTmcYAE3gPFpbu0SnacRivX07a2t/XPzyi0t9yVQaRMRCrX8Y2vPWT753cGft9KqqCjNjoC/LfMKxbJlfvfTZ2gUFJtsaLkqHTIWlT3Yc88z9Qc1mZdKIjWXJ0qWCy+VWAT/19fSqunjqdN36n/268n5XGWPsp6tfeKiq1FHyy9ami8OZFFtP4f3NG+t3iXfZDNE6/9X02oVWvqb+As2bB5RBn2e0lT7fGUw4I4q07onq93rjffXn2gMdq//5+av6Ox9Y2wwmMBBNLqyiooLcxWc5ANinWCuPHg+wpuaL3uUrHveKXJ3tXvHbh/ZuX3PPxi2fDB47+q7wiu9tf75RCDe2dPZ936kUv9Z4JnKPkxmjrbjlwAD9ZU4F3Ou3Htm+5Ef3vb7pz6uCv/n9LluhmfIvtnbbARwpKrOpwc6+66dyImRZDIeHhmdXr/TuuHb5yiNPPb1w7pInK9eFQkPmosI8OZ1KFZ8+03bhDlf5Ycb5XAaabzLqKs9fHjwhcOHqnBm25QPhhP7RqlmLOOcPh0KxhW0dwaBBxJ+mOSz33zLFcCewKKHEknzSiGXxeDwcShKJ4QTl55uczunLPqbEJx/cfceMle/vOf4rzoQru3Y3xWPR4bROTR7o6g7Zz5+9cPyuWTbbYDxNpy7H9/X3txvKypxpazEviV/qaRL1ciwSiQ8ePjYc7O8b2BGOqxGgS0h9lTMGAIcA+Hw+zfvyO1wSoA4NxYdHQmi9dqUjKO/88OQGAPSKfXnhgoet1Vt2B2IzZi1qc0yb71II9jmFg6eLigosRHDGo2ybIKUqrQ4xJuv1lr4vjp5o2L3vPIAjAHA1sK/MbJa1SYV5vS4GuNVPd/Ted+506zMzp5eISxffu3j71lrxzY31LzTubX6dRnqZ4Hb/MLJ//5vvEWW0ro6WIJGYEoCrQ+FwW3Iw2C6ZjVXXrvVIdntRMydpephzSVHiChGxzZtrxJqazZmJLliW7ZVdLdtselkrKSpfcd7r9QpeL7Sa6gOLzwV677WVWOMFFpMznlLl/QdPnIpGExuISAEYsm7gv29HYNn7daDzHYcKbiiduvLSaBO/jmHL+HwAgF1fjomM3Q0aQ1DW3ASvbNJkwTxuQ5Ex0Ih6KRJqT8/s79jq1AlSKhqNgXGRJQaiHCbAaCwkk1GmYLCfGWRBM5vlG7Y9jImMJZmQRmYakdQy0uLYBNa6q9EYyoSmmUxGSsfG14miqAwAJEn4+iywDlAyxEVO3fllzw2MNYo3x2MEQLbrw/stCfCOXAN00zxGcuTIkSPH/xv/AmY0vcJJx1daAAAAAElFTkSuQmCC" style="height:60px;width:auto" alt="TrueStars"/>
-      <div style="font-size:10px;color:#999;margin-top:6px;letter-spacing:1.5px;text-transform:uppercase">Commission Management System</div>
+      <div style="font-size:11px;color:#aaa;margin-top:6px">Commission Management System</div>
     </div>
     <div style="font-size:17px;font-weight:700;color:#222;margin-bottom:18px;text-align:center">🔐 Login</div>
     <div style="margin-bottom:10px">
@@ -155,7 +155,10 @@ tbody tr:hover td{background:var(--blb)}
     </div>
     <div style="margin-bottom:16px">
       <label style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px">Password</label>
-      <input id="loginPwd" type="password" placeholder="Password daalo" style="width:100%;font-size:14px;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a6fc4'" onblur="this.style.borderColor='#ddd'" onkeydown="if(event.key==='Enter')doLoginBtn()"/>
+      <div style="position:relative">
+        <input id="loginPwd" type="password" placeholder="Password daalo" style="width:100%;font-size:14px;padding:10px 40px 10px 12px;border:1.5px solid #ddd;border-radius:8px;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a6fc4'" onblur="this.style.borderColor='#ddd'" onkeydown="if(event.key==='Enter')doLoginBtn()"/>
+        <button type="button" id="pwdToggle" onclick="var i=document.getElementById('loginPwd');i.type=i.type==='password'?'text':'password';document.getElementById('pwdToggle').textContent=i.type==='password'?'Show':'Hide'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;color:#999;font-weight:500">Show</button>
+      </div>
     </div>
     <div id="loginErr" style="display:none;background:#fdecea;color:#c0392b;border:1px solid #f5c6cb;border-radius:7px;padding:8px 12px;font-size:12px;margin-bottom:12px;text-align:center">❌ Galat User ID ya Password!</div>
     <button onclick="doLoginBtn()" style="width:100%;background:#1a6fc4;color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px">Login →</button>
@@ -238,14 +241,12 @@ function doLogin(uid,pwd){
   var auth=getAuth();
   if(uid.toLowerCase()==='admin'&&auth.admin.pwd===hashPwd(pwd)){
     SESSION={id:'admin',name:'Admin',role:'admin',perms:null,loginTime:Date.now()};
-    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();
-    setTimeout(checkAutoBackup,3000);return true;
+    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
   }
   var s=(auth.staff||[]).find(function(x){return x.id.toLowerCase()===uid.toLowerCase();});
   if(s&&s.pwd===hashPwd(pwd)){
     SESSION={id:s.id,name:s.name,role:'staff',perms:s.perms||{},loginTime:Date.now()};
-    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();
-    setTimeout(checkAutoBackup,3000);return true;
+    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
   }
   return false;
 }
@@ -1010,14 +1011,12 @@ function rpt4Pay(){
   });
 
   var rows=Object.values(assocPay).map(function(a){
-    // saleId-based payments (new system)
     var saleIdPaid=D.payments.filter(function(p){return p.assocId===a.id&&p.saleId;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
-    // old month-based payments (backward compat)
     var monthPaid=D.payments.filter(function(p){return p.assocId===a.id&&!p.saleId;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
     var paid=saleIdPaid+monthPaid;
     var pending=Math.max(0,a.total-paid);
     var status=paid<=0?'pending':pending<=0?'paid':'partial';
-    return Object.assign({},a,{paid:paid,pending:pending,status:status});
+    return Object.assign({},a,{paid:paid,pending:pending,status:status,chain:a.chain,def:a.def});
   }).filter(function(a){return a.total>0;});
 
   // Search filter
@@ -1043,8 +1042,8 @@ function rpt4Pay(){
 
   // Filters
   html+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'
-    +'<input type="text" placeholder="🔍 Associate search..." value="'+esc(r4PaySearch)+'" oninput="r4PaySearch=this.value;render()" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
-    +'<select onchange="r4PayStatus=this.value;render()" style="font-size:13px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)">'
+    +'<input type="text" placeholder="🔍 Associate search..." value="'+esc(r4PaySearch)+'" oninput="r4PaySearch=this.value;render()" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
+    +'<select onchange="r4PayStatus=this.value;render()" style="font-size:13px;padding:7px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)">'
     +'<option value="">All Status</option>'
     +'<option value="pending"'+(r4PayStatus==='pending'?' selected':'')+'>🟡 Pending</option>'
     +'<option value="partial"'+(r4PayStatus==='partial'?' selected':'')+'>🔵 Partial</option>'
@@ -1202,7 +1201,7 @@ function rpt4PayDetail(assocId){
   projArr.forEach(function(proj){
     var projPending=Math.max(0,proj.total-proj.paid);
     html+='<div class="card" style="padding:0;margin-bottom:12px;overflow:hidden">'
-      +'<div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;background:var(--bg2)">'
+      +'<div style="padding:10px 14px;border-bottom:.5px solid var(--bd);display:flex;justify-content:space-between;align-items:center;background:var(--bg2)">'
       +'<div class="ct" style="margin:0">🏗️ '+esc(proj.name)+'</div>'
       +'<div style="display:flex;gap:8px;align-items:center">'
       +'<span style="font-size:12px;color:var(--t2)">Total: <b>₹'+fmt(proj.total)+'</b></span>'
@@ -1249,7 +1248,7 @@ function rpt4PayDetail(assocId){
   var allMyPays=D.payments.filter(function(p){return p.assocId===assocId;}).sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');});
   if(allMyPays.length>0){
     html+='<div class="card" style="padding:0;overflow:hidden">'
-      +'<div style="padding:10px 14px;border-bottom:1px solid var(--bd)"><div class="ct" style="margin:0">📜 Payment History</div></div>'
+      +'<div style="padding:10px 14px;border-bottom:.5px solid var(--bd)"><div class="ct" style="margin:0">📜 Payment History</div></div>'
       +'<div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
       +'<th>Date</th><th>Project</th><th>Plot</th><th>Amount</th><th>Mode</th><th>UTR</th><th>Note</th><th>By</th>'
       +'</tr></thead><tbody>';
@@ -1864,9 +1863,9 @@ function render(){
   // Header user info + logout
   var isAdmin=SESSION.role==='admin';
   var badge=isAdmin
-    ?'<span style="background:#b8860b;color:#fff;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">👑 Admin</span>'
+    ?'<span style="background:rgba(255,255,255,.18);color:#fff;padding:3px 10px;border-radius:12px;font-size:11px;font-weight:500;border:.5px solid rgba(255,255,255,.3)">Admin</span>'
     :'<span style="background:rgba(255,255,255,.22);color:#fff;padding:3px 9px;border-radius:12px;font-size:11px;font-weight:700">👤 '+esc(SESSION.name)+'</span>';
-  document.getElementById('hdrUserInfo').innerHTML='<div style="display:flex;align-items:center;gap:8px">'+badge+'<button onclick="doLogout()" style="background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.35);padding:4px 10px;border-radius:6px;font-size:11px;font-weight:600;cursor:pointer">↩ Logout</button></div>';
+  document.getElementById('hdrUserInfo').innerHTML='<div style="display:flex;align-items:center;gap:8px">'+badge+'<button onclick="doLogout()" style="background:transparent;color:rgba(255,255,255,.8);border:.5px solid rgba(255,255,255,.3);padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer">↩ Logout</button></div>';
 
   // Tabs filter by permission
   var allTabs=[
@@ -1982,23 +1981,15 @@ function pgSettings(){
 
   // ── Backup / Restore ──
   // Backup settings
-  var bkFreq=(D.config&&D.config.bkFreq)||'weekly';
   var lastBkDate=(D.config&&D.config.lastBkDate)||null;
-  var freqOpts=['daily','weekly','monthly','never'];
-  var freqLabels={daily:'Daily (login ke waqt)',weekly:'Weekly (login ke waqt)',monthly:'Monthly (login ke waqt)',never:'Kabhi nahi (manual only)'};
   html+='<div class="card" style="margin-bottom:12px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
     +'<div class="ct" style="margin:0">💾 Backup & Restore</div>'
     +(lastBkDate?'<span style="font-size:11px;color:var(--t2)">Last backup: '+lastBkDate.slice(0,10)+'</span>':'<span style="font-size:11px;color:var(--re)">⚠️ No backup yet</span>')
     +'</div>'
-    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
-    +'<label style="font-size:12px;color:var(--t2);white-space:nowrap">Auto backup:</label>'
-    +'<select style="font-size:12px;padding:5px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx)" onchange="setBkFreq(this.value)">'
-    +freqOpts.map(function(f){return '<option value="'+f+'"'+(bkFreq===f?' selected':'')+'>'+freqLabels[f]+'</option>';}).join('')
-    +'</select>'
-    +'</div>'
+    +'<div class="info ibl" style="margin-bottom:10px;font-size:12px">📌 Weekly backup lo — JSON file download karo aur safe jagah rakhlo.</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +'<button class="btn bbl bsm" onclick="downloadLocalBackup()">📥 Abhi Backup lo</button>'
+    +'<button class="btn bbl bsm" onclick="downloadLocalBackup()">📥 JSON Backup Download</button>'
     +'<button class="btn bsm" style="background:var(--amb);color:var(--am);border:1px solid var(--am)" onclick="openRestoreBackup()">🔄 Backup se Restore</button>'
     +'</div>'
     +'</div>';
@@ -2052,13 +2043,13 @@ function pgSettings(){
     +'</div>';
   // Backup cards
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
-  html+='<div style="border:1px solid var(--bd);border-radius:10px;padding:14px">'
+  html+='<div style="border:.5px solid var(--bd);border-radius:10px;padding:14px">'
     +'<div style="font-size:20px;margin-bottom:8px">📤</div>'
     +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">Export Backup</div>'
     +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px">Saara data JSON file mein. Monthly recommended.</div>'
     +'<button class="btn bgr" onclick="backupData()" style="width:100%">💾 Download (.json)</button>'
     +'</div>';
-  html+='<div style="border:1px solid var(--bd);border-radius:10px;padding:14px">'
+  html+='<div style="border:.5px solid var(--bd);border-radius:10px;padding:14px">'
     +'<div style="font-size:20px;margin-bottom:8px">📥</div>'
     +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">Restore Backup</div>'
     +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px">Purana backup restore karega. Data replace hoga.</div>'
@@ -2110,7 +2101,7 @@ window.openEditPerms=function(staffId){
   html+='<div class="info ibl" style="margin-bottom:12px;font-size:12px">Jo toggle ON hai wo kaam kar sakta hai staff.</div>';
   Object.keys(PERM_LABELS).forEach(function(perm){
     var isOn=!!(perms[perm]);
-    html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--bd)">'
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:.5px solid var(--bd)">'
       +'<span style="font-size:13px">'+PERM_LABELS[perm]+'</span>'
       +'<button id="pToggle_'+perm+'" onclick="togglePerm(\''+staffId+'\',\''+perm+'\')" style="width:48px;height:26px;border-radius:13px;border:none;cursor:pointer;font-size:11px;font-weight:700;background:'+(isOn?'var(--gr)':'#ccc')+';color:#fff;transition:background .2s">'+(isOn?'ON':'OFF')+'</button>'
       +'</div>';
@@ -2184,168 +2175,153 @@ function pgDash(){
   var booked=D.projects.reduce(function(s,p){return s+(p.plots?p.plots.filter(function(x){return x.status==='booked';}).length:0);},0);
   var cT=D.sales.reduce(function(s,sl){return s+(sl.chainTotal||0);},0);
   var dT=D.sales.reduce(function(s,sl){return s+(sl.defTotal||0);},0);
-  var totGaj=D.sales.reduce(function(s,sl){return s+(sl.plotGaj||0);},0);
+  var totGaj=Math.round(D.sales.reduce(function(s,sl){return s+(sl.plotGaj||0);},0)*100)/100;
   var nowM=new Date().toISOString().substr(0,7);
-  var thisMonSales=D.sales.filter(function(s){return s.bookingDate&&s.bookingDate.startsWith(nowM);}).length;
-  var rec=D.sales.slice(0,8);
+  var thisMonClose=D.sales.filter(function(s){return s.closeDate&&s.closeDate.startsWith(nowM);}).length;
+  var thisMonBook=D.sales.filter(function(s){return s.bookingDate&&s.bookingDate.startsWith(nowM);}).length;
+  var activeAssoc=D.associates.filter(function(a){return !a.name.includes('(Left)');}).length;
+  var totalPaid=(D.payments||[]).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
+  var totalPending=Math.max(0,(cT+dT)-totalPaid);
+  var rec=D.sales.slice(0,5);
 
-  // ── Stats ──
-  var html='<div class="g4" style="margin-bottom:14px">'
-    +'<div class="stat"><div class="sl">Projects</div><div class="sv" style="color:var(--bl)">'+D.projects.length+'</div></div>'
-    +'<div class="stat"><div class="sl">Total Plots</div><div class="sv">'+tp+'</div></div>'
-    +'<div class="stat"><div class="sl">Available</div><div class="sv" style="color:var(--gr)">'+(tp-sold-booked)+'</div></div>'
-    +'<div class="stat"><div class="sl">Sold</div><div class="sv" style="color:var(--am)">'+sold+'</div></div>'
-    +'<div class="stat"><div class="sl">Associates</div><div class="sv" style="color:var(--pu)">'+D.associates.length+'</div></div>'
-    +'<div class="stat"><div class="sl">Total Gaj Sold</div><div class="sv" style="color:var(--pu)">'+totGaj+'</div></div>'
-    +'<div class="stat"><div class="sl">Total Brokerage</div><div class="sv" style="font-size:16px;color:var(--gr)">₹'+fmtL(cT+dT)+'</div></div>'
-    +'<div class="stat"><div class="sl">This Month Sales</div><div class="sv" style="color:var(--am)">'+thisMonSales+'</div></div>'
+  // Row 1: 4 colored KPI cards
+  var html='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px">'
+    +'<div style="background:#E6F1FB;border:.5px solid #B5D4F4;border-radius:12px;padding:12px 14px">'
+    +'<div style="font-size:11px;color:#185FA5;font-weight:600;margin-bottom:4px">🏗️ Projects</div>'
+    +'<div style="font-size:26px;font-weight:700;color:#0C447C;line-height:1.1">'+D.projects.length+'</div>'
+    +'<div style="font-size:11px;color:#185FA5;margin-top:2px">'+tp+' total plots</div>'
+    +'</div>'
+    +'<div style="background:#EAF3DE;border:.5px solid #C0DD97;border-radius:12px;padding:12px 14px">'
+    +'<div style="font-size:11px;color:#3B6D11;font-weight:600;margin-bottom:4px">✅ Available</div>'
+    +'<div style="font-size:26px;font-weight:700;color:#27500A;line-height:1.1">'+(tp-sold-booked)+'</div>'
+    +'<div style="font-size:11px;color:#3B6D11;margin-top:2px">plots available</div>'
+    +'</div>'
+    +'<div style="background:#FAEEDA;border:.5px solid #FAC775;border-radius:12px;padding:12px 14px">'
+    +'<div style="font-size:11px;color:#854F0B;font-weight:600;margin-bottom:4px">🏠 Sold</div>'
+    +'<div style="font-size:26px;font-weight:700;color:#633806;line-height:1.1">'+sold+' <span style="font-size:14px;font-weight:400">/ '+tp+'</span></div>'
+    +'<div style="font-size:11px;color:#854F0B;margin-top:2px">'+Math.round(sold/Math.max(tp,1)*100)+'% complete</div>'
+    +'</div>'
+    +'<div style="background:#EEEDFE;border:.5px solid #CECBF6;border-radius:12px;padding:12px 14px">'
+    +'<div style="font-size:11px;color:#534AB7;font-weight:600;margin-bottom:4px">👥 Associates</div>'
+    +'<div style="font-size:26px;font-weight:700;color:#3C3489;line-height:1.1">'+activeAssoc+'</div>'
+    +'<div style="font-size:11px;color:#534AB7;margin-top:2px">active members</div>'
+    +'</div>'
     +'</div>';
 
-  // ── Project Progress + Top Associates side by side ──
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px">';
+  // Row 2: 4 stat cards
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">'
+    +'<div class="stat"><div class="sl">📊 Total Gaj</div><div class="sv" style="color:var(--pu)">'+totGaj+'</div><div style="font-size:10px;color:var(--t3);margin-top:1px">gaj sold</div></div>'
+    +'<div class="stat"><div class="sl">💰 Total Brokerage</div><div class="sv" style="font-size:18px;color:var(--gr)">₹'+fmtL(cT+dT)+'</div><div style="font-size:10px;color:var(--t3);margin-top:1px">all time</div></div>'
+    +'<div class="stat" style="background:var(--reb);border-color:#F09595"><div class="sl" style="color:var(--re)">⏳ Pending</div><div class="sv" style="font-size:18px;color:var(--re)">₹'+fmtL(totalPending)+'</div><div style="font-size:10px;color:var(--re);margin-top:1px">unpaid</div></div>'
+    +'<div class="stat"><div class="sl">📅 This Month</div><div class="sv" style="color:var(--am)">'+thisMonClose+'</div><div style="font-size:10px;color:var(--t3);margin-top:1px">closings · '+thisMonBook+' bookings</div></div>'
+    +'</div>';
+
+  // Project Progress + Top Associates
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">';
 
   // Project Progress
-  html+='<div class="card"><div class="ct">🏗️ Project Progress</div>';
-  if(!D.projects.length){
-    html+='<div style="color:var(--t3);font-size:12px">No projects yet</div>';
-  } else {
-    D.projects.forEach(function(p){
-      var ptotal=p.plots?p.plots.length:0;if(!ptotal)return;
-      var psold=p.plots.filter(function(x){return x.status==='sold';}).length;
-      var pct=Math.round((psold/ptotal)*100);
-      var barColor=pct>=75?'var(--gr)':pct>=40?'var(--am)':'var(--bl)';
-      html+='<div style="margin-bottom:12px">'
-        +'<div style="display:flex;justify-content:space-between;margin-bottom:4px">'
-        +'<span style="font-weight:600;font-size:13px">'+p.name+'</span>'
-        +'<span style="font-size:11px;color:var(--t2)">'+psold+'/'+ptotal+' sold</span>'
-        +'</div>'
-        +'<div style="display:flex;align-items:center;gap:8px">'
-        +'<div style="flex:1;background:var(--bg3);border-radius:99px;height:7px;overflow:hidden">'
-        +'<div style="width:'+pct+'%;height:7px;border-radius:99px;background:'+barColor+'"></div>'
-        +'</div>'
-        +'<span style="font-size:11px;color:var(--t2);white-space:nowrap">'+(ptotal-psold)+' bache</span>'
-        +'</div></div>';
-    });
-  }
+  html+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<div class="ct" style="margin:0">🏗️ Project Progress</div>'
+    +'<div style="display:flex;gap:6px;font-size:10px;color:var(--t2)">'
+    +'<span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--gr);display:inline-block"></span>80%+</span>'
+    +'<span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--am);display:inline-block"></span>40%+</span>'
+    +'<span style="display:flex;align-items:center;gap:3px"><span style="width:8px;height:8px;border-radius:2px;background:var(--bl);display:inline-block"></span>Below</span>'
+    +'</div></div>';
+  D.projects.forEach(function(p){
+    var ptotal=p.plots?p.plots.length:0;if(!ptotal)return;
+    var psold=p.plots.filter(function(x){return x.status==='sold';}).length;
+    var pct=Math.round((psold/ptotal)*100);
+    var barColor=pct>=80?'var(--gr)':pct>=40?'var(--am)':'var(--bl)';
+    html+='<div style="margin-bottom:10px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
+      +'<span style="font-size:12px;font-weight:600">'+p.name+'</span>'
+      +'<div style="display:flex;gap:5px;align-items:center">'
+      +'<span style="font-size:11px;color:var(--t2)">'+psold+'/'+ptotal+'</span>'
+      +'<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:'+(pct>=80?'#EAF3DE':pct>=40?'#FAEEDA':'#E6F1FB')+';color:'+(pct>=80?'#3B6D11':pct>=40?'#633806':'#0C447C')+'">'+pct+'%</span>'
+      +'<span style="font-size:10px;font-weight:600;padding:1px 6px;border-radius:10px;background:'+(ptotal-psold<=5?'#FCEBEB':ptotal-psold<=15?'#FAEEDA':'#EAF3DE')+';color:'+(ptotal-psold<=5?'#791F1F':ptotal-psold<=15?'#633806':'#3B6D11')+'">'+(ptotal-psold)+'</span>'
+      +'</div></div>'
+      +'<div style="height:8px;background:var(--bg3);border-radius:99px;overflow:hidden">'
+      +'<div style="width:'+pct+'%;height:8px;border-radius:99px;background:'+barColor+'"></div>'
+      +'</div></div>';
+  });
   html+='</div>';
 
-  // Top Associates — toggle All Time / This Month / Custom
+  // Top Associates
   var dashATab=window.dashATab||'all';
   var dashAMon=window.dashAMon||nowM;
-
-  // Top Associates - DIRECT SALES GAJ ONLY
-  // Sirf us associate ka gaj jo usne KHUD directly plot beja
-  // Team ka gaj add nahi hoga
+  var rankColors=[['#E6F1FB','#0C447C'],['#EAF3DE','#27500A'],['#FAEEDA','#633806'],['#EEEDFE','#3C3489'],['#F1EFE8','#444441']];
+  var rankBadges=['🥇','🥈','🥉'];
   var aMap={};
   D.sales.forEach(function(sl){
     if(dashATab==='month'&&!(sl.closeDate&&sl.closeDate.startsWith(nowM)))return;
     if(dashATab==='custom'&&!(sl.closeDate&&sl.closeDate.startsWith(dashAMon)))return;
     if(!sl.sellerId)return;
-    var sname=sl.sellerName||sl.sellerId;
-    if(!aMap[sl.sellerId])aMap[sl.sellerId]={name:sname,gaj:0,sales:0};
+    if(!aMap[sl.sellerId])aMap[sl.sellerId]={name:sl.sellerName||sl.sellerId,gaj:0,sales:0,id:sl.sellerId};
     aMap[sl.sellerId].gaj=Math.round((aMap[sl.sellerId].gaj+(sl.plotGaj||0))*100)/100;
     aMap[sl.sellerId].sales++;
   });
-  Object.keys(aMap).forEach(function(id){
-    var a=D.associates.find(function(x){return x.id===id;});
-    if(a)aMap[id].name=a.name;
-  });
+  Object.keys(aMap).forEach(function(id){var a=D.associates.find(function(x){return x.id===id;});if(a)aMap[id].name=a.name;});
   var topList=Object.values(aMap).sort(function(a,b){return b.gaj-a.gaj;}).slice(0,5);
+  var maxGaj=topList.length?topList[0].gaj:1;
 
   html+='<div class="card">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
     +'<div class="ct" style="margin:0">🏆 Top Associates</div>'
-    
-    +'<div style="display:flex;gap:0;border:1px solid var(--bd);border-radius:6px;overflow:hidden">'
+    +'<div style="display:flex;gap:0;border:.5px solid var(--bd);border-radius:6px;overflow:hidden">'
     +'<button class="btn bsm" onclick="window.dashATab=\'all\';render()" style="border-radius:0;border:none;padding:3px 9px;font-size:11px;'+(dashATab==='all'?'background:var(--blb);color:var(--bld);font-weight:700':'')+'">All Time</button>'
-    +'<button class="btn bsm" onclick="window.dashATab=\'month\';render()" style="border-radius:0;border:none;border-left:1px solid var(--bd);padding:3px 9px;font-size:11px;'+(dashATab==='month'?'background:var(--blb);color:var(--bld);font-weight:700':'')+'">This Month</button>'
-    +'<button class="btn bsm" onclick="window.dashATab=\'custom\';render()" style="border-radius:0;border:none;border-left:1px solid var(--bd);padding:3px 9px;font-size:11px;'+(dashATab==='custom'?'background:var(--blb);color:var(--bld);font-weight:700':'')+'">Custom</button>'
+    +'<button class="btn bsm" onclick="window.dashATab=\'month\';render()" style="border-radius:0;border:none;border-left:.5px solid var(--bd);padding:3px 9px;font-size:11px;'+(dashATab==='month'?'background:var(--blb);color:var(--bld);font-weight:700':'')+'">This Month</button>'
+    +'<button class="btn bsm" onclick="window.dashATab=\'custom\';render()" style="border-radius:0;border:none;border-left:.5px solid var(--bd);padding:3px 9px;font-size:11px;'+(dashATab==='custom'?'background:var(--blb);color:var(--bld);font-weight:700':'')+'">Custom</button>'
     +'</div></div>';
-
   if(dashATab==='custom'){
-    html+='<input type="month" value="'+dashAMon+'" onchange="window.dashAMon=this.value;render()" style="margin-bottom:10px;font-size:12px;padding:4px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--t1)"/>';
+    html+='<input type="month" value="'+dashAMon+'" onchange="window.dashAMon=this.value;render()" style="margin-bottom:10px;font-size:12px;padding:4px 8px;border:.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--t1)"/>';
   }
-
   if(!topList.length){
     html+='<div style="color:var(--t3);font-size:12px;padding:8px 0">No data for this period</div>';
   } else {
     topList.forEach(function(a,i){
-      var initial=a.name.charAt(0).toUpperCase();
-      var colors=[['var(--blb)','var(--bld)'],['var(--grb)','var(--gr)'],['var(--pub)','var(--pu)'],['var(--amb)','var(--am)'],['var(--bg3)','var(--t2)']];
-      var c=colors[i%colors.length];
-      html+='<div style="display:flex;align-items:center;gap:10px;padding:7px 0;'+(i<topList.length-1?'border-bottom:1px solid var(--bd)':'')+'">'
-        +'<div style="width:30px;height:30px;border-radius:50%;background:'+c[0]+';color:'+c[1]+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">'+initial+'</div>'
+      var clr=rankColors[i]||rankColors[4];
+      var pct=Math.round((a.gaj/maxGaj)*100);
+      html+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;'+(i<topList.length-1?'border-bottom:.5px solid var(--bd)':'')+';">'
+        +'<div style="width:20px;text-align:center;font-size:'+(i<3?'14':'11')+'px;'+(i>=3?'color:var(--t3);font-weight:600':'')+'">'+(i<3?rankBadges[i]:(i+1))+'</div>'
+        +'<div style="width:30px;height:30px;border-radius:50%;background:'+clr[0]+';color:'+clr[1]+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">'+a.name.charAt(0)+'</div>'
         +'<div style="flex:1;min-width:0">'
-        +'<div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+a.name+'</div>'
-        +'<div style="font-size:11px;color:var(--t2)">'+(a.sales||0)+' sale'+(a.sales!==1?'s':'')+' · Direct</div>'
+        +'<div data-aid="'+a.id+'" onclick="rTab=\'r1\';r1ProfileId=this.dataset.aid;sw(\'reports\')" style="font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--bl);cursor:pointer">'+esc(a.name)+'</div>'
+        +'<div style="font-size:11px;color:var(--t2)">'+(a.sales||0)+' sales</div>'
         +'</div>'
-        +'<div style="font-weight:700;color:var(--pu);font-size:14px;white-space:nowrap">'+a.gaj+' gaj</div>'
-        +'</div>';
+        +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">'
+        +'<div style="font-weight:700;color:var(--pu);font-size:13px;white-space:nowrap">'+a.gaj+' gaj</div>'
+        +'<div style="width:70px;height:4px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:#7F77DD;border-radius:99px"></div></div>'
+        +'</div></div>';
     });
   }
   html+='</div></div>';
 
-  // ── Recent Sales ──
+  // Recent Sales
   if(rec.length===0){
-    html+='<div class="empty">No sales yet. Setup Projects and Associates then create a New Sale.</div>';
+    html+='<div class="empty">No sales yet.</div>';
   } else {
-    html+='<div class="card"><div class="ct">📈 Recent Sales</div><div class="tw"><table><thead><tr>'
-      +'<th>#</th><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Gaj</th><th>Date</th><th>Total ₹</th>'
+    html+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+      +'<div class="ct" style="margin:0">📈 Recent Sales</div>'
+      +'<button class="btn bgh bsm" onclick="sw(\'salesrec\')">View All →</button></div>'
+      +'<div class="tw" style="border:none;border-radius:0;margin:-14px -18px 0"><table><thead><tr>'
+      +'<th>Project</th><th>Plot</th><th>Seller</th><th>Gaj</th><th>Close Date</th><th>Total ₹</th>'
       +'</tr></thead><tbody>';
-    rec.forEach(function(s,i){
+    rec.forEach(function(s){
       html+='<tr>'
-        +'<td style="color:var(--t3)">'+(i+1)+'</td>'
         +'<td><b>'+esc(s.projName)+'</b></td>'
         +'<td><span class="badge bbl2">'+esc(s.plotNo)+'</span></td>'
-        +'<td>'+(s.partyName?esc(s.partyName):'—')+'</td>'
-        +'<td>'+esc(s.sellerName)+'</td>'
+        +'<td style="font-size:12px">'+esc(s.sellerName)+'</td>'
         +'<td><b>'+s.plotGaj+'</b></td>'
-        +'<td>'+(s.bookingDate?esc(s.bookingDate):'—')+'</td>'
+        +'<td style="font-size:12px">'+(s.closeDate||s.bookingDate||'—')+'</td>'
         +'<td style="color:var(--gr);font-weight:700">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</td>'
         +'</tr>';
     });
     html+='</tbody></table></div></div>';
   }
 
-  // ── Active Campaigns Widget ──
-  try{
-  var activeCampaigns=(D.offers||[]).filter(function(o){
-    var today=new Date(); today.setHours(0,0,0,0);
-    var end=new Date(o.endDate); end.setHours(23,59,59,999);
-    return today>=new Date(o.startDate)&&today<=end;
-  });
-  if(activeCampaigns.length>0){
-    html+='<div class="card" style="margin-top:14px">';
-    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
-    html+='<div class="ct" style="margin:0">🎯 Active Campaigns</div>';
-    html+='<button class="btn bgh bsm" onclick="sw(\'offers\')">View All</button>';
-    html+='</div>';
-    activeCampaigns.forEach(function(o){
-      var end=new Date(o.endDate); end.setHours(0,0,0,0);
-      var today=new Date(); today.setHours(0,0,0,0);
-      var daysLeft=Math.ceil((end-today)/(1000*60*60*24));
-      var stats=calcOfferStats(o);
-      var qualCount=stats.filter(function(s){return s.rewardLevel;}).length;
-      html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;background:var(--bg2);border-radius:8px;margin-bottom:6px;cursor:pointer;flex-wrap:wrap;gap:6px" onclick="ofId=\''+o.id+'\';ofView=\'detail\';sw(\'offers\')">';
-      html+='<div>';
-      html+='<div style="font-weight:700;font-size:13px">'+esc(o.name)+'</div>';
-      html+='<div style="font-size:11px;color:var(--t2)">Ends: '+o.endDate+'</div>';
-      html+='</div>';
-      html+='<div style="display:flex;gap:12px;align-items:center">';
-      html+='<div style="text-align:center"><div style="font-size:18px;font-weight:800;color:var(--gr)">'+qualCount+'</div><div style="font-size:10px;color:var(--t2)">Qualified</div></div>';
-      html+='<div style="text-align:center"><div style="font-size:18px;font-weight:800;color:var(--am)">'+daysLeft+'</div><div style="font-size:10px;color:var(--t2)">Days Left</div></div>';
-      html+='</div>';
-      html+='</div>';
-    });
-    html+='</div>';
-  }
-  }catch(e){console.error('Campaign widget error:',e);}
-
   return html;
 }
 
-// ═══════════════════════════════════════════════════════
-// PROJECTS
 // ═══════════════════════════════════════════════════════
 function pgProj(){if(!can('projects_view'))return '<div class="empty">⛔ Projects dekhne ki permission nahi hai.</div>';if(pView==='add')return pAdd();if(pView==='edit')return pEdit();if(pView==='plots')return pPlots();return pList();}
 
@@ -2398,20 +2374,20 @@ function pEdit(){
     +'<button class="btn bgh bsm" onclick="pView=\'list\';render()">← Back</button>'
     +'<h2>Edit Project — '+esc(p.name)+'</h2></div>';
   html+='<div class="card">';
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">🏗️ Project Details</div>';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">🏗️ Project Details</div>';
   html+='<div class="g2" style="margin-bottom:12px">';
   html+='<div class="fld"><label>Project Name *</label><input id="epNm" value="'+esc(p.name||'')+'"/></div>';
   html+='<div class="fld"><label>Company Name</label><input id="epCo" value="'+esc(p.companyName||'')+'"/></div>';
   html+='<div class="fld"><label>RERA No.</label><input id="epRera" value="'+esc(p.rera||'')+'"/></div>';
   html+='<div class="fld"><label>Launch Date</label><input id="epLd" type="date" value="'+esc(p.launchingDate||'')+'"/></div>';
   html+='<div class="fld"><label>Current Bonus</label>'
-    +'<div style="padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg2);font-size:13px;display:flex;align-items:center;gap:8px">'
+    +'<div style="padding:8px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg2);font-size:13px;display:flex;align-items:center;gap:8px">'
     +(getProjBonus(p)>0?'<span style="color:var(--pu);font-weight:700">+'+getProjBonus(p)+'% Active</span>':'<span style="color:var(--t3)">No Bonus</span>')
     +'<span style="font-size:11px;color:var(--t3);margin-left:auto">Bonus change karne ke liye Bonus Change button use karo</span>'
     +'</div></div>';
   html+='<div class="fld" style="grid-column:1/-1"><label>Description</label><input id="epDs" value="'+esc(p.description||'')+'"/></div>';
   html+='</div>';
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">🏦 Banking Details</div>';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">🏦 Banking Details</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
   html+='<div class="fld"><label>Banking Name (Account Holder)</label><input id="epBnm" value="'+esc(p.bankingName||'')+'"/></div>';
   html+='<div class="fld"><label>Bank Name</label><input id="epBnk" value="'+esc(p.bankName||'')+'"/></div>';
@@ -2427,7 +2403,7 @@ function pAdd(){
   if(!can('projects_edit')){pView='list';render();return '';}
   var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><button class="btn bgh bsm" onclick="pView=\'list\';render()">← Back</button><h2>New Project</h2></div>';
   html+='<div class="card">';
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">🏗️ Project Details</div>';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">🏗️ Project Details</div>';
   html+='<div class="g2" style="margin-bottom:12px">';
   html+='<div class="fld"><label>Project Name *</label><input id="pNm" placeholder="RERA Estate, Imperial Galaxy..."/></div>';
   html+='<div class="fld"><label>Company Name *</label><input id="pCo" placeholder="TrueStars Developers Pvt. Ltd."/></div>';
@@ -2442,7 +2418,7 @@ function pAdd(){
   html+='<option value="100">+100% Bonus</option>';
   html+='</select></div>';
   html+='</div>';
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">🏦 Banking Details</div>';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">🏦 Banking Details</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
   html+='<div class="fld"><label>Banking Name *</label><input id="pBnm" placeholder="Jaise bank mein naam hai"/></div>';
   html+='<div class="fld"><label>Bank Name *</label><input id="pBnk" placeholder="State Bank of India"/></div>';
@@ -2580,7 +2556,7 @@ function aList(){
 
   // Search/Filter bar - Image 2 style
   html+='<div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">'
-    +'<select id="aFilterSel" onchange="aFilter=this.value;aPage=1;render()" style="font-size:13px;padding:7px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);flex:1;min-width:180px">'
+    +'<select id="aFilterSel" onchange="aFilter=this.value;aPage=1;render()" style="font-size:13px;padding:7px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx);flex:1;min-width:180px">'
     +'<option value="">All Associates ('+D.associates.length+')</option>';
 
   D.associates.forEach(function(a){
@@ -2590,10 +2566,10 @@ function aList(){
   });
   html+='</select>';
 
-  html+='<input id="aSearchInp" type="text" autocomplete="off" placeholder="Search by Name, Phone, RERA, PAN..." '
+  html+='<input id="aSearchInp" type="text" autocomplete="off" placeholder="Search..." '
     +'value="'+(aFilter&&!D.associates.find(function(a){return a.id===aFilter;})?aFilter:'')+'" '
     +'oninput="doAssocSearch(this.value)" '
-    +'style="flex:2;min-width:200px;font-size:13px;padding:8px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>';
+    +'style="flex:2;min-width:200px;font-size:13px;padding:8px 12px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>';
 
   html+='<span style="font-size:12px;color:var(--t2);white-space:nowrap">'+filtered.length+' results</span>';
   if(aFilter)html+='<button class="btn bgh bsm" onclick="aFilter=\'\';aPage=1;render()">✕ Clear</button>';
@@ -2641,8 +2617,8 @@ function aList(){
       +'<button class="btn bgh bsm" onclick="if(aPage>1){aPage--;render()}" '+(aPage<=1?'disabled':'')+'>← Prev</button>'
       +'<div style="position:relative">'
       +'<button class="btn bbl bsm" onclick="toggleAPag()" style="min-width:110px">Page '+aPage+' / '+totalPages+' ▾</button>'
-      +'<div id="aPagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
-      +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:1px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
+      +'<div id="aPagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:.5px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
+      +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
       +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px" id="aPagGrid"></div>'
       +'</div></div>'
       +'<button class="btn bgh bsm" onclick="if(aPage<'+totalPages+'){aPage++;render()}" '+(aPage>=totalPages?'disabled':'')+'>Next →</button>'
@@ -2657,21 +2633,21 @@ function aAdd(){
   D.associates.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(a){opts+='<option value="'+a.id+'">'+a.name+'</option>';});
   var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><button class="btn bgh bsm" onclick="aView=\'list\';render()">← Back</button><h2>New Associate</h2></div>';
   html+='<div class="card">';
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">👤 Personal Information</div>';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">👤 Personal Information</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
   html+='<div class="fld"><label>Full Name *</label><input id="aNm" placeholder="Pura naam"/></div>';
   html+='<div class="fld"><label>Father / Husband Name *</label><input id="aFh" placeholder="Pita / pati ka naam"/></div>';
   html+='<div class="fld"><label>Phone No. *</label><input id="aPh" placeholder="10 digit mobile number"/></div>';
   html+='<div class="fld"><label>PAN No. *</label><input id="aPan" placeholder="ABCDE1234F"/></div>';
   html+='</div>';
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">🏦 Banking Details</div>';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">🏦 Banking Details</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
   html+='<div class="fld"><label>Banking Name *</label><input id="aBnm" placeholder="Jaise bank mein naam hai"/></div>';
   html+='<div class="fld"><label>Bank Name *</label><input id="aBnk" placeholder="State Bank of India"/></div>';
   html+='<div class="fld"><label>Account No. *</label><input id="aAc" placeholder="Bank account number"/></div>';
   html+='<div class="fld"><label>IFSC Code *</label><input id="aIfs" placeholder="SBIN0001234"/></div>';
   html+='</div>';
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">📋 Additional Details (Optional)</div>';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">📋 Additional Details (Optional)</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
   html+='<div class="fld"><label>RERA No.</label><input id="aRr" placeholder="RAA12345"/></div>';
   html+='<div class="fld"><label>Aadhaar No.</label><input id="aAdh" placeholder="12 digit Aadhaar number"/></div>';
@@ -2681,7 +2657,7 @@ function aAdd(){
   html+='<div class="fld"><label>Joining Date</label><input id="aJd" type="date"/></div>';
   html+='<div class="fld" style="grid-column:1/-1"><label>Address</label><input id="aAdr" placeholder="Pura address"/></div>';
   html+='</div>';
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">🔗 Upliner (Senior in Chain)</div>';
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">🔗 Upliner (Senior in Chain)</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
   html+='<div class="fld" style="grid-column:1/-1"><label>Upliner Associate</label><select id="aPr">'+opts+'</select></div>';
   html+='</div>';
@@ -2703,7 +2679,7 @@ window.editAssoc=function(id){
     +'<div style="margin-top:4px">Total Gaj: <b>'+a.totalGaj+'</b></div>'
     +'<div class="sbar"><div class="sfil" style="width:'+pct+'%"></div></div>'
     +(ns?'<div style="font-size:11px;margin-top:3px">'+(ns.min-a.totalGaj)+' gaj more → ₹'+ns.rate+'/gaj ('+ns.des+')</div>':'<div style="font-size:11px;color:var(--gr)">🏆 Max Level!</div>')+'</div>'
-    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">👤 Personal Information</div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">👤 Personal Information</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Full Name *</label><input id="eNm" value="'+a.name+'"/></div>'
     +'<div class="fld"><label>Father / Husband Name</label><input id="eFh" value="'+(a.fatherName||'')+'"/></div>'
@@ -2711,7 +2687,7 @@ window.editAssoc=function(id){
     +'<div class="fld"><label>Joining Date</label><input id="eJd" type="date" value="'+(a.joiningDate||'')+'"/></div>'
     +'<div class="fld" style="grid-column:1/-1"><label>Address</label><input id="eAdr" value="'+(a.address||'')+'"/></div>'
     +'</div>'
-    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">📋 Official Information</div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">📋 Official Information</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Code</label><input id="eCd" value="'+(a.code||'')+'"/></div>'
     +'<div class="fld"><label>Location</label><input id="eLc" value="'+(a.location||'')+'"/></div>'
@@ -2720,14 +2696,14 @@ window.editAssoc=function(id){
     +'<div class="fld"><label>PAN No.</label><input id="ePan" value="'+(a.pan||'')+'"/></div>'
     +'<div class="fld"><label>Email</label><input id="eEm" value="'+(a.email||'')+'"/></div>'
     +'</div>'
-    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">🏦 Banking Details</div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">🏦 Banking Details</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Banking Name (Account Holder)</label><input id="eBnm" value="'+(a.bankingName||'')+'"/></div>'
     +'<div class="fld"><label>Bank Name</label><input id="eBnk" value="'+(a.bankName||'')+'"/></div>'
     +'<div class="fld"><label>Account No.</label><input id="eAc" value="'+(a.accNo||'')+'"/></div>'
     +'<div class="fld"><label>IFSC Code</label><input id="eIfs" value="'+(a.ifsc||'')+'"/></div>'
     +'</div>'
-    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--bd)">🔗 Chain / Hierarchy</div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">🔗 Chain / Hierarchy</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +(function(){
       var hasSalesForUpline=D.sales.some(function(s){
@@ -2751,8 +2727,8 @@ window.editAssoc=function(id){
         +'placeholder="🔍 Type naam ya — Top Level —" '
         +'value="'+(a.parentId?(D.associates.find(function(x){return x.id===a.parentId;})||{name:''}).name:'')+'" '
         +'oninput="filterUpSrch(this.value,\''+id+'\')" onfocus="filterUpSrch(this.value,\''+id+'\')" '
-        +'style="width:100%;font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
-        +'<div id="eUpDrop" style="display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--bg);border:1px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:300;max-height:200px;overflow-y:auto"></div>'
+        +'style="width:100%;font-size:13px;padding:8px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
+        +'<div id="eUpDrop" style="display:none;position:absolute;top:calc(100% + 3px);left:0;right:0;background:var(--bg);border:.5px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:300;max-height:200px;overflow-y:auto"></div>'
         +'</div>'
         +'<input type="hidden" id="ePr" value="'+(a.parentId||'')+'"/>'
         +'</div>';
@@ -3007,7 +2983,7 @@ window.updateTransferPreview=function(){
 
   var html='<div class="card" style="padding:12px 14px">'
     +'<div style="font-size:12px;font-weight:700;color:var(--am);margin-bottom:10px">📋 Preview — Kya hoga:</div>'
-    +'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--bd);margin-bottom:10px">'
+    +'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid var(--bd);margin-bottom:10px">'
     +'<div style="width:32px;height:32px;border-radius:50%;background:var(--re);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">'+leftA.name.charAt(0)+'</div>'
     +'<div><div style="font-weight:700">'+esc(leftA.name)+' <span style="color:var(--re);font-size:11px">(Left)</span></div>'
     +'<div style="font-size:11px;color:var(--t2)">Left Date: <b>'+leftDate+'</b> | Phone: '+( leftA.phone||'—')+' | Gaj: '+leftA.totalGaj+'</div></div>'
@@ -3042,7 +3018,7 @@ window.updateTransferPreview=function(){
   }
 
   if(directChildren.length>0){
-    html+='<div style="font-size:11px;color:var(--t2);margin-top:8px;border-top:1px solid var(--bd);padding-top:8px">'
+    html+='<div style="font-size:11px;color:var(--t2);margin-top:8px;border-top:.5px solid var(--bd);padding-top:8px">'
       +'<b>Direct children to be shifted:</b> '
       +directChildren.map(function(a){return a.name;}).join(', ')
       +'</div>';
@@ -3279,7 +3255,11 @@ function pgSale(){
   var steps=[{n:1,l:'Project & Plot'},{n:2,l:'Associate & Dates'},{n:3,l:'Commission Review'}];
   var sh='<div class="steps">'+steps.map(function(s){
     var cls=sStep>s.n?'sdn':sStep===s.n?'sac':'std';
-    return '<div class="step '+cls+'">'+(sStep>s.n?'✓ ':s.n+'. ')+s.l+'</div>';
+    var clickable=sStep>=s.n?'cursor:pointer':'cursor:default;opacity:.5';
+    return '<div class="step '+cls+'" style="'+clickable+'" onclick="sStep>='+s.n+'&&(sStep='+s.n+',render())">'
+      +'<div class="step-circle">'+(sStep>s.n?'✓':s.n)+'</div>'
+      +'<div class="step-label">'+s.l+'</div>'
+      +'</div>';
   }).join('')+'</div>';
   if(sStep===1)return sh+sS1();
   if(sStep===2)return sh+sS2();
@@ -3319,16 +3299,16 @@ function sS2(){
     // Dropdown + Search row (same as Associate list page)
     +'<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:6px">'
     +'<select id="sAssocSel" onchange="sD.assocId=this.value;var t=document.getElementById(\'sStep2Srch\');if(t)t.value=\'\';var d=document.getElementById(\'sStep2Drop\');if(d)d.style.display=\'none\';render();" '
-    +'style="flex:1;min-width:180px;font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)">'
+    +'style="flex:1;min-width:180px;font-size:13px;padding:8px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)">'
     +'<option value="">All Associates ('+D.associates.length+')</option>'
     +D.associates.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(a){
       var tl=getTopLeader(a.id);
       return '<option value="'+a.id+'"'+(sD.assocId===a.id?' selected':'')+'>'+a.name+(tl&&tl.id!==a.id?' | Team: '+tl.name:' | Team Leader')+'</option>';
     }).join('')
     +'</select>'
-    +'<input id="sStep2Srch" type="text" autocomplete="off" placeholder="Search by Name, Phone, RERA, PAN..." '
+    +'<input id="sStep2Srch" type="text" autocomplete="off" placeholder="Search..." '
     +'oninput="filterStep2Assoc(this.value)" '
-    +'style="flex:2;min-width:200px;font-size:13px;padding:8px 10px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
+    +'style="flex:2;min-width:200px;font-size:13px;padding:8px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
     +'</div>'
     // Search results
     +'<div id="sStep2Drop" style="display:none;border:1px solid var(--bl);border-radius:0 0 8px 8px;background:var(--bg);max-height:200px;overflow-y:auto;box-shadow:0 4px 12px rgba(0,0,0,.15);margin-bottom:6px">'
@@ -3336,7 +3316,7 @@ function sS2(){
       var tl=getTopLeader(a.id);
       var sel=sD.assocId===a.id;
       return '<div onmousedown="event.preventDefault();sD.assocId=\''+a.id+'\';var s=document.getElementById(\'sAssocSel\');if(s)s.value=\''+a.id+'\';var t=document.getElementById(\'sStep2Srch\');if(t)t.value=\'\';var d=document.getElementById(\'sStep2Drop\');if(d)d.style.display=\'none\';render();"'
-        +' style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;'+(sel?'background:var(--blb);':'')+'"'
+        +' style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:.5px solid var(--bd);display:flex;justify-content:space-between;align-items:center;'+(sel?'background:var(--blb);':'')+'"'
         +' onmouseover="this.style.background=\'var(--blb)\'" onmouseout="this.style.background=\''+(sel?'var(--blb)':'var(--bg')+'\';">'
         +'<div><b>'+a.name+'</b>'+(a.phone?'<span style="font-size:11px;color:var(--t2);margin-left:8px">'+a.phone+'</span>':'')+'</div>'
         +(tl&&tl.id!==a.id?'<span style="font-size:11px;color:var(--bl);font-weight:600">Team: '+esc(tl.name)+'</span>':'<span style="font-size:11px;color:var(--gr);font-weight:600">Team Leader</span>')
@@ -3353,7 +3333,7 @@ function sS2(){
       var sel=sD.assocId===a.id;
       var tl=getTopLeader(a.id);
       return '<div onmousedown="event.preventDefault();sD.assocId=\''+a.id+'\';var s=document.getElementById(\'sAssocSel\');if(s)s.value=\''+a.id+'\';var t=document.getElementById(\'sAssocTxt\');if(t){t.value=\'\';};var d=document.getElementById(\'sAssocDrop\');if(d)d.style.display=\'none\';render();"'
-        +' style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:1px solid var(--bd);'+(sel?'background:var(--blb);':'')+'display:flex;justify-content:space-between;align-items:center"'
+        +' style="padding:9px 14px;cursor:pointer;font-size:13px;border-bottom:.5px solid var(--bd);'+(sel?'background:var(--blb);':'')+'display:flex;justify-content:space-between;align-items:center"'
         +' onmouseover="this.style.background=\'var(--blb)\'" onmouseout="this.style.background=\''+(sel?'var(--blb)':'var(--bg')+'\'">'
         +'<div><b>'+a.name+'</b>'+(a.phone?'<span style="font-size:11px;color:var(--t2);margin-left:8px">'+a.phone+'</span>':'')+'</div>'
         +(tl&&tl.id!==a.id?'<span style="font-size:11px;color:var(--bl);font-weight:600">Team: '+esc(tl.name)+'</span>':'<span style="font-size:11px;color:var(--gr);font-weight:600">Team Leader</span>')
@@ -3532,8 +3512,8 @@ function pgSalesRec(){
     +'<button id="srPrevBtn" class="btn bgh bsm" onclick="if(srPage>1){srPage--;renderSalesTable()}" '+(srPage<=1?'disabled':'')+'>← Prev</button>'
     +'<div style="position:relative">'
     +'<button class="btn bbl bsm" onclick="toggleSRPag()" style="min-width:110px">Page '+srPage+' / '+totalPages+' ▾</button>'
-    +'<div id="srPagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
-    +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:1px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
+    +'<div id="srPagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:.5px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
+    +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
     +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px" id="srPagGrid"></div>'
     +'</div></div>'
     +'<button id="srNextBtn" class="btn bgh bsm" onclick="if(srPage<'+totalPages+'){srPage++;renderSalesTable()}" '+(srPage>=totalPages?'disabled':'')+'>Next →</button>'
@@ -3590,7 +3570,7 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     +'</div>'
 
     // ── Section 1: Sale Details ──
-    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">📝 Sale Details</div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">📝 Sale Details</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Party Name (Buyer)</label><input id="esParty" value="'+esc(s.partyName||'')+'"/></div>'
     +'<div class="fld"><label>Booking Date</label><input id="esBk" type="date" value="'+esc(s.bookingDate||'')+'"/></div>'
@@ -3599,7 +3579,7 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     +'</div>'
 
     // ── Section 2: Commission Summary ──
-    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">💰 Commission Detail</div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">💰 Commission Detail</div>'
     +'<div class="g3" style="margin-bottom:10px">'
     +'<div class="stat" style="padding:8px 12px"><div class="sl">Total Brokerage</div><div class="sv" style="font-size:16px;color:var(--gr)">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</div></div>'
     +'<div class="stat" style="padding:8px 12px"><div class="sl">Payment Date</div><div class="sv" style="font-size:13px">'+nextPayDate(s.bookingDate)+'</div></div>'
@@ -3610,7 +3590,7 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     +(defRows?'<div class="tw" style="margin-bottom:10px"><table><thead><tr><th>Defence Associate</th><th>Depth · Rate</th><th></th><th>Amount ₹</th></tr></thead><tbody>'+defRows+'</tbody></table></div>':'')
 
     // ── Section 3: Plot Info ──
-    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid var(--bd)">🗺️ Plot Information</div>'
+    +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">🗺️ Plot Information</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Project</label><input value="'+s.projName+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
     +'<div class="fld"><label>Plot No</label><input value="'+s.plotNo+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
@@ -3946,9 +3926,9 @@ function rpt1(){
       +'<button class="btn bbl bsm" onclick="expR1()">📥 Excel Export</button>'
       +'</div></div>'
       +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-      +'<input id="r1Search" type="text" autocomplete="off" placeholder="Search by Name, Phone, RERA, PAN..." '
+      +'<input id="r1Search" type="text" autocomplete="off" placeholder="Search..." '
       +'value="'+r1F+'" oninput="doR1Search(this.value)" '
-      +'style="flex:1;min-width:200px;font-size:13px;padding:8px 12px;border:1px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
+      +'style="flex:1;min-width:200px;font-size:13px;padding:8px 12px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
       +(r1F?'<button class="btn bgh bsm" onclick="r1F=String();r1P=1;render()">✕ Clear</button>':'')
       +'<span style="font-size:12px;color:var(--t2);white-space:nowrap">'+filtered.length+' active</span>'
       +'</div></div>';
@@ -4042,7 +4022,7 @@ function rpt1(){
 // ── Shared table renderer ──
 function r1Table(pageData,page,PER_PAGE,totalPages,totalCount,clrs,bgs,focusId,ancestorIds){
   var html='<div class="card" style="padding:0;overflow:hidden">'
-    +'<div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
+    +'<div style="padding:10px 14px;border-bottom:.5px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
     +'<div class="ct" style="margin:0">👥 Associate Directory</div>'
     +'<span style="font-size:12px;color:var(--t2)">Page '+page+' / '+totalPages+' &nbsp;('+totalCount+' total)</span>'
     +'</div>'
@@ -4093,14 +4073,14 @@ function r1Table(pageData,page,PER_PAGE,totalPages,totalCount,clrs,bgs,focusId,a
   }
   html+='</tbody></table></div>';
 
-  html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px">'
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:.5px solid var(--bd);flex-wrap:wrap;gap:8px">'
     +'<span style="font-size:13px;color:var(--t2)">'+totalCount+' associates · Page '+page+' / '+totalPages+'</span>'
     +'<div style="display:flex;align-items:center;gap:5px;position:relative">'
     +'<button class="btn bgh bsm" onclick="if(r1P>1){r1P--;doR1Search(r1F,true)}" '+(page<=1?'disabled':'')+'>← Prev</button>'
     +'<div style="position:relative">'
     +'<button class="btn bbl bsm" onclick="toggleR1Pag()" style="min-width:110px">Page '+page+' / '+totalPages+' ▾</button>'
-    +'<div id="r1PagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:1px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
-    +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:1px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
+    +'<div id="r1PagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:.5px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
+    +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
     +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px" id="r1PagGrid"></div>'
     +'</div></div>'
     +'<button class="btn bgh bsm" onclick="if(r1P<'+totalPages+'){r1P++;doR1Search(r1F,true)}" '+(page>=totalPages?'disabled':'')+'>Next →</button>'
@@ -4165,7 +4145,7 @@ function doR1Search(q,keepPage){
 // ── Pagination bar helper ──
 function pagBar(cur,total,onPrev,onNext,label){
   if(total<=1)return '';
-  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:1px solid var(--bd);flex-wrap:wrap;gap:8px">'
+  return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-top:.5px solid var(--bd);flex-wrap:wrap;gap:8px">'
     +'<span style="font-size:12px;color:var(--t2)">'+(label||'')+'</span>'
     +'<div style="display:flex;align-items:center;gap:6px">'
     +'<button class="btn bgh bsm" '+(cur<=1?'disabled':('onclick="'+onPrev+'render()"'))+'>← Prev</button>'
@@ -4295,7 +4275,7 @@ function rpt2(){
 
   // ── Full Sale Table ──
   html+='<div class="card" style="padding:0;overflow:hidden">'
-    +'<div style="padding:10px 14px;border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
+    +'<div style="padding:10px 14px;border-bottom:.5px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
     +'<div class="ct" style="margin:0">📋 Sale Detail — '+filtered.length+' records'+(r2M?' ('+r2M+')':'')+(sel?' ('+sel.name+' ki downline)':'')+'</div>'
     +'</div>'
     +'<div class="tw" style="border:none;border-radius:0"><table>'
@@ -4527,7 +4507,7 @@ function rpt4Assoc(){
 
   html+='<div class="card" style="padding:0"><div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
     +'<th>#</th><th>Associate</th><th>Phone</th><th>RERA</th><th>Designation</th>'
-    +'<th>Sales Count</th><th>Total Brokerage ₹</th>'
+    +'<th>Sales</th><th>Total ₹</th><th style="color:var(--gr)">Paid ₹</th><th style="color:var(--re)">Pending ₹</th>'
     +'</tr></thead><tbody>';
   // Store sales data for popup — serialize to global
   var salesLookup={};
@@ -4553,7 +4533,9 @@ function rpt4Assoc(){
       +'style="background:var(--blb);color:var(--bl);border:1px solid var(--bl);padding:3px 10px;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer">'
       +a.sales.length+' 🔍</button>'
       +'</td>'
-      +'<td style="color:var(--gr);font-weight:700;font-size:15px">₹'+fmt(a.chain+a.def)+'</td>'
+      +'<td style="color:var(--gr);font-weight:700">₹'+fmtL(a.chain+a.def)+'</td>'
+      +'<td style="color:var(--gr);font-size:12px">'+( a.paid>0?'₹'+fmtL(a.paid):'—')+'</td>'
+      +'<td style="color:'+(a.pending>0?'var(--re)':'var(--t3)')+';font-weight:'+(a.pending>0?'700':'400')+'">'+( a.pending>0?'₹'+fmtL(a.pending):'✅')+'</td>'
       +'</tr>';
   });
   html+='<tr style="background:var(--bg3);font-weight:700;border-top:2px solid var(--bd)"><td colspan="6" style="padding:8px 10px">TOTAL</td>'
@@ -4572,14 +4554,14 @@ window.showBroSales=function(assocId,assocName){
   if(!sales||!sales.length){toast('No sales yet',false);return;}
   var totalAmt=sales.reduce(function(s,r){return s+r.amt;},0);
   var rows=sales.map(function(r,i){
-    return '<tr style="background:'+(i%2===0?'#fff':'var(--bg3)')+'"><td style="padding:6px 10px;border-bottom:1px solid var(--bd);color:var(--t3)">'+(i+1)+'</td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid var(--bd)"><b>'+r.sl.projName+'</b></td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid var(--bd)"><span class="badge bbl2">'+r.sl.plotNo+'</span></td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid var(--bd)">'+(r.sl.partyName||'—')+'</td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid var(--bd);color:var(--pu);font-weight:700">'+r.sl.plotGaj+' gaj</td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid var(--bd)">'+(r.sl.closeDate||'—')+'</td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid var(--bd)"><span class="badge '+(r.type==='Chain'?'bbl2':'bpu')+'">'+r.type+'</span></td>'
-      +'<td style="padding:6px 10px;border-bottom:1px solid var(--bd);font-weight:700;color:var(--gr)">₹'+fmt(r.amt)+'</td>'
+    return '<tr style="background:'+(i%2===0?'#fff':'var(--bg3)')+'"><td style="padding:6px 10px;border-bottom:.5px solid var(--bd);color:var(--t3)">'+(i+1)+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)"><b>'+r.sl.projName+'</b></td>'
+      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)"><span class="badge bbl2">'+r.sl.plotNo+'</span></td>'
+      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)">'+(r.sl.partyName||'—')+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd);color:var(--pu);font-weight:700">'+r.sl.plotGaj+' gaj</td>'
+      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)">'+(r.sl.closeDate||'—')+'</td>'
+      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)"><span class="badge '+(r.type==='Chain'?'bbl2':'bpu')+'">'+r.type+'</span></td>'
+      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd);font-weight:700;color:var(--gr)">₹'+fmt(r.amt)+'</td>'
       +'</tr>';
   }).join('');
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
@@ -4587,14 +4569,14 @@ window.showBroSales=function(assocId,assocName){
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div style="overflow-x:auto;max-height:400px;overflow-y:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
     +'<thead style="position:sticky;top:0;background:var(--bg3)"><tr>'
-    +'<th style="padding:7px 10px;border-bottom:1px solid var(--bd)">#</th>'
-    +'<th style="padding:7px 10px;border-bottom:1px solid var(--bd)">Project</th>'
-    +'<th style="padding:7px 10px;border-bottom:1px solid var(--bd)">Plot</th>'
-    +'<th style="padding:7px 10px;border-bottom:1px solid var(--bd)">Buyer</th>'
-    +'<th style="padding:7px 10px;border-bottom:1px solid var(--bd)">Gaj</th>'
-    +'<th style="padding:7px 10px;border-bottom:1px solid var(--bd)">Closing Date</th>'
-    +'<th style="padding:7px 10px;border-bottom:1px solid var(--bd)">Type</th>'
-    +'<th style="padding:7px 10px;border-bottom:1px solid var(--bd)">Brokerage ₹</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">#</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Project</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Plot</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Buyer</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Gaj</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Closing Date</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Type</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Brokerage ₹</th>'
     +'</tr></thead><tbody>'+rows
     +'<tr style="background:var(--bg3);font-weight:700"><td colspan="7" style="padding:7px 10px">Total</td>'
     +'<td style="padding:7px 10px;color:var(--gr);font-size:15px">₹'+fmt(totalAmt)+'</td></tr>'
@@ -5122,7 +5104,7 @@ function rpt4Leg(){
     html+='<div class="card" style="padding:0;margin-bottom:10px;overflow:hidden">'
 
       // Header row
-      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--bd);cursor:pointer" onclick="var b=document.getElementById(\''+cardId+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:var(--bg2);border-bottom:.5px solid var(--bd);cursor:pointer" onclick="var b=document.getElementById(\''+cardId+'\');b.style.display=b.style.display===\'none\'?\'block\':\'none\'">'
       +'<div style="display:flex;align-items:center;gap:12px">'
       +'<div style="width:36px;height:36px;border-radius:50%;background:var(--bl);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:14px">'+a.name.charAt(0).toUpperCase()+'</div>'
       +'<div>'
@@ -5175,7 +5157,7 @@ function rpt4Leg(){
       +'</tr></tbody></table></div>'
 
       // Bank details strip
-      +'<div style="padding:8px 14px;background:var(--bg3);border-top:1px solid var(--bd);font-size:11px;color:var(--t2);display:flex;gap:20px;flex-wrap:wrap">'
+      +'<div style="padding:8px 14px;background:var(--bg3);border-top:.5px solid var(--bd);font-size:11px;color:var(--t2);display:flex;gap:20px;flex-wrap:wrap">'
       +'<span>'+'\ud83c\udfe6'+' <b>'+a.bankingName+'</b></span>'
       +'<span>Bank: <b>'+a.bankName+'</b></span>'
       +'<span>A/c: <b>'+a.accNo+'</b></span>'
@@ -5748,7 +5730,7 @@ function ofList(){
     html+='</div></div>';
 
     // Reward levels summary
-    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px solid var(--bd)">';
+    html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:.5px solid var(--bd)">';
     (offer.levels||[]).forEach(function(lv,i){
       html+='<div style="background:var(--pub);border:1px solid var(--pu);border-radius:8px;padding:5px 10px;font-size:11px">';
       html+='<span style="font-weight:700;color:var(--pu)">Level '+(i+1)+'</span> &nbsp;';
@@ -5824,11 +5806,11 @@ function ofDetail(){
 
   // Per project conditions
   if(offer.condType==='per_project'){
-    html+='<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--bd)">';
+    html+='<div style="margin-top:12px;padding-top:12px;border-top:.5px solid var(--bd)">';
     html+='<div style="font-size:12px;font-weight:700;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Project Conditions</div>';
     html+='<div style="display:flex;flex-wrap:wrap;gap:8px">';
     (offer.projects||[]).forEach(function(op){
-      html+='<div style="background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:6px 12px;font-size:12px">';
+      html+='<div style="background:var(--bg2);border:.5px solid var(--bd);border-radius:8px;padding:6px 12px;font-size:12px">';
       html+='<b>'+esc(op.projName)+'</b>: ';
       if(op.plots&&op.gaj)html+=op.plots+' Plots <span style="color:var(--t3)">or</span> '+op.gaj+' Sq.Yd';
       else if(op.plots)html+=op.plots+' Plots';
@@ -5981,7 +5963,7 @@ function ofProjRow(op,i){
   var levels=op&&op.levels&&op.levels.length>0?op.levels:[{plots:'',gaj:'',reward:''}];
   var lvHtml='';
   levels.forEach(function(lv,li){
-    lvHtml+='<div id="ofprlv_'+i+'_'+li+'" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:#fff;border:1px solid var(--bd);border-radius:7px;padding:8px;margin-bottom:6px">'
+    lvHtml+='<div id="ofprlv_'+i+'_'+li+'" style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;background:#fff;border:.5px solid var(--bd);border-radius:7px;padding:8px;margin-bottom:6px">'
       +'<div style="font-size:11px;font-weight:800;color:var(--bl);min-width:32px">LV'+(li+1)+'</div>'
       +'<div class="fld" style="flex:1;min-width:70px;margin:0"><label>Plots</label><input id="ofPrPl_'+i+'_'+li+'" type="number" min="0" value="'+(lv.plots||'')+'" placeholder="0"/></div>'
       +'<div style="font-size:10px;color:var(--t3);font-weight:700;padding-top:16px">OR</div>'
@@ -6003,7 +5985,7 @@ function ofProjRow(op,i){
 
 function ofLevelRow(lv,i,condType){
   var isCombined=(condType||'combined')==='combined';
-  return '<div id="oflv_'+i+'" style="display:flex;gap:8px;align-items:center;background:var(--bg2);border:1px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:8px;flex-wrap:wrap">'
+  return '<div id="oflv_'+i+'" style="display:flex;gap:8px;align-items:center;background:var(--bg2);border:.5px solid var(--bd);border-radius:8px;padding:10px;margin-bottom:8px;flex-wrap:wrap">'
     +'<div style="font-size:11px;font-weight:700;color:var(--bl);min-width:50px;padding-top:18px">LVL '+(i+1)+'</div>'
     +(isCombined
       ?'<div class="fld" style="flex:1;min-width:80px;margin:0"><label>Plots</label><input id="ofLvPl_'+i+'" type="number" min="0" value="'+(lv.plots||'')+'" placeholder="0"/></div>'
@@ -6889,37 +6871,8 @@ function fbStatus(s){
 
 
 
-// ── AUTO BACKUP CHECK ON LOGIN ───────────────────────────
-function setBkFreq(val){
-  if(!D.config)D.config={};
-  D.config.bkFreq=val;
-  saveD();
-  toast('✅ Backup schedule saved!');
-}
 
-function checkAutoBackup(){
-  var freq=(D.config&&D.config.bkFreq)||'weekly';
-  if(freq==='never')return;
-  var lastDate=(D.config&&D.config.lastBkDate)||null;
 
-  var now=new Date();
-  var shouldBackup=false;
-
-  if(!lastDate){
-    shouldBackup=true; // Pehli baar
-  } else {
-    var last=new Date(lastDate);
-    var diffDays=Math.floor((now-last)/(1000*60*60*24));
-    if(freq==='daily'&&diffDays>=1)shouldBackup=true;
-    else if(freq==='weekly'&&diffDays>=7)shouldBackup=true;
-    else if(freq==='monthly'&&diffDays>=30)shouldBackup=true;
-  }
-
-  if(shouldBackup){
-    downloadLocalBackup(true); // silent download
-    toast('📥 Auto backup download ho gaya! ('+freq+' schedule)');
-  }
-}
 
 // ── BACKUP & RESTORE ────────────────────────────────────
 window.downloadLocalBackup=function(silent){
@@ -7589,7 +7542,7 @@ function rpt1Profile(id){
     +'<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'
     +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;border:none;text-decoration:none;padding:6px 12px">📱 WhatsApp</a>':'')
     +(can('associates_edit')?'<button class="btn bsm" style="background:var(--blb);color:var(--bl);border:1px solid var(--bl)" data-aid="'+a.id+'" onclick="closeM();editAssoc(this.dataset.aid)">✏️ Edit</button>':'')
-    +'<button class="btn bsm" style="background:var(--bg3);color:var(--t2);border:1px solid var(--bd)" data-aid="'+a.id+'" onclick="expSingleAssoc(this.dataset.aid)">📤 Export</button>'
+    +'<button class="btn bsm" style="background:var(--bg3);color:var(--t2);border:.5px solid var(--bd)" data-aid="'+a.id+'" onclick="expSingleAssoc(this.dataset.aid)">📤 Export</button>'
     +'</div>'
     +'</div>';
 
@@ -7638,7 +7591,7 @@ function rpt1Profile(id){
   ];
   pFields.forEach(function(f){
     if(!f[1]&&f[1]!==0)return;
-    h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--bd)">'
+    h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:.5px solid var(--bd)">'
       +'<span style="color:var(--t3);white-space:nowrap">'+f[0]+'</span>'
       +'<span style="font-weight:500;text-align:right">'+f[1]+'</span>'
       +'</div>';
@@ -7674,7 +7627,7 @@ function rpt1Profile(id){
     ['IFSC',a.ifsc?'<b style="font-family:Courier New,monospace">'+esc(a.ifsc)+'</b>':null],
     ['Address',a.address]];
   bFields.forEach(function(f){
-    h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:1px solid var(--bd)">'
+    h+='<div style="display:flex;justify-content:space-between;gap:8px;padding:3px 0;border-bottom:.5px solid var(--bd)">'
       +'<span style="color:var(--t3);white-space:nowrap">'+f[0]+'</span>'
       +'<span style="font-weight:500;text-align:right">'+(f[1]||'—')+'</span>'
       +'</div>';
@@ -7721,7 +7674,7 @@ function rpt1Profile(id){
   } else {
     downPageData.forEach(function(d){
       var dSales=D.sales.filter(function(s){return s.commissions&&s.commissions.some(function(c){return c.id===d.id;});}).length;
-      h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid var(--bd);cursor:pointer" data-did="'+d.id+'" onclick="r1ProfileId=this.dataset.did;r1DownPage=0;render()">'
+      h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--bd);cursor:pointer" data-did="'+d.id+'" onclick="r1ProfileId=this.dataset.did;r1DownPage=0;render()">'
         +'<span class="badge bbl2" style="font-size:10px">'+esc(dOf(d.totalGaj).substring(0,12))+'</span>'
         +'<span style="flex:1;color:var(--bl);font-weight:600">'+esc(d.name)+'</span>'
         +'<span style="font-size:11px;color:var(--t2)">'+d.totalGaj+' gaj · '+dSales+' sales</span>'
@@ -7769,7 +7722,7 @@ function rpt1Profile(id){
         +'</tr>';
     });
     h+='</tbody></table></div>'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;margin-top:10px;border-top:1px solid var(--bd)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;margin-top:10px;border-top:.5px solid var(--bd)">'
       +'<span style="font-size:12px;color:var(--t2)">Total: <b>'+personalGaj+'</b> gaj from <b>'+mySales.length+'</b> sales</span>'
       +'<span style="font-size:13px;font-weight:700;color:var(--gr)">Total Commission: ₹'+fmt(Math.round(myTotalComm))+'</span>'
       +'</div>';
@@ -7793,7 +7746,7 @@ function rpt1Profile(id){
         +'</tr>';
     });
     h+='</tbody></table></div>'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;margin-top:10px;border-top:1px solid var(--bd)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0 0;margin-top:10px;border-top:.5px solid var(--bd)">'
       +'<span style="font-size:12px;color:var(--t2)">Team sales: <b>'+teamGaj+'</b> gaj · <b>'+teamSales.length+'</b> records</span>'
       +'<span style="font-size:13px;font-weight:700;color:var(--pu)">Team Commission: ₹'+fmt(Math.round(teamTotalComm))+'</span>'
       +'</div>'
