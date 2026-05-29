@@ -238,12 +238,14 @@ function doLogin(uid,pwd){
   var auth=getAuth();
   if(uid.toLowerCase()==='admin'&&auth.admin.pwd===hashPwd(pwd)){
     SESSION={id:'admin',name:'Admin',role:'admin',perms:null,loginTime:Date.now()};
-    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
+    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();
+    setTimeout(checkAutoBackup,3000);return true;
   }
   var s=(auth.staff||[]).find(function(x){return x.id.toLowerCase()===uid.toLowerCase();});
   if(s&&s.pwd===hashPwd(pwd)){
     SESSION={id:s.id,name:s.name,role:'staff',perms:s.perms||{},loginTime:Date.now()};
-    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
+    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();
+    setTimeout(checkAutoBackup,3000);return true;
   }
   return false;
 }
@@ -349,7 +351,7 @@ var BENS=[
 var RINC=[{min:25000,max:34999,pct:10},{min:35000,max:49999,pct:25},{min:50000,max:74999,pct:50},{min:75000,max:Infinity,pct:100}];
 
 // ─── DATA ────────────────────────────────────────────
-var D={projects:[],associates:[],sales:[],offers:[],deleted:{associates:[],sales:[],projects:[]},transfers:[],payments:[]};
+var D={projects:[],associates:[],sales:[],offers:[],deleted:{associates:[],sales:[],projects:[]},transfers:[],payments:[],advances:[],config:{}};
 
 function loadD(){
   // Data sirf Firebase se — localStorage use nahi
@@ -357,6 +359,8 @@ function loadD(){
   D.deleted=D.deleted||{associates:[],sales:[],projects:[]};
   D.transfers=D.transfers||[];
   D.payments=D.payments||[];
+  D.advances=D.advances||[];
+  D.config=D.config||{};
 }
 function saveD(){
   if(!isOnline()){
@@ -1163,6 +1167,29 @@ function rpt4PayDetail(assocId){
   if(a.ifsc)html+='<span style="font-size:11px;color:var(--t3)">·</span><span style="font-size:12px">IFSC: <b style="font-family:monospace">'+esc(a.ifsc)+'</b><button class="btn bsm" data-copy="'+esc(a.ifsc)+'" onclick="navigator.clipboard.writeText(this.dataset.copy);toast(\'Copied!\')" style="font-size:10px;padding:1px 5px;margin-left:3px">📋</button></span>';
   html+='</div>';
 
+  // Advance balance
+  var advanceBalance=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';}).reduce(function(t,adv){return t+adv.amount;},0);
+  if(advanceBalance>0){
+    var advDetails=pendingAdvances.map(function(adv){
+      return '<div style="font-size:11px;color:var(--t2);padding:2px 0">'
+        +'<span style="color:var(--bl)">'+esc(adv.reason||'—')+'</span>'
+        +' · ₹'+fmt(adv.amount)
+        +'<span style="color:var(--t3);margin-left:6px">'+(adv.createdAt?adv.createdAt.slice(0,10):'')+'</span>'
+        +'</div>';
+    }).join('');
+    html+='<div style="background:var(--blb);border:1.5px solid var(--bl);border-radius:10px;padding:10px 14px;margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
+      +'<div><div style="font-size:13px;font-weight:700;color:var(--bl)">💰 Advance Balance</div>'
+      +'<div style="font-size:11px;color:var(--t2);margin-top:1px">Agli payment se automatically deduct hoga</div></div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="font-size:20px;font-weight:700;color:var(--bl)">₹'+fmtL(advanceBalance)+'</span>'
+      +'<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re);white-space:nowrap" '
+      +'data-aid="'+assocId+'" data-amt="'+advanceBalance+'" onclick="openRefundModal(this.dataset.aid,parseFloat(this.dataset.amt))">🔄 Refund Entry</button>'
+      +'</div></div>'
+      +'<div style="font-size:11px;border-top:1px solid var(--bl)30;padding-top:6px">'+advDetails+'</div>'
+      +'</div>';
+  }
+
   // 4 stats
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">'
     +'<div class="stat"><div class="sl">Total Commission</div><div class="sv" style="font-size:16px">₹'+fmtL(totalComm)+'</div><div style="font-size:10px;color:var(--t3)">'+allSales.length+' plots</div></div>'
@@ -1321,6 +1348,32 @@ window.savePlotPayment=function(btn){
   }
 
   var a=D.associates.find(function(x){return x.id===assocId;});
+  if(!D.advances)D.advances=[];
+
+  // Advance balance check — auto deduct karo
+  var pendingAdvances=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
+  var totalAdvance=pendingAdvances.reduce(function(t,adv){return t+adv.amount;},0);
+  var finalAmt=amt;
+  var advanceUsed=0;
+  if(totalAdvance>0){
+    advanceUsed=Math.min(totalAdvance,amt);
+    finalAmt=Math.max(0,amt-advanceUsed);
+    // Mark advances as used
+    var remaining=advanceUsed;
+    pendingAdvances.forEach(function(adv){
+      var ai=D.advances.findIndex(function(x){return x.id===adv.id;});
+      if(ai<0||remaining<=0)return;
+      if(adv.amount<=remaining){
+        D.advances[ai].status='used';
+        D.advances[ai].usedAt=new Date().toISOString();
+        remaining-=adv.amount;
+      } else {
+        D.advances[ai].amount=adv.amount-remaining;
+        remaining=0;
+      }
+    });
+  }
+
   D.payments.push({
     id:'_pay'+Date.now(),
     assocId:assocId,
@@ -1329,11 +1382,17 @@ window.savePlotPayment=function(btn){
     projName:projName,
     plotNo:plotNo,
     paid:amt, amount:amt,
+    advanceDeducted:advanceUsed>0?advanceUsed:undefined,
+    netPaid:finalAmt,
     mode:mode, payDate:payDate,
-    utr:utr, note:note,
+    utr:utr, note:note+(advanceUsed>0?' [Advance ₹'+fmt(advanceUsed)+' deducted]':''),
     markedBy:SESSION?SESSION.name:'Admin',
     createdAt:new Date().toISOString()
   });
+
+  if(advanceUsed>0){
+    toast('✅ Payment saved! Advance ₹'+fmt(advanceUsed)+' deduct kiya — Net pay: ₹'+fmt(finalAmt));
+  }
 
   saveD(); closeM();
 
@@ -1920,6 +1979,29 @@ function pgSettings(){
   }
   html+='</div>';
 
+
+  // ── Backup / Restore ──
+  // Backup settings
+  var bkFreq=(D.config&&D.config.bkFreq)||'weekly';
+  var lastBkDate=(D.config&&D.config.lastBkDate)||null;
+  var freqOpts=['daily','weekly','monthly','never'];
+  var freqLabels={daily:'Daily (login ke waqt)',weekly:'Weekly (login ke waqt)',monthly:'Monthly (login ke waqt)',never:'Kabhi nahi (manual only)'};
+  html+='<div class="card" style="margin-bottom:12px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+    +'<div class="ct" style="margin:0">💾 Backup & Restore</div>'
+    +(lastBkDate?'<span style="font-size:11px;color:var(--t2)">Last backup: '+lastBkDate.slice(0,10)+'</span>':'<span style="font-size:11px;color:var(--re)">⚠️ No backup yet</span>')
+    +'</div>'
+    +'<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
+    +'<label style="font-size:12px;color:var(--t2);white-space:nowrap">Auto backup:</label>'
+    +'<select style="font-size:12px;padding:5px 8px;border:1px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx)" onchange="setBkFreq(this.value)">'
+    +freqOpts.map(function(f){return '<option value="'+f+'"'+(bkFreq===f?' selected':'')+'>'+freqLabels[f]+'</option>';}).join('')
+    +'</select>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +'<button class="btn bbl bsm" onclick="downloadLocalBackup()">📥 Abhi Backup lo</button>'
+    +'<button class="btn bsm" style="background:var(--amb);color:var(--am);border:1px solid var(--am)" onclick="openRestoreBackup()">🔄 Backup se Restore</button>'
+    +'</div>'
+    +'</div>';
 
   // ── Data Integrity Scanner ──
   html+='<div class="card" style="margin-bottom:12px">';
@@ -3598,6 +3680,99 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
 };
 
 // Delete Sale Record
+
+
+// ── REFUND ENTRY MODAL ───────────────────────────────────
+window.openRefundModal=function(assocId, advanceBalance){
+  var a=D.associates.find(function(x){return x.id===assocId;});
+  if(!a)return;
+  var today=new Date().toISOString().slice(0,10);
+  var pendAdv=(D.advances||[]).filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
+
+  var advList=pendAdv.map(function(adv){
+    return '<div style="padding:5px 8px;background:var(--bg2);border-radius:6px;margin-bottom:4px;font-size:12px">'
+      +'<span style="color:var(--bl);font-weight:600">'+esc(adv.reason||'—')+'</span>'
+      +' — <b>₹'+fmt(adv.amount)+'</b>'
+      +'</div>';
+  }).join('');
+
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">🔄 Refund Entry</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
+    +'<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:14px">'
+    +'<b>'+esc(a.name)+'</b>'
+    +'<div style="font-size:12px;color:var(--t2);margin-top:3px">Advance Balance: <b style="color:var(--bl)">₹'+fmt(advanceBalance)+'</b></div>'
+    +'<div style="margin-top:8px">'+advList+'</div>'
+    +'</div>'
+    +'<div class="g2" style="margin-bottom:12px">'
+    +'<div class="fld"><label>Refund Date *</label>'
+    +'<input type="date" id="rfDate" value="'+today+'" max="'+today+'"/></div>'
+    +'<div class="fld"><label>Refund Amount *</label>'
+    +'<input type="number" id="rfAmt" value="'+advanceBalance+'" min="1" max="'+advanceBalance+'" step="0.01" placeholder="₹ Amount"/></div>'
+    +'<div class="fld"><label>Mode</label>'
+    +'<select id="rfMode">'
+    +['Cash','Online','UPI','NEFT','IMPS','Cheque'].map(function(m){return '<option>'+m+'</option>';}).join('')
+    +'</select></div>'
+    +'<div class="fld"><label>UTR / Ref No (optional)</label>'
+    +'<input id="rfUtr" placeholder="Transaction reference"/></div>'
+    +'<div class="fld" style="grid-column:1/-1"><label>Note (optional)</label>'
+    +'<input id="rfNote" placeholder="e.g. Cash wapas liya..."/></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn bbl" style="background:var(--re);border:none" data-aid="'+assocId+'" data-maxamt="'+advanceBalance+'" onclick="saveRefund(this)">✅ Confirm Refund</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
+    +'</div>';
+  openM(html);
+};
+
+window.saveRefund=function(btn){
+  var assocId=btn.dataset.aid;
+  var maxAmt=parseFloat(btn.dataset.maxamt||0);
+  var rfDate=(document.getElementById('rfDate')||{}).value||new Date().toISOString().slice(0,10);
+  var rfAmt=parseFloat((document.getElementById('rfAmt')||{}).value||'0');
+  var rfMode=(document.getElementById('rfMode')||{}).value||'Cash';
+  var rfUtr=((document.getElementById('rfUtr')||{}).value||'').trim();
+  var rfNote=((document.getElementById('rfNote')||{}).value||'').trim();
+
+  if(!rfAmt||rfAmt<=0){toast('Amount daalo!',false);return;}
+  if(rfAmt>maxAmt){toast('Amount advance balance se zyada nahi ho sakta!',false);return;}
+
+  if(!D.advances)D.advances=[];
+
+  // Advance records mark as refunded (FIFO)
+  var remaining=rfAmt;
+  var pendAdv=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
+  pendAdv.forEach(function(adv){
+    var ai=D.advances.findIndex(function(x){return x.id===adv.id;});
+    if(ai<0||remaining<=0)return;
+    if(adv.amount<=remaining){
+      D.advances[ai].status='refunded';
+      D.advances[ai].refundedAt=rfDate;
+      D.advances[ai].refundMode=rfMode;
+      D.advances[ai].refundUtr=rfUtr;
+      remaining-=adv.amount;
+    } else {
+      // Partial refund — split
+      D.advances[ai].amount=adv.amount-remaining;
+      D.advances.push(Object.assign({},adv,{
+        id:'_adv'+Date.now()+Math.random().toString(36).substr(2,5),
+        amount:remaining,
+        status:'refunded',
+        refundedAt:rfDate,
+        refundMode:rfMode,
+        refundUtr:rfUtr
+      }));
+      remaining=0;
+    }
+  });
+
+  saveD();
+  closeM();
+  toast('🔄 Refund ₹'+fmt(rfAmt)+' record ho gaya — Advance balance updated');
+  logAct('Refund entry: '+((D.associates.find(function(a){return a.id===assocId;})||{}).name||assocId)+' ₹'+rfAmt);
+  render();
+};
+
 window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dataset.sid:saleId;
   if(!can('sales_delete')){toast('Sale delete ki permission nahi hai!',false);return;}
   var s=D.sales.find(function(x){return x.id===saleId;});if(!s)return;
@@ -3619,20 +3794,35 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
   var _sd=D.sales.find(function(x){return x.id===saleId;});
   // ── Payment reverse — is sale se linked payments handle karo ──
   if(!D.payments)D.payments=[];
+  if(!D.advances)D.advances=[];
 
-  // 1. New plot-wise payments (saleId based) — warn + handle
+  // New plot-wise payments (saleId based) — directly advance mein daalo
   var linkedPlotPays=D.payments.filter(function(p){return p.saleId===saleId;});
   if(linkedPlotPays.length>0){
-    var payNames=linkedPlotPays.map(function(p){
-      return (p.assocName||'?')+' — ₹'+fmt(p.paid||p.amount||0)+' ('+( p.payDate||'?')+')';
-    }).join('\n');
-    var proceed=confirm('⚠️ Is sale ka payment pehle se mark kiya ja chuka hai:\n\n'+payNames+'\n\nSale delete karne se yeh payment records bhi DELETE honge.\nKya confirm karna chahte ho?');
-    if(!proceed)return; // User ne cancel kiya
-    // Delete linked plot payments
+    if(!D.advances)D.advances=[];
+    var totalAdvAmt=0;
+    linkedPlotPays.forEach(function(p){
+      var amt=p.paid||p.amount||0;
+      if(amt<=0)return;
+      totalAdvAmt+=amt;
+      D.advances.push({
+        id:'_adv'+Date.now()+Math.random().toString(36).substr(2,5),
+        assocId:p.assocId,
+        assocName:p.assocName||'',
+        amount:amt,
+        reason:'Sale delete: '+esc(s.projName)+' Plot '+esc(s.plotNo),
+        saleId:saleId,
+        createdAt:new Date().toISOString(),
+        createdBy:SESSION?SESSION.name:'Admin',
+        status:'pending'
+      });
+    });
+    // Delete payment records
     D.payments=D.payments.filter(function(p){return p.saleId!==saleId;});
+    if(totalAdvAmt>0)toast('💰 ₹'+fmt(totalAdvAmt)+' advance mein add kiya — Payment Detail se refund kar sakte ho');
   }
 
-  // 2. Old month-based payments (saleIds array) — adjust amount
+  // Old month-based payments (saleIds array) — adjust amount
   D.payments.forEach(function(pay,pi){
     if(!pay.saleIds||!pay.saleIds.includes(saleId))return;
     var salePays=(s.commissions||[]).filter(function(cm){return cm.id===pay.assocId;});
@@ -6697,6 +6887,99 @@ function fbStatus(s){
 
 
 
+
+
+// ── AUTO BACKUP CHECK ON LOGIN ───────────────────────────
+function setBkFreq(val){
+  if(!D.config)D.config={};
+  D.config.bkFreq=val;
+  saveD();
+  toast('✅ Backup schedule saved!');
+}
+
+function checkAutoBackup(){
+  var freq=(D.config&&D.config.bkFreq)||'weekly';
+  if(freq==='never')return;
+  var lastDate=(D.config&&D.config.lastBkDate)||null;
+
+  var now=new Date();
+  var shouldBackup=false;
+
+  if(!lastDate){
+    shouldBackup=true; // Pehli baar
+  } else {
+    var last=new Date(lastDate);
+    var diffDays=Math.floor((now-last)/(1000*60*60*24));
+    if(freq==='daily'&&diffDays>=1)shouldBackup=true;
+    else if(freq==='weekly'&&diffDays>=7)shouldBackup=true;
+    else if(freq==='monthly'&&diffDays>=30)shouldBackup=true;
+  }
+
+  if(shouldBackup){
+    downloadLocalBackup(true); // silent download
+    toast('📥 Auto backup download ho gaya! ('+freq+' schedule)');
+  }
+}
+
+// ── BACKUP & RESTORE ────────────────────────────────────
+window.downloadLocalBackup=function(silent){
+  var bk={data:JSON.parse(JSON.stringify(D)),savedAt:new Date().toISOString(),version:2};
+  var blob=new Blob([JSON.stringify(bk)],{type:'application/json'});
+  var url=URL.createObjectURL(blob);
+  var a=document.createElement('a');
+  a.href=url;
+  a.download='truestars_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  document.body.appendChild(a);a.click();
+  document.body.removeChild(a);URL.revokeObjectURL(url);
+  if(!D.config)D.config={};
+  D.config.lastBkDate=new Date().toISOString();
+  saveD();
+  if(!silent)toast('📥 Backup downloaded!');
+};
+
+window.openRestoreBackup=function(){
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">🔄 Backup se Restore</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
+    +'<div class="info iam" style="margin-bottom:14px;font-size:12px">⚠️ <b>Warning:</b> Yeh current saara data replace kar dega. Pehle ek fresh backup download karo.</div>'
+    +'<div class="fld" style="margin-bottom:14px"><label>JSON Backup File select karo *</label>'
+    +'<input type="file" id="bkFile" accept=".json" style="font-size:13px"/></div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn bbl" onclick="confirmRestoreBackup()">✅ Restore Karo</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
+    +'</div>';
+  openM(html);
+};
+
+window.confirmRestoreBackup=function(){
+  var fileEl=document.getElementById('bkFile');
+  if(!fileEl||!fileEl.files||!fileEl.files[0]){toast('File select karo!',false);return;}
+  var reader=new FileReader();
+  reader.onload=function(e){
+    try{
+      var bkRaw=JSON.parse(e.target.result);
+      var data=bkRaw.data||bkRaw; // support both formats
+      if(!data.associates||!data.sales){toast('Invalid backup file!',false);return;}
+      var dt=bkRaw.savedAt?bkRaw.savedAt.replace('T',' ').slice(0,16):'?';
+      var msg='BACKUP RESTORE\n\nBackup date: '+dt+'\n'+(data.associates.length)+' associates · '+(data.sales.length)+' sales\n\nCurrent data REPLACE ho jaayega!\nConfirm?';
+      if(!confirm(msg))return;
+      D.projects=data.projects||[];
+      D.associates=data.associates||[];
+      D.sales=data.sales||[];
+      D.offers=data.offers||[];
+      D.deleted=data.deleted||{associates:[],sales:[],projects:[]};
+      D.transfers=data.transfers||[];
+      D.payments=data.payments||[];
+      D.advances=data.advances||[];
+      saveD();
+      closeM();
+      toast('✅ Backup restore ho gaya! ('+dt+')');
+      render();
+    }catch(err){toast('File read error: '+err.message,false);}
+  };
+  reader.readAsText(fileEl.files[0]);
+};
+
 function fbSave(ts){
   if(!_fbReady||!_fbDB)return;
   ts=ts||Date.now();
@@ -6711,6 +6994,8 @@ function fbSave(ts){
     deleted:D.deleted||{associates:[],sales:[],projects:[]},
     transfers:D.transfers||[],
     payments:D.payments||[],
+    advances:D.advances||[],
+    config:D.config||{},
     ts:ts
   }));
   _fbDB.collection('appdata').doc('main').set(clean)
