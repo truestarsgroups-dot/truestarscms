@@ -3663,6 +3663,11 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
 
 
 // ── REFUND ENTRY MODAL ───────────────────────────────────
+window.goBackPayList=function(){
+  r4PayAssoc='';
+  render();
+};
+
 window.openRefundModal=function(assocId, advanceBalance){
   var a=D.associates.find(function(x){return x.id===assocId;});
   if(!a)return;
