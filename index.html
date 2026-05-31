@@ -22,9 +22,9 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);font-
 .hdr h1{font-size:16px;font-weight:700;margin:0}
 .hdr p{font-size:11px;opacity:.8;margin:0}
 .nav{background:#fff;border-bottom:.5px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 16px;gap:0}
-.nav a{padding:10px 14px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:3px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.nav a{padding:10px 14px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0;position:relative;z-index:2}
 .nav a.on{color:var(--bl);border-color:var(--bl)}
-#srchWrap{margin-left:auto;padding:4px 0;flex-shrink:0}
+#srchWrap{margin-left:auto;padding:4px 0;flex-shrink:0;position:relative;z-index:1}
 #srchWrap input{font-size:12px;padding:5px 10px;border:.5px solid var(--bd);border-radius:6px;width:200px}
 .main{max-width:1200px;margin:0 auto;padding:16px}
 .card{background:#fff;border:.5px solid var(--bd);border-radius:10px;padding:14px 18px;margin-bottom:12px}
@@ -402,7 +402,7 @@ function getProjBonus(proj,bookingDate){
 }
 function uid(){return '_'+Math.random().toString(36).substr(2,9);}
 function fmt(n){return Number(n||0).toLocaleString('en-IN');}
-function fmtL(n){return n>=100000?(n/100000).toFixed(2)+'L':n>=1000?(n/1000).toFixed(1)+'K':fmt(n);}
+function fmtL(n){if(!n||isNaN(n))return '0';return n>=100000?(n/100000).toFixed(2)+'L':n>=1000?(n/1000).toFixed(1)+'K':fmt(n);}
 function gv(id){var el=document.getElementById(id);return el?el.value.trim():'';}
 // ─── XSS PROTECTION ──────────────────────────────────
 function leftBadge(name){
@@ -933,7 +933,7 @@ window.editBonusEntry=function(projId,bi){
     +'</div>';
   openM(html);
   document.getElementById('btnSaveEB').addEventListener('click',function(){
-    var newPct=parseInt((document.getElementById('ebPct')||{}).value||'0');
+    var newPct=parseInt((document.getElementById('ebPct')||{}).value||'0')||0;
     var newDate=(document.getElementById('ebDate')||{}).value||bh.date;
     var newNote=((document.getElementById('ebNote')||{}).value||'').trim();
     var pi=D.projects.findIndex(function(x){return x.id===projId;});if(pi<0)return;
@@ -1236,7 +1236,7 @@ function rpt4PayDetail(assocId){
           :'<span class="badge bam">🟡 Pending</span>')+'</td>'
         +'<td>'
         +(isPaid
-          ?'<button class="btn bsm" style="font-size:11px;background:var(--blb);color:var(--bl);border:1px solid var(--bl)" data-aid="'+assocId+'" data-sid="'+s.id+'" data-comm="'+row.comm+'" data-proj="'+esc(s.projName)+'" data-plot="'+esc(s.plotNo)+'" onclick="openPlotPayModal(this.dataset)">✏️ Edit</button>'
+          ?'<button class="btn bsm" style="font-size:11px;background:var(--blb);color:var(--bl);border:1px solid var(--bl)" data-aid="'+assocId+'" data-sid="'+s.id+'" data-comm="'+row.comm+'" data-proj="'+esc(s.projName)+'" data-plot="'+esc(s.plotNo)+'" onclick="payEditPinCheck(this.dataset)">✏️ Edit</button>'
           :'<button class="btn bsm" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr);white-space:nowrap" data-aid="'+assocId+'" data-sid="'+s.id+'" data-comm="'+row.comm+'" data-proj="'+esc(s.projName)+'" data-plot="'+esc(s.plotNo)+'" onclick="openPlotPayModal(this.dataset)">💳 Mark Paid</button>')
         +'</td></tr>';
     });
@@ -1270,6 +1270,70 @@ function rpt4PayDetail(assocId){
 }
 
 // ── PLOT-WISE PAYMENT MODAL ─────────────────────────────
+
+
+window.savePayEditPin=function(){
+  var pin=((document.getElementById('payPinNew')||{}).value||'').trim();
+  if(!pin||pin.length<4){toast('PIN kam se kam 4 digit ka hona chahiye!',false);return;}
+  if(!/^\d+$/.test(pin)){toast('PIN sirf numbers mein hona chahiye!',false);return;}
+  var auth=getAuth();
+  auth.payEditPin=pin;
+  saveAuth(auth);
+  toast('✅ Payment Edit PIN set ho gaya!');
+  render();
+};
+
+window.removePayEditPin=function(){
+  if(!confirm('Payment Edit PIN hatana chahte ho? Koi bhi payment edit kar sakta hai.'))return;
+  var auth=getAuth();
+  delete auth.payEditPin;
+  saveAuth(auth);
+  toast('PIN hata diya gaya');
+  render();
+};
+
+// ── PAYMENT EDIT PIN CHECK ───────────────────────────────
+window.payEditPinCheck=function(ds){
+  var auth=getAuth();
+  var pin=auth&&auth.payEditPin;
+
+  // Agar PIN set nahi hai toh seedha edit karo
+  if(!pin){openPlotPayModal(ds);return;}
+
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">🔐 PIN Verify karo</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
+    +'<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--t2)">'
+    +'Payment edit karne ke liye PIN daalo'
+    +'</div>'
+    +'<div class="fld" style="margin-bottom:14px">'
+    +'<input type="password" id="payEditPinInput" placeholder="PIN daalo" maxlength="10" style="font-size:18px;letter-spacing:4px;text-align:center" onkeydown="if(event.key===\'Enter\')verifyPayEditPin(\''+JSON.stringify(ds).replace(/'/g,'\\\'').replace(/"/g,'&quot;')+'\')" autofocus/>'
+    +'</div>'
+    +'<div id="payPinErr" style="color:var(--re);font-size:12px;margin-bottom:10px;display:none">❌ Galat PIN!</div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn bbl" data-ds="'+encodeURIComponent(JSON.stringify(ds))+'" onclick="verifyPayEditPinBtn(this.dataset.ds)">✅ Verify</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
+    +'</div>';
+  openM(html);
+  setTimeout(function(){var el=document.getElementById('payEditPinInput');if(el)el.focus();},100);
+};
+
+window.verifyPayEditPinBtn=function(dsEncoded){
+  try{
+    var ds=JSON.parse(decodeURIComponent(dsEncoded));
+    var auth=getAuth();
+    var pin=auth&&auth.payEditPin;
+    var input=((document.getElementById('payEditPinInput')||{}).value||'').trim();
+    if(input===pin){closeM();openPlotPayModal(ds);}
+    else{
+      var err=document.getElementById('payPinErr');
+      if(err){err.style.display='block';}
+      var inp=document.getElementById('payEditPinInput');
+      if(inp){inp.value='';inp.focus();}
+    }
+  }catch(e){toast('Error: '+e.message,false);}
+};
+
 window.openPlotPayModal=function(ds){
   var assocId=ds.aid, saleId=ds.sid;
   var commAmt=parseFloat(ds.comm||0);
@@ -1889,7 +1953,7 @@ function render(){
   var navHtml=tabs.map(function(t){
     return '<a class="'+(TAB===t[0]?'on':'')+'" onclick="sw(\''+t[0]+'\')">'+t[1]+'</a>';
   }).join('');
-  navHtml+='<div id="srchWrap"><input type="text" placeholder="🔍 Search..." oninput="doSearch(this.value)" value="'+searchQ.replace(/"/g,'&quot;')+'"/></div>';
+  navHtml+='<div id="srchWrap"><input type="text" id="srchInput" placeholder="🔍 Search..." oninput="doSearch(this.value)" value="'+searchQ.replace(/"/g,'&quot;')+'"/></div>';
   document.getElementById('nav').innerHTML=navHtml;
 
   var m=document.getElementById('main');
@@ -1982,17 +2046,6 @@ function pgSettings(){
   // ── Backup / Restore ──
   // Backup settings
   var lastBkDate=(D.config&&D.config.lastBkDate)||null;
-  html+='<div class="card" style="margin-bottom:12px">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
-    +'<div class="ct" style="margin:0">💾 Backup & Restore</div>'
-    +(lastBkDate?'<span style="font-size:11px;color:var(--t2)">Last backup: '+lastBkDate.slice(0,10)+'</span>':'<span style="font-size:11px;color:var(--re)">⚠️ No backup yet</span>')
-    +'</div>'
-    +'<div class="info ibl" style="margin-bottom:10px;font-size:12px">📌 Weekly backup lo — JSON file download karo aur safe jagah rakhlo.</div>'
-    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
-    +'<button class="btn bbl bsm" onclick="downloadLocalBackup()">📥 JSON Backup Download</button>'
-    +'<button class="btn bsm" style="background:var(--amb);color:var(--am);border:1px solid var(--am)" onclick="openRestoreBackup()">🔄 Backup se Restore</button>'
-    +'</div>'
-    +'</div>';
 
   // ── Data Integrity Scanner ──
   html+='<div class="card" style="margin-bottom:12px">';
@@ -2230,7 +2283,7 @@ function pgDash(){
   D.projects.forEach(function(p){
     var ptotal=p.plots?p.plots.length:0;if(!ptotal)return;
     var psold=p.plots.filter(function(x){return x.status==='sold';}).length;
-    var pct=Math.round((psold/ptotal)*100);
+    var pct=ptotal>0?Math.round((psold/ptotal)*100):0;
     var barColor=pct>=80?'var(--gr)':pct>=40?'var(--am)':'var(--bl)';
     html+='<div style="margin-bottom:10px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">'
@@ -2280,7 +2333,7 @@ function pgDash(){
   } else {
     topList.forEach(function(a,i){
       var clr=rankColors[i]||rankColors[4];
-      var pct=Math.round((a.gaj/maxGaj)*100);
+      var pct=maxGaj>0?Math.round((a.gaj/maxGaj)*100):0;
       html+='<div style="display:flex;align-items:center;gap:8px;padding:7px 0;'+(i<topList.length-1?'border-bottom:.5px solid var(--bd)':'')+';">'
         +'<div style="width:20px;text-align:center;font-size:'+(i<3?'14':'11')+'px;'+(i>=3?'color:var(--t3);font-weight:600':'')+'">'+(i<3?rankBadges[i]:(i+1))+'</div>'
         +'<div style="width:30px;height:30px;border-radius:50%;background:'+clr[0]+';color:'+clr[1]+';display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0">'+a.name.charAt(0)+'</div>'
@@ -2801,7 +2854,7 @@ window.prvG=function(id){
 };
 window.doAG=function(id){
   var el=document.getElementById('eAG');
-  var v=parseFloat(el?el.value:0);
+  var v=parseFloat(el?el.value:0)||0;
   if(isNaN(v)||v===0){toast('Please enter a valid gaj value!',false);return;}
   var a=D.associates.find(function(x){return x.id===id;});
   if(a&&(a.totalGaj+v)<0){
@@ -3489,7 +3542,7 @@ function pgSalesRec(){
       var rowNum=(srPage-1)*PER_PAGE+i+1;
       html+='<tr>'
         +'<td style="color:var(--t3)">'+rowNum+'</td>'
-        +'<td><b>'+s.projName+'</b></td>'
+        +'<td><b>'+esc(s.projName)+'</b></td>'
         +'<td><span class="badge bbl2" data-sid="'+s.id+'" onclick="showChainPopup(this.dataset.sid)" style="cursor:pointer;text-decoration:underline" title="Chain detail dekhein">'+s.plotNo+' 🔗</span></td>'
         +'<td>'+(s.partyName||'—')+'</td>'
         +'<td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td>'
@@ -3837,7 +3890,7 @@ function pgRpt(){
   // Staff ko: Associate Info (r1), Project/Plot (r3), Brokerage (r4) - view only
   var isAdmin=SESSION&&SESSION.role==='admin';
   var tabs=isAdmin
-    ?[['r1','1️⃣ Associate Info'],['r2','2️⃣ Sales & Gaj'],['r3','3️⃣ Project/Plot'],['r4','💰 Brokerage'],['r5','📅 Monthly'],['r6','🧾 Statement']]
+    ?[['r1','Associate Info'],['r2','Sales & Gaj'],['r3','Project/Plot'],['r4','💰 Brokerage'],['r5','📅 Monthly'],['r6','🧾 Statement']]
     :[['r1','1️⃣ Associate Info'],['r3','3️⃣ Project/Plot'],['r4','💰 Brokerage']];
   // Staff ka rTab sirf r1/r3/r4 ho sakta hai
   if(!isAdmin&&rTab!=='r1'&&rTab!=='r3'&&rTab!=='r4')rTab='r1';
@@ -6189,7 +6242,7 @@ function pgSearch(){
   var html='<h2 style="font-size:15px;font-weight:700;margin-bottom:12px">🔍 Search: "'+searchQ+'"</h2>';
   if(aRes.length){
     html+='<div class="card"><div class="ct">👥 Associates ('+aRes.length+')</div><div class="tw"><table><thead><tr><th>Name</th><th>Phone</th><th>RERA</th><th>Gaj</th><th>Slab</th><th>Designation</th></tr></thead><tbody>';
-    aRes.forEach(function(a){html+='<tr><td><b>'+a.name+'</b></td><td>'+(a.phone||'—')+'</td><td>'+(a.rera||'—')+'</td><td><b>'+a.totalGaj+'</b></td><td style="color:var(--bl);font-weight:700">₹'+rOf(a.totalGaj)+'/gaj</td><td>'+dOf(a.totalGaj)+'</td></tr>';});
+    aRes.forEach(function(a){html+='<tr><td><b>'+esc(a.name)+'</b></td><td>'+(a.phone||'—')+'</td><td>'+(a.rera||'—')+'</td><td><b>'+a.totalGaj+'</b></td><td style="color:var(--bl);font-weight:700">₹'+rOf(a.totalGaj)+'/gaj</td><td>'+dOf(a.totalGaj)+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
   if(pRes.length){
@@ -6965,7 +7018,9 @@ function fbLoadIfEmpty(){
   if(!_fbReady||!_fbDB){return;}
   fbStatus('sync');
   _fbDB.collection('appdata').doc('main').get()
+    .catch(function(e){fbStatus('err');console.error('fbLoad error:',e.message);})
     .then(function(doc){
+      if(!doc)return;
       if(!doc.exists){
         // Firebase mein kuch nahi — local data push karo
         if(D.projects.length||D.associates.length||D.sales.length){
@@ -7024,6 +7079,8 @@ function fbInit(){
       if(r.deleted)D.deleted=r.deleted;else if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
       if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
+      if(r.advances)D.advances=r.advances;else if(!D.advances)D.advances=[];
+      if(r.config)D.config=r.config;else if(!D.config)D.config={};
       // Firebase only — no localStorage
       fbStatus('ok');
       // Smart refresh — agar user koi form fill kar raha ho to interrupt mat karo
