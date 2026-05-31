@@ -1167,7 +1167,8 @@ function rpt4PayDetail(assocId){
   html+='</div>';
 
   // Advance balance
-  var advanceBalance=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';}).reduce(function(t,adv){return t+adv.amount;},0);
+  var pendingAdvances=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
+  var advanceBalance=pendingAdvances.reduce(function(t,adv){return t+adv.amount;},0);
   if(advanceBalance>0){
     var advDetails=pendingAdvances.map(function(adv){
       return '<div style="font-size:11px;color:var(--t2);padding:2px 0">'
