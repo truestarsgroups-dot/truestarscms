@@ -151,12 +151,12 @@ tbody tr:hover td{background:var(--blb)}
     <div style="font-size:17px;font-weight:700;color:#222;margin-bottom:18px;text-align:center">🔐 Login</div>
     <div style="margin-bottom:10px">
       <label style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px">User ID</label>
-      <input id="loginId" placeholder="User ID daalo" style="width:100%;font-size:14px;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a6fc4'" onblur="this.style.borderColor='#ddd'" onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()"/>
+      <input id="loginId" placeholder="Enter User ID" style="width:100%;font-size:14px;padding:10px 12px;border:1.5px solid #ddd;border-radius:8px;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a6fc4'" onblur="this.style.borderColor='#ddd'" onkeydown="if(event.key==='Enter')document.getElementById('loginPwd').focus()"/>
     </div>
     <div style="margin-bottom:16px">
       <label style="font-size:11px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.3px;display:block;margin-bottom:4px">Password</label>
       <div style="position:relative">
-        <input id="loginPwd" type="password" placeholder="Password daalo" style="width:100%;font-size:14px;padding:10px 40px 10px 12px;border:1.5px solid #ddd;border-radius:8px;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a6fc4'" onblur="this.style.borderColor='#ddd'" onkeydown="if(event.key==='Enter')doLoginBtn()"/>
+        <input id="loginPwd" type="password" placeholder="Enter password" style="width:100%;font-size:14px;padding:10px 40px 10px 12px;border:1.5px solid #ddd;border-radius:8px;outline:none;box-sizing:border-box;transition:border-color .2s" onfocus="this.style.borderColor='#1a6fc4'" onblur="this.style.borderColor='#ddd'" onkeydown="if(event.key==='Enter')doLoginBtn()"/>
         <button type="button" id="pwdToggle" onclick="var i=document.getElementById('loginPwd');i.type=i.type==='password'?'text':'password';document.getElementById('pwdToggle').textContent=i.type==='password'?'Show':'Hide'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;color:#999;font-weight:500">Show</button>
       </div>
     </div>
@@ -232,7 +232,7 @@ function resetSessionTimer(){
   if(_sessionTimer)clearTimeout(_sessionTimer);
   if(!SESSION)return;
   _sessionTimer=setTimeout(function(){
-    toast('⏰ Session expire ho gaya (8 hours). Dobara login karo.',false);
+    toast('⏰ Session expired (8 hours). Please login again.',false);
     doLogout();
   },SESSION_TIMEOUT);
 }
@@ -365,7 +365,7 @@ function loadD(){
 }
 function saveD(){
   if(!isOnline()){
-    toast('📴 Internet nahi hai — Koi bhi change save nahi hoga! Pehle internet connect karo.',false);
+    toast('📴 No internet connection — Changes will not be saved. Please connect first..',false);
     return;
   }
   var ts=Date.now();
@@ -433,7 +433,7 @@ function resetIdleTimer(){
 function isOnline(){return navigator.onLine;}
 function checkNet(){
   if(!isOnline()){
-    toast('📴 Internet nahi hai — Connect karke try karo!',false);
+    toast('📴 No internet connection — Please connect and try again.',false);
     return false;
   }
   return true;
@@ -442,13 +442,13 @@ function checkNet(){
 window.addEventListener('online',function(){
   var b=document.getElementById('offlineBanner');
   if(b)b.style.display='none';
-  toast('✅ Internet connected! Ab kaam kar sakte hain.');
+  toast('✅ Internet connected! You can continue working.');
   if(_fbReady&&_fbDB)fbSave();
 });
 window.addEventListener('offline',function(){
   var b=document.getElementById('offlineBanner');
   if(b)b.style.display='flex';
-  toast('📴 Internet chala gaya! Save nahi hoga.',false);
+  toast('📴 Internet disconnected! Changes will not be saved.',false);
 });
 
 function getChain(id){
@@ -943,7 +943,7 @@ window.editBonusEntry=function(projId,bi){
       D.projects[pi].bonusPct=newPct;
     }
     saveD();
-    toast('✅ Bonus entry update ho gayi!');
+    toast('✅ Bonus entry updated!');
     closeM();render();
   });
 };
@@ -953,7 +953,7 @@ window.deleteBonusEntry=function(projId,bi){
   var bh=p.bonusHistory[bi];if(!bh)return;
   var isCurrent=bi===p.bonusHistory.length-1;
   var isOnly=p.bonusHistory.length===1;
-  if(isOnly){toast('Sirf ek hi entry hai — delete nahi ho sakti!',false);return;}
+  if(isOnly){toast('Only one entry exists — cannot be deleted!',false);return;}
   var label=bh.pct>0?'+'+bh.pct+'%':'No Bonus';
   var salesAffected=D.sales.filter(function(s){
     if(s.projId!==projId)return false;
@@ -976,7 +976,7 @@ window.deleteBonusEntry=function(projId,bi){
     D.projects[pi].bonusPct=lastEntry.pct;
     toast('✅ Bonus entry delete! Ab current bonus: '+(lastEntry.pct>0?'+'+lastEntry.pct+'%':'No Bonus'));
   } else {
-    toast('✅ Bonus entry delete ho gayi!');
+    toast('✅ Bonus entry deleted!');
   }
   saveD();closeM();render();
 };
@@ -1274,21 +1274,21 @@ function rpt4PayDetail(assocId){
 
 window.savePayEditPin=function(){
   var pin=((document.getElementById('payPinNew')||{}).value||'').trim();
-  if(!pin||pin.length<4){toast('PIN kam se kam 4 digit ka hona chahiye!',false);return;}
-  if(!/^\d+$/.test(pin)){toast('PIN sirf numbers mein hona chahiye!',false);return;}
+  if(!pin||pin.length<4){toast('PIN must be at least 4 digits!',false);return;}
+  if(!/^\d+$/.test(pin)){toast('PIN must contain numbers only!',false);return;}
   var auth=getAuth();
   auth.payEditPin=pin;
   saveAuth(auth);
-  toast('✅ Payment Edit PIN set ho gaya!');
+  toast('✅ Payment Edit PIN set successfully!');
   render();
 };
 
 window.removePayEditPin=function(){
-  if(!confirm('Payment Edit PIN hatana chahte ho? Koi bhi payment edit kar sakta hai.'))return;
+  if(!confirm('Are you sure you want to remove the Payment Edit PIN? Anyone will be able to edit payments.'))return;
   var auth=getAuth();
   delete auth.payEditPin;
   saveAuth(auth);
-  toast('PIN hata diya gaya');
+  toast('PIN removed successfully.');
   render();
 };
 
@@ -1307,7 +1307,7 @@ window.payEditPinCheck=function(ds){
     +'Payment edit karne ke liye PIN daalo'
     +'</div>'
     +'<div class="fld" style="margin-bottom:14px">'
-    +'<input type="password" id="payEditPinInput" placeholder="PIN daalo" maxlength="10" style="font-size:18px;letter-spacing:4px;text-align:center" onkeydown="if(event.key===\'Enter\')verifyPayEditPin(\''+JSON.stringify(ds).replace(/'/g,'\\\'').replace(/"/g,'&quot;')+'\')" autofocus/>'
+    +'<input type="password" id="payEditPinInput" placeholder="Enter PIN" maxlength="10" style="font-size:18px;letter-spacing:4px;text-align:center" onkeydown="if(event.key===\'Enter\')verifyPayEditPin(\''+JSON.stringify(ds).replace(/'/g,'\\\'').replace(/"/g,'&quot;')+'\')" autofocus/>'
     +'</div>'
     +'<div id="payPinErr" style="color:var(--re);font-size:12px;margin-bottom:10px;display:none">❌ Galat PIN!</div>'
     +'<div style="display:flex;gap:8px">'
@@ -1394,7 +1394,7 @@ window.savePlotPayment=function(btn){
   var amt=parseFloat((document.getElementById('pmAmt')||{}).value||'0');
   var utr=((document.getElementById('pmUtr')||{}).value||'').trim();
   var note=((document.getElementById('pmNote')||{}).value||'').trim();
-  if(!amt||amt<=0){toast('Amount daalo!',false);return;}
+  if(!amt||amt<=0){toast('Please enter amount!',false);return;}
   if(!D.payments)D.payments=[];
 
   // Edit existing
@@ -1466,7 +1466,7 @@ window.savePlotPayment=function(btn){
   toast('✅ Payment saved!');
   if(waNum){
     setTimeout(function(){
-      if(confirm('WhatsApp slip bhejna hai?')){
+      if(confirm('Send WhatsApp payment slip?')){
         window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
       }
     },300);
@@ -1531,7 +1531,7 @@ window.openMarkPaidModal=function(assocId,month,pendingAmt,isEdit){
 
 window.clearPayFilters=function(){r4PaySearch='';r4PayStatus='';render();}
 window.deletePaymentConfirm=function(payId){
-  if(!confirm('Yeh payment record delete karna chahte ho?'))return;
+  if(!confirm('Are you sure you want to delete this payment record?'))return;
   var idx=D.payments.findIndex(function(p){return p.id===payId;});
   if(idx>=0){D.payments.splice(idx,1);saveD();toast('Payment deleted!');closeM();render();}
 };
@@ -1547,7 +1547,7 @@ window.savePayment=function(btn){
   var utr=((document.getElementById('pmUtr')||{}).value||'').trim();
   var note=((document.getElementById('pmNote')||{}).value||'').trim();
 
-  if(!amt||amt<=0){toast('Amount daalo!',false);return;}
+  if(!amt||amt<=0){toast('Please enter amount!',false);return;}
 
   if(!D.payments)D.payments=[];
 
@@ -1598,7 +1598,7 @@ window.savePayment=function(btn){
 
   if(waNum){
     setTimeout(function(){
-      if(confirm('WhatsApp slip bhejna hai '+((a&&a.name)||'')+' ko?')){
+      if(confirm('Send WhatsApp payment slip?'+((a&&a.name)||'')+' ko?')){
         window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
       }
     },300);
@@ -1609,7 +1609,7 @@ window.savePayment=function(btn){
 
 // ── PAYMENT EXCEL EXPORT ────────────────────────────────
 function expPayReport(){
-  if(!D.payments||!D.payments.length){toast('Koi payment record nahi hai!',false);return;}
+  if(!D.payments||!D.payments.length){toast('No payment records found!',false);return;}
   var rows=[['#','Associate','Project','Plot / Month','Amount (Rs.)','Mode','UTR/Ref','Payment Date','Note','Marked By']];
   D.payments.slice().sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');}).forEach(function(p,i){
     rows.push([i+1,p.assocName||'',p.projName||'',p.plotNo||p.month||'',p.paid||p.amount||0,p.mode||'',p.utr||'',p.payDate||'',p.note||'',p.markedBy||'']);
@@ -1985,7 +1985,7 @@ function restoreData(file){
       if(typeof imported!=='object'||!Array.isArray(imported.projects)||!Array.isArray(imported.associates)||!Array.isArray(imported.sales)){
         toast('❌ Invalid backup file! projects/associates/sales missing.',false);return;
       }
-      if(!confirm('⚠️ Restore karega?\n\nProjects: '+imported.projects.length+'\nAssociates: '+imported.associates.length+'\nSales: '+imported.sales.length+'\n\nSaara current data replace ho jaayega. Confirm?'))return;
+      if(!confirm('⚠️ This will restore data.\n\nProjects: '+imported.projects.length+'\nAssociates: '+imported.associates.length+'\nSales: '+imported.sales.length+'\n\nSaara current data replace ho jaayega. Confirm?'))return;
       D=imported;
       if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(!D.transfers)D.transfers=[];
@@ -2074,8 +2074,8 @@ function pgSettings(){
   html+='</div>';
   html+='<div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Change Admin Password</div>';
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
-    +'<div class="fld" style="flex:1;min-width:150px"><label>New Password</label><input id="newAdminPwd" type="password" placeholder="Naya password"/></div>'
-    +'<div class="fld" style="flex:1;min-width:150px"><label>Confirm Password</label><input id="confirmAdminPwd" type="password" placeholder="Dobara daalo"/></div>'
+    +'<div class="fld" style="flex:1;min-width:150px"><label>New Password</label><input id="newAdminPwd" type="password" placeholder="New password"/></div>'
+    +'<div class="fld" style="flex:1;min-width:150px"><label>Confirm Password</label><input id="confirmAdminPwd" type="password" placeholder="Confirm password"/></div>'
     +'<button class="btn bbl" onclick="changeAdminPwd()" style="white-space:nowrap">💾 Update</button>'
     +'</div></div>';
 
@@ -2119,8 +2119,8 @@ window.openAddStaff=function(){
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Full Name *</label><input id="stName" placeholder="Staff ka naam"/></div>'
     +'<div class="fld"><label>User ID *</label><input id="stId" placeholder="Login ke liye (lowercase)"/></div>'
-    +'<div class="fld"><label>Password *</label><input id="stPwd" type="password" placeholder="Password set karo"/></div>'
-    +'<div class="fld"><label>Confirm Password *</label><input id="stPwd2" type="password" placeholder="Dobara daalo"/></div>'
+    +'<div class="fld"><label>Password *</label><input id="stPwd" type="password" placeholder="Set password"/></div>'
+    +'<div class="fld"><label>Confirm Password *</label><input id="stPwd2" type="password" placeholder="Confirm password"/></div>'
     +'</div>'
     +'<div class="info ibl" style="margin-bottom:12px;font-size:12px">Password save hone ke baad change kar sakte ho Settings se.</div>'
     +'<div style="display:flex;gap:8px"><button class="btn bgr" onclick="saveNewStaff()">💾 Save Staff</button><button class="btn bgh" onclick="closeM()">Cancel</button></div>');
@@ -2131,13 +2131,13 @@ window.saveNewStaff=function(){
   var uid=((document.getElementById('stId')||{}).value||'').trim().toLowerCase();
   var pwd=(document.getElementById('stPwd')||{}).value||'';
   var pwd2=(document.getElementById('stPwd2')||{}).value||'';
-  if(!name||!uid||!pwd){toast('Name, User ID aur Password zaroori hain!',false);return;}
-  if(pwd.length<6){toast('Password kam se kam 6 characters ka hona chahiye!',false);return;}
-  if(pwd!==pwd2){toast('Dono passwords match nahi karte!',false);return;}
-  if(uid==='admin'){toast('Yeh User ID reserved hai!',false);return;}
+  if(!name||!uid||!pwd){toast('Name, User ID and Password are required!',false);return;}
+  if(pwd.length<6){toast('Password must be at least 6 characters!',false);return;}
+  if(pwd!==pwd2){toast('Passwords do not match!',false);return;}
+  if(uid==='admin'){toast('This User ID is reserved!',false);return;}
   var auth=getAuth();
-  if((auth.staff||[]).find(function(s){return s.id===uid;})){toast('Yeh User ID already exist karta hai!',false);return;}
-  if((auth.staff||[]).length>=5){toast('Maximum 5 staff limit!',false);return;}
+  if((auth.staff||[]).find(function(s){return s.id===uid;})){toast('This User ID already exists!',false);return;}
+  if((auth.staff||[]).length>=5){toast('Maximum 5 staff members allowed!',false);return;}
   if(!auth.staff)auth.staff=[];
   auth.staff.push({id:uid,name:name,pwd:hashPwd(pwd),perms:Object.assign({},DEFAULT_PERMS)});
   saveAuth(auth);
@@ -2181,34 +2181,34 @@ window.openChangePwd=function(staffId){
   var s=(auth.staff||[]).find(function(x){return x.id===staffId;});
   if(!s)return;
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b>🔒 Password — '+esc(s.name)+'</b><button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
-    +'<div class="fld" style="margin-bottom:10px"><label>Naya Password *</label><input id="npwd" type="password" placeholder="Naya password"/></div>'
-    +'<div class="fld" style="margin-bottom:14px"><label>Confirm *</label><input id="npwd2" type="password" placeholder="Dobara daalo"/></div>'
+    +'<div class="fld" style="margin-bottom:10px"><label>Naya Password *</label><input id="npwd" type="password" placeholder="New password"/></div>'
+    +'<div class="fld" style="margin-bottom:14px"><label>Confirm *</label><input id="npwd2" type="password" placeholder="Confirm password"/></div>'
     +'<div style="display:flex;gap:8px"><button class="btn bgr" onclick="doChangePwd(\''+staffId+'\')">💾 Update</button><button class="btn bgh" onclick="closeM()">Cancel</button></div>');
 };
 window.doChangePwd=function(staffId){
   var p1=(document.getElementById('npwd')||{}).value||'';
   var p2=(document.getElementById('npwd2')||{}).value||'';
-  if(!p1){toast('Naya password daalo!',false);return;}
-  if(p1.length<6){toast('Password kam se kam 6 characters ka hona chahiye!',false);return;}
-  if(p1!==p2){toast('Passwords match nahi karte!',false);return;}
+  if(!p1){toast('Please enter a new password!',false);return;}
+  if(p1.length<6){toast('Password must be at least 6 characters!',false);return;}
+  if(p1!==p2){toast('Passwords do not match!',false);return;}
   var auth=getAuth();
   var si=(auth.staff||[]).findIndex(function(x){return x.id===staffId;});
   if(si<0)return;
   auth.staff[si].pwd=hashPwd(p1);
   saveAuth(auth);
   logAct('Password change: '+auth.staff[si].name);
-  toast('Password updated! ✓');closeM();
+  toast('Password updated successfully! ✓');closeM();
 };
 window.changeAdminPwd=function(){
   var p1=(document.getElementById('newAdminPwd')||{}).value||'';
   var p2=(document.getElementById('confirmAdminPwd')||{}).value||'';
-  if(!p1){toast('Naya password daalo!',false);return;}
-  if(p1!==p2){toast('Dono passwords match nahi karte!',false);return;}
+  if(!p1){toast('Please enter a new password!',false);return;}
+  if(p1!==p2){toast('Passwords do not match!',false);return;}
   var auth=getAuth();
   auth.admin.pwd=hashPwd(p1);
   saveAuth(auth);
   logAct('Admin password change kiya');
-  toast('Admin password updated! ✓');
+  toast('Admin password updated successfully! ✓');
 };
 window.deleteStaff=function(staffId){
   var auth=getAuth();
@@ -2473,7 +2473,7 @@ function pAdd(){
   html+='</div>';
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">🏦 Banking Details</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
-  html+='<div class="fld"><label>Banking Name *</label><input id="pBnm" placeholder="Jaise bank mein naam hai"/></div>';
+  html+='<div class="fld"><label>Banking Name *</label><input id="pBnm" placeholder="As per bank records"/></div>';
   html+='<div class="fld"><label>Bank Name *</label><input id="pBnk" placeholder="State Bank of India"/></div>';
   html+='<div class="fld"><label>Account No. *</label><input id="pAc" placeholder="Bank account number"/></div>';
   html+='<div class="fld"><label>IFSC Code *</label><input id="pIfs" placeholder="SBIN0001234"/></div>';
@@ -2695,7 +2695,7 @@ function aAdd(){
   html+='</div>';
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">🏦 Banking Details</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
-  html+='<div class="fld"><label>Banking Name *</label><input id="aBnm" placeholder="Jaise bank mein naam hai"/></div>';
+  html+='<div class="fld"><label>Banking Name *</label><input id="aBnm" placeholder="As per bank records"/></div>';
   html+='<div class="fld"><label>Bank Name *</label><input id="aBnk" placeholder="State Bank of India"/></div>';
   html+='<div class="fld"><label>Account No. *</label><input id="aAc" placeholder="Bank account number"/></div>';
   html+='<div class="fld"><label>IFSC Code *</label><input id="aIfs" placeholder="SBIN0001234"/></div>';
@@ -2858,7 +2858,7 @@ window.doAG=function(id){
   if(isNaN(v)||v===0){toast('Please enter a valid gaj value!',false);return;}
   var a=D.associates.find(function(x){return x.id===id;});
   if(a&&(a.totalGaj+v)<0){
-    toast('⛔ Gaj negative nahi ho sakta! Current: '+a.totalGaj+', Input: '+v+', Result: '+(a.totalGaj+v),false);
+    toast('⛔ Gaj cannot be negative! Current: '+a.totalGaj+', Input: '+v+', Result: '+(a.totalGaj+v),false);
     return;
   }
   var i=D.associates.findIndex(function(x){return x.id===id;});if(i<0)return;
@@ -2869,7 +2869,7 @@ window.doAG=function(id){
   saveD();toast(v+' gaj added! Total: '+D.associates[i].totalGaj+(n>o?' 🎉 Slab Upgrade!':''));closeM();render();
 };
 window.saveAInfo=function(id){
-  if(!can('associates_edit')){toast('Permission nahi hai!',false);return;}
+  if(!can('associates_edit')){toast('Access denied!',false);return;}
   var i=D.associates.findIndex(function(x){return x.id===id;});if(i<0)return;
   var n=document.getElementById('eNm')?document.getElementById('eNm').value.trim():'';
   if(!n){toast('Name is required!',false);return;}
@@ -2877,7 +2877,7 @@ window.saveAInfo=function(id){
   var ePhone=gv2('ePh').replace(/\D/g,'');
   if(ePhone){
     var dupP=D.associates.find(function(x){return x.id!==id&&x.phone&&x.phone.replace(/\D/g,'')===ePhone;});
-    if(dupP){if(!confirm('⚠️ Yeh phone number already "'+dupP.name+'" ke paas registered hai!\n\nFir bhi save karna hai?'))return;}
+    if(dupP){if(!confirm('⚠️ This phone number already exists: "'+dupP.name+'" ke paas registered hai!\n\nFir bhi save karna hai?'))return;}
   }
   function gv(eid){var el=document.getElementById(eid);return el?el.value.trim():'';}
   D.associates[i].name=n;
@@ -2896,21 +2896,21 @@ window.saveAInfo=function(id){
   D.associates[i].accNo=gv('eAc');
   D.associates[i].ifsc=gv('eIfs');
   var newParentId=document.getElementById('ePr')?document.getElementById('ePr').value||null:null;
-  if(newParentId===id){toast('⛔ Associate apna khud upliner nahi ban sakta!',false);return;}
+  if(newParentId===id){toast('⛔ An associate cannot be their own upliner!',false);return;}
   // ── UPLINER CHANGE BLOCK: Sales hain toh upliner change allowed nahi ──
   var oldParentId=D.associates[i].parentId||null;
   var hasSalesBlock=D.sales.some(function(s){
     return s.sellerId===id||(s.commissions&&s.commissions.some(function(c){return c.id===id;}))||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===id;}));
   });
   if(hasSalesBlock&&(newParentId!==oldParentId)){
-    toast('⛔ Upliner change nahi kar sakte — pehle sales delete karo, phir upliner update karo, phir sales dobara enter karo!',false);
+    toast('⛔ Upliner cannot be changed — please delete the related sales first, then update the upliner., phir sales dobara enter karo!',false);
     return;
   }
   // Duplicate phone check (exclude self)
   var ph2=(gv('ePh')||'').replace(/[^0-9]/g,'');
   if(ph2.length>=10){
     var dupP=D.associates.find(function(x){return x.id!==id&&x.phone&&x.phone.replace(/[^0-9]/g,'')===ph2;});
-    if(dupP){toast('⚠️ Yeh phone pehle se exist karta hai: '+dupP.name,false);return;}
+    if(dupP){toast('⚠️ This phone number already exists: '+dupP.name,false);return;}
   }
   D.associates[i].parentId=newParentId;
   saveD();logAct('Associate Update: '+n);toast('Info saved successfully! ✓');closeM();render();
@@ -3168,8 +3168,8 @@ window.doTransfer=function(){
 };
 
 window.deleteAssoc=function(id){
-  if(!isOnline()){toast('📴 Internet nahi hai!',false);return;}
-  if(!can('associates_edit')){toast('Permission nahi hai!',false);return;}
+  if(!isOnline()){toast('📴 No internet connection!',false);return;}
+  if(!can('associates_edit')){toast('Access denied!',false);return;}
   var a=D.associates.find(function(x){return x.id===id;});if(!a)return;
   var hasSales=D.sales.some(function(s){
     return s.sellerId===id
@@ -3700,7 +3700,7 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
       var diffMsg=diff>0?'+₹'+fmt(diff)+' zyada':diff<0?'-₹'+fmt(Math.abs(diff))+' kam':'koi change nahi';
       saveD();
       logAct('Sale Edit + Recalc: '+s.projName+' Plot '+s.plotNo+' | Commission: '+diffMsg);
-      toast('✅ Sale updated! Commission recalculate ho gayi ('+diffMsg+')');
+      toast('✅ Sale updated! Commission recalculated ('+diffMsg+')');
     } else {
       D.sales[si].bookingDate=newBk;
       D.sales[si].closeDate=newCl;
@@ -3754,7 +3754,7 @@ window.openRefundModal=function(assocId, advanceBalance){
     +'<div class="fld"><label>UTR / Ref No (optional)</label>'
     +'<input id="rfUtr" placeholder="Transaction reference"/></div>'
     +'<div class="fld" style="grid-column:1/-1"><label>Note (optional)</label>'
-    +'<input id="rfNote" placeholder="e.g. Cash wapas liya..."/></div>'
+    +'<input id="rfNote" placeholder="e.g. Cash returned..."/></div>'
     +'</div>'
     +'<div style="display:flex;gap:8px">'
     +'<button class="btn bbl" style="background:var(--re);border:none" data-aid="'+assocId+'" data-maxamt="'+advanceBalance+'" onclick="saveRefund(this)">✅ Confirm Refund</button>'
@@ -3772,8 +3772,8 @@ window.saveRefund=function(btn){
   var rfUtr=((document.getElementById('rfUtr')||{}).value||'').trim();
   var rfNote=((document.getElementById('rfNote')||{}).value||'').trim();
 
-  if(!rfAmt||rfAmt<=0){toast('Amount daalo!',false);return;}
-  if(rfAmt>maxAmt){toast('Amount advance balance se zyada nahi ho sakta!',false);return;}
+  if(!rfAmt||rfAmt<=0){toast('Please enter amount!',false);return;}
+  if(rfAmt>maxAmt){toast('Amount cannot exceed the advance balance!',false);return;}
 
   if(!D.advances)D.advances=[];
 
@@ -3812,9 +3812,9 @@ window.saveRefund=function(btn){
 };
 
 window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dataset.sid:saleId;
-  if(!can('sales_delete')){toast('Sale delete ki permission nahi hai!',false);return;}
+  if(!can('sales_delete')){toast('You do not have permission to delete sales!',false);return;}
   var s=D.sales.find(function(x){return x.id===saleId;});if(!s)return;
-  if(!confirm('Sale delete hogi:\n\nProject: '+s.projName+'\nPlot: '+s.plotNo+'\nSeller: '+s.sellerName+'\n\nPlot wapas Available ho jaayega more associate ka gaj bhi wapas hoga. Confirm?'))return;
+  if(!confirm('Sale will be deleted:\n\nProject: '+s.projName+'\nPlot: '+s.plotNo+'\nSeller: '+s.sellerName+'\n\nPlot wapas Available ho jaayega more associate ka gaj bhi wapas hoga. Confirm?'))return;
   // Restore plot status
   for(var pi=0;pi<D.projects.length;pi++){
     var pli=D.projects[pi].plots?D.projects[pi].plots.findIndex(function(pl){return pl.id===s.plotId;}):- 1;
@@ -3879,7 +3879,7 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
   if(!D.deleted.sales)D.deleted.sales=[];
   if(_sd)D.deleted.sales.push(Object.assign({},_sd,{deletedAt:new Date().toISOString(),deletedBy:SESSION?SESSION.name:'Admin'}));
   D.sales=D.sales.filter(function(x){return x.id!==saleId;});
-  saveD();logAct('Sale Soft Delete: '+(_sd?_sd.projName+' | Plot '+_sd.plotNo:''));toast('Sale deleted! Restore Settings se kar sakte ho. ✓');closeM();render();
+  saveD();logAct('Sale Soft Delete: '+(_sd?_sd.projName+' | Plot '+_sd.plotNo:''));toast('Sale deleted! You can restore it from Settings. ✓');closeM();render();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -4334,7 +4334,7 @@ function rpt2(){
   // ── Full Sale Table ──
   html+='<div class="card" style="padding:0;overflow:hidden">'
     +'<div style="padding:10px 14px;border-bottom:.5px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
-    +'<div class="ct" style="margin:0">📋 Sale Detail — '+filtered.length+' records'+(r2M?' ('+r2M+')':'')+(sel?' ('+sel.name+' ki downline)':'')+'</div>'
+    +'<div class="ct" style="margin:0">📋 Sale Detail — '+filtered.length+' records'+(r2M?' ('+r2M+')':'')+(sel?' ('+sel.name+' downline)':'')+'</div>'
     +'</div>'
     +'<div class="tw" style="border:none;border-radius:0"><table>'
     +'<thead><tr>'
@@ -6300,7 +6300,7 @@ function bindAll(){
   var el;
   el=document.getElementById('btnUP');
   if(el)el.addEventListener('click',function(){
-    if(!can('projects_edit')){toast('Permission nahi hai!',false);return;}
+    if(!can('projects_edit')){toast('Access denied!',false);return;}
     var pi=D.projects.findIndex(function(p){return p.id===pId;});if(pi<0)return;
     var n=((document.getElementById('epNm')||{}).value||'').trim();
     if(!n){toast('Project name is required!',false);return;}
@@ -6320,16 +6320,16 @@ function bindAll(){
 
   el=document.getElementById('btnSP');
   if(el)el.addEventListener('click',function(){
-    if(!can('projects_edit')){toast('Permission nahi hai!',false);return;}
+    if(!can('projects_edit')){toast('Access denied!',false);return;}
     var n=(document.getElementById('pNm')||{}).value||'';n=n.trim();
-    if(!n){toast('Project Name required hai!',false);document.getElementById('pNm').focus();return;}
-    if(!gv('pCo')){toast('Company Name required hai!',false);document.getElementById('pCo').focus();return;}
-    if(!gv('pRera')){toast('RERA No. required hai!',false);document.getElementById('pRera').focus();return;}
-    if(!gv('pLd')){toast('Launch Date required hai!',false);document.getElementById('pLd').focus();return;}
-    if(!gv('pBnm')){toast('Banking Name required hai!',false);document.getElementById('pBnm').focus();return;}
-    if(!gv('pBnk')){toast('Bank Name required hai!',false);document.getElementById('pBnk').focus();return;}
-    if(!gv('pAc')){toast('Account No. required hai!',false);document.getElementById('pAc').focus();return;}
-    if(!gv('pIfs')){toast('IFSC Code required hai!',false);document.getElementById('pIfs').focus();return;}
+    if(!n){toast('Project Name is required!',false);document.getElementById('pNm').focus();return;}
+    if(!gv('pCo')){toast('Company Name is required!',false);document.getElementById('pCo').focus();return;}
+    if(!gv('pRera')){toast('RERA No. is required!',false);document.getElementById('pRera').focus();return;}
+    if(!gv('pLd')){toast('Launch Date is required!',false);document.getElementById('pLd').focus();return;}
+    if(!gv('pBnm')){toast('Banking Name is required!',false);document.getElementById('pBnm').focus();return;}
+    if(!gv('pBnk')){toast('Bank Name is required!',false);document.getElementById('pBnk').focus();return;}
+    if(!gv('pAc')){toast('Account No. is required!',false);document.getElementById('pAc').focus();return;}
+    if(!gv('pIfs')){toast('IFSC Code is required!',false);document.getElementById('pIfs').focus();return;}
     var bonus=parseInt((document.getElementById('pBonus')||{}).value||'0');
     var launchDate=((document.getElementById('pLd')||{}).value||new Date().toISOString().split('T')[0]);
     D.projects.unshift({
@@ -6497,7 +6497,7 @@ function bindAll(){
         });
 
         if(plots.length===0){
-          var msg='❌ Koi valid plot nahi mila!';
+          var msg='❌ Koi valid plot not found!';
           if(invalidRows>0)msg+=' '+invalidRows+' rows mein Plot No ya Size missing/zero tha.';
           if(dupCount>0)msg+=' '+dupCount+' duplicate plots the.';
           toast(msg,false);
@@ -6520,17 +6520,17 @@ function bindAll(){
   el=document.getElementById('btnSA');
   if(el)el.addEventListener('click',function(){
     var n=((document.getElementById('aNm')||{}).value||'').trim();
-    if(!n){toast('Full Name required hai!',false);document.getElementById('aNm').focus();return;}
-    if(!gv('aFh')){toast('Father/Husband Name required hai!',false);document.getElementById('aFh').focus();return;}
-    if(!gv('aPh')){toast('Phone No. required hai!',false);document.getElementById('aPh').focus();return;}
+    if(!n){toast('Full Name is required!',false);document.getElementById('aNm').focus();return;}
+    if(!gv('aFh')){toast('Father/Husband Name is required!',false);document.getElementById('aFh').focus();return;}
+    if(!gv('aPh')){toast('Phone No. is required!',false);document.getElementById('aPh').focus();return;}
     var phoneVal=gv('aPh').replace(/\D/g,'');
     var dupPhone=D.associates.find(function(x){return x.phone&&x.phone.replace(/\D/g,'')===phoneVal;});
-    if(dupPhone){if(!confirm('⚠️ Yeh phone number already "'+dupPhone.name+'" ke paas registered hai!\n\nFir bhi save karna hai?'))return;}
-    if(!gv('aPan')){toast('PAN No. required hai!',false);document.getElementById('aPan').focus();return;}
-    if(!gv('aBnm')){toast('Banking Name required hai!',false);document.getElementById('aBnm').focus();return;}
-    if(!gv('aBnk')){toast('Bank Name required hai!',false);document.getElementById('aBnk').focus();return;}
-    if(!gv('aAc')){toast('Account No. required hai!',false);document.getElementById('aAc').focus();return;}
-    if(!gv('aIfs')){toast('IFSC Code required hai!',false);document.getElementById('aIfs').focus();return;}
+    if(dupPhone){if(!confirm('⚠️ This phone number already exists: "'+dupPhone.name+'" ke paas registered hai!\n\nFir bhi save karna hai?'))return;}
+    if(!gv('aPan')){toast('PAN No. is required!',false);document.getElementById('aPan').focus();return;}
+    if(!gv('aBnm')){toast('Banking Name is required!',false);document.getElementById('aBnm').focus();return;}
+    if(!gv('aBnk')){toast('Bank Name is required!',false);document.getElementById('aBnk').focus();return;}
+    if(!gv('aAc')){toast('Account No. is required!',false);document.getElementById('aAc').focus();return;}
+    if(!gv('aIfs')){toast('IFSC Code is required!',false);document.getElementById('aIfs').focus();return;}
     D.associates.unshift({id:uid(),
       name:n,
       fatherName:gv('aFh'),
@@ -6553,19 +6553,19 @@ function bindAll(){
     var ph=(gv('aPh')||'').replace(/[^0-9]/g,'');
     if(ph.length>=10){
       var dupPhone=D.associates.find(function(x){return x.phone&&x.phone.replace(/[^0-9]/g,'')===ph;});
-      if(dupPhone){toast('⚠️ Yeh phone number pehle se exist karta hai: '+dupPhone.name,false);return;}
+      if(dupPhone){toast('⚠️ This phone number already exists: '+dupPhone.name,false);return;}
     }
     // Duplicate PAN check
     var pan=(gv('aPan')||'').trim().toUpperCase();
     if(pan.length>0){
       var dupPan=D.associates.find(function(x){return x.pan&&x.pan.trim().toUpperCase()===pan;});
-      if(dupPan){toast('⚠️ Yeh PAN pehle se exist karta hai: '+dupPan.name,false);return;}
+      if(dupPan){toast('⚠️ This PAN already exists: '+dupPan.name,false);return;}
     }
     // Duplicate code check
     var code=(gv('aCd')||'').trim();
     if(code.length>0){
       var dupCode=D.associates.find(function(x){return x.code&&x.code.trim()===code;});
-      if(dupCode){toast('⚠️ Yeh Code pehle se exist karta hai: '+dupCode.name,false);return;}
+      if(dupCode){toast('⚠️ This Code already exists: '+dupCode.name,false);return;}
     }
     saveD();logAct('New Associate Add: '+n);toast(n+' added successfully! ✓');aView='list';render();
   });
@@ -6577,9 +6577,9 @@ function bindAll(){
     var proj=D.projects.find(function(p){return p.id===sD.projId;});
     var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
     if(!plot){toast('Plot not found',false);return;}
-    if(!sD.bookingDate){toast('⛔ Booking Date compulsory hai!',false);return;}
-    if(!sD.closeDate){toast('⛔ Close Date compulsory hai!',false);return;}
-    if(!(sD.partyName&&sD.partyName.trim())){toast('⛔ Party Name (Buyer) compulsory hai!',false);return;}
+    if(!sD.bookingDate){toast('⛔ Booking Date is required!',false);return;}
+    if(!sD.closeDate){toast('⛔ Close Date is required!',false);return;}
+    if(!(sD.partyName&&sD.partyName.trim())){toast('⛔ Party Name (Buyer) is required!',false);return;}
     if(sD.closeDate&&sD.bookingDate&&new Date(sD.closeDate)<new Date(sD.bookingDate)){toast('Closing date cannot be before booking date!',false);return;}
     var sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
     var ch=getChain(sD.assocId);
@@ -6964,7 +6964,7 @@ window.openRestoreBackup=function(){
 
 window.confirmRestoreBackup=function(){
   var fileEl=document.getElementById('bkFile');
-  if(!fileEl||!fileEl.files||!fileEl.files[0]){toast('File select karo!',false);return;}
+  if(!fileEl||!fileEl.files||!fileEl.files[0]){toast('Please select a file!',false);return;}
   var reader=new FileReader();
   reader.onload=function(e){
     try{
@@ -6984,7 +6984,7 @@ window.confirmRestoreBackup=function(){
       D.advances=data.advances||[];
       saveD();
       closeM();
-      toast('✅ Backup restore ho gaya! ('+dt+')');
+      toast('✅ Backup restored successfully! ('+dt+')');
       render();
     }catch(err){toast('File read error: '+err.message,false);}
   };
@@ -7123,7 +7123,7 @@ function fbInit(){
 
 // ─── ASSOCIATE EXCEL TEMPLATE + IMPORT ────────────────
 window.downloadAssocTemplate=function(){
-  if(!window.XLSX){toast('XLSX library load nahi hua!',false);return;}
+  if(!window.XLSX){toast('XLSX library could not load!',false);return;}
   var headers=[
     'Full Name',
     'Father/Husband Name',
@@ -7210,14 +7210,14 @@ window.downloadAssocTemplate=function(){
   XLSX.utils.book_append_sheet(wb,ws2,'Instructions');
 
   XLSX.writeFile(wb,'TrueStars_Associate_Template.xlsx');
-  toast('✅ Template download ho gayi! Instructions sheet bhi dekho.');
+  toast('✅ Template downloaded! Please check the Instructions sheet.');
 };
 
 window.importAssocExcel=function(input){
-  if(!isOnline()){toast('📴 Internet nahi hai!',false);return;}
+  if(!isOnline()){toast('📴 No internet connection!',false);return;}
   var file=input.files[0];
   if(!file){return;}
-  if(!window.XLSX){toast('XLSX library load nahi hua!',false);return;}
+  if(!window.XLSX){toast('XLSX library could not load!',false);return;}
   input.value=String();
 
   var reader=new FileReader();
@@ -7227,7 +7227,7 @@ window.importAssocExcel=function(input){
       var ws=wb.Sheets[wb.SheetNames[0]];
       var rows=XLSX.utils.sheet_to_json(ws,{defval:''});
 
-      if(!rows.length){toast('File mein koi data nahi!',false);return;}
+      if(!rows.length){toast('No data found in file!',false);return;}
 
       // Column mapping — flexible
       function findCol(row,keys){
@@ -7241,7 +7241,7 @@ window.importAssocExcel=function(input){
 
       var r0=rows[0];
       var colName=findCol(r0,['fullname','name']);
-      if(!colName){toast('❌ "Full Name" column nahi mila!',false);return;}
+      if(!colName){toast('❌ "Full Name" column not found!',false);return;}
 
       var added=0, skipped=0, errors=[];
       var newAssocs=[];
