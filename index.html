@@ -21,11 +21,11 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);font-
 .hdr-l{display:flex;align-items:center;gap:10px}
 .hdr h1{font-size:16px;font-weight:700;margin:0}
 .hdr p{font-size:11px;opacity:.8;margin:0}
-.nav{background:#fff;border-bottom:.5px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 8px;gap:0}
-.nav a{padding:10px 10px;font-size:12px;font-weight:600;color:var(--t2);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0;position:relative;z-index:2}
+.nav{background:#fff;border-bottom:.5px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 12px;gap:0}
+.nav a{padding:10px 14px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0;position:relative;z-index:2}
 .nav a.on{color:var(--bl);border-color:var(--bl)}
 #srchWrap{margin-left:auto;padding:4px 0;flex-shrink:0;position:relative;z-index:1}
-#srchWrap input{font-size:12px;padding:5px 10px;border:.5px solid var(--bd);border-radius:6px;width:140px}
+#srchWrap input{font-size:12px;padding:5px 10px;border:.5px solid var(--bd);border-radius:6px;width:180px}
 .main{max-width:1200px;margin:0 auto;padding:16px}
 .card{background:#fff;border:.5px solid var(--bd);border-radius:10px;padding:14px 18px;margin-bottom:12px}
 .ct{font-size:14px;font-weight:700;margin-bottom:12px}
@@ -205,15 +205,15 @@ function logAct(action){
 }
 
 var PERM_LABELS={
-  dashboard:'🏠 Dashboard',
+  dashboard:'Dashboard',
   projects_view:'🏗️ Projects View',
   projects_edit:'🏗️ Projects Add/Edit/Delete',
   associates_view:'👥 Associates View',
   associates_edit:'👥 Associates Add/Edit/Delete',
-  newsale:'➕ New Sale',
+  newsale:'+ New Sale',
   salesrec:'📋 Sales Record View',
   sales_delete:'🗑️ Sale Delete',
-  reports:'📊 Reports',
+  reports:'Reports',
   offers_view:'🎯 Campaigns View'
 };
 
@@ -1937,14 +1937,14 @@ function render(){
   // Tabs filter by permission
   var allTabs=[
     ['dashboard','🏠 Dashboard','dashboard'],
-    ['projects','🏗️ Projects','projects_view'],
-    ['associates','👥 Associates','associates_view'],
-    ['salesrec','📋 Sales Record','salesrec'],
+    ['projects','Projects','projects_view'],
+    ['associates','Associates','associates_view'],
+    ['salesrec','Sales Record','salesrec'],
     ['newsale','➕ New Sale','newsale'],
     ['reports','📊 Reports','reports'],
-    ['offers','🎯 Campaigns','offers_view'],
-    ['policy','📋 Policy',null],
-    ['settings','⚙️ Settings','admin_only']
+    ['offers','Campaigns','offers_view'],
+    ['policy','Policy',null],
+    ['settings','Settings','admin_only']
   ];
   var tabs=allTabs.filter(function(t){
     if(!t[2])return true;
