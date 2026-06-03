@@ -21,11 +21,11 @@ body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);font-
 .hdr-l{display:flex;align-items:center;gap:10px}
 .hdr h1{font-size:16px;font-weight:700;margin:0}
 .hdr p{font-size:11px;opacity:.8;margin:0}
-.nav{background:#fff;border-bottom:.5px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 12px;gap:0}
+.nav{background:#fff;border-bottom:.5px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 16px;gap:0}
 .nav a{padding:10px 14px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0;position:relative;z-index:2}
 .nav a.on{color:var(--bl);border-color:var(--bl)}
 #srchWrap{margin-left:auto;padding:4px 0;flex-shrink:0;position:relative;z-index:1}
-#srchWrap input{font-size:12px;padding:5px 10px;border:.5px solid var(--bd);border-radius:6px;width:180px}
+#srchWrap input{font-size:12px;padding:5px 10px;border:.5px solid var(--bd);border-radius:6px;width:200px}
 .main{max-width:1200px;margin:0 auto;padding:16px}
 .card{background:#fff;border:.5px solid var(--bd);border-radius:10px;padding:14px 18px;margin-bottom:12px}
 .ct{font-size:14px;font-weight:700;margin-bottom:12px}
@@ -167,7 +167,7 @@ tbody tr:hover td{background:var(--blb)}
 </div>
 <div class="nav" id="nav"></div>
 <div id="offlineBanner" style="display:none;background:#e24b4a;color:#fff;padding:8px 16px;font-size:13px;font-weight:600;align-items:center;justify-content:center;gap:8px;position:sticky;top:0;z-index:100">
-  📴 No internet connection — Data will not be saved. Please reconnect.
+  📴 Internet nahi hai — Data save nahi hoga. Connect karke try karo.
 </div>
 <div class="main" id="main"></div>
 <div class="ov" id="modal"><div class="modal" id="mbox"></div></div>
@@ -205,15 +205,15 @@ function logAct(action){
 }
 
 var PERM_LABELS={
-  dashboard:'Dashboard',
+  dashboard:'🏠 Dashboard',
   projects_view:'🏗️ Projects View',
   projects_edit:'🏗️ Projects Add/Edit/Delete',
   associates_view:'👥 Associates View',
   associates_edit:'👥 Associates Add/Edit/Delete',
-  newsale:'+ New Sale',
+  newsale:'➕ New Sale',
   salesrec:'📋 Sales Record View',
   sales_delete:'🗑️ Sale Delete',
-  reports:'Reports',
+  reports:'📊 Reports',
   offers_view:'🎯 Campaigns View'
 };
 
@@ -930,25 +930,24 @@ window.editBonusEntry=function(projId,bi){
     +'</div>'
     +(isCurrent?'<div class="info ibl" style="margin-bottom:10px;font-size:12px">ℹ️ Yeh <b>current active bonus</b> hai — edit karne se project ka active bonus bhi update hoga.</div>':'')
     +'<div style="display:flex;gap:8px">'
-    +'<button class="btn bbl" data-pid="'+projId+'" data-bi="'+bi+'" onclick="doSaveBonusEntry(this.dataset.pid,parseInt(this.dataset.bi))">💾 Save Changes</button>'
+    +'<button class="btn bbl" id="btnSaveEB">💾 Save Changes</button>'
     +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
     +'</div>';
   openM(html);
-};
-
-window.doSaveBonusEntry=function(projId,bi){
-  var newPct=parseInt((document.getElementById('ebPct')||{}).value||'0')||0;
-  var pi=D.projects.findIndex(function(x){return x.id===projId;});if(pi<0)return;
-  var bh=D.projects[pi].bonusHistory[bi];if(!bh)return;
-  var newDate=(document.getElementById('ebDate')||{}).value||bh.date;
-  var newNote=((document.getElementById('ebNote')||{}).value||'').trim();
-  D.projects[pi].bonusHistory[bi]={pct:newPct,date:newDate,note:newNote};
-  if(bi===D.projects[pi].bonusHistory.length-1){
-    D.projects[pi].bonusPct=newPct;
-  }
-  saveD();
-  toast('✅ Bonus entry updated!');
-  closeM();render();
+  document.getElementById('btnSaveEB').addEventListener('click',function(){
+    var newPct=parseInt((document.getElementById('ebPct')||{}).value||'0')||0;
+    var newDate=(document.getElementById('ebDate')||{}).value||bh.date;
+    var newNote=((document.getElementById('ebNote')||{}).value||'').trim();
+    var pi=D.projects.findIndex(function(x){return x.id===projId;});if(pi<0)return;
+    D.projects[pi].bonusHistory[bi]={pct:newPct,date:newDate,note:newNote};
+    // Agar current entry hai to bonusPct bhi update karo
+    if(bi===D.projects[pi].bonusHistory.length-1){
+      D.projects[pi].bonusPct=newPct;
+    }
+    saveD();
+    toast('✅ Bonus entry updated!');
+    closeM();render();
+  });
 };
 
 window.deleteBonusEntry=function(projId,bi){
@@ -1938,14 +1937,14 @@ function render(){
   // Tabs filter by permission
   var allTabs=[
     ['dashboard','🏠 Dashboard','dashboard'],
-    ['projects','Projects','projects_view'],
-    ['associates','Associates','associates_view'],
-    ['salesrec','Sales Record','salesrec'],
+    ['projects','🏗️ Projects','projects_view'],
+    ['associates','👥 Associates','associates_view'],
+    ['salesrec','📋 Sales Record','salesrec'],
     ['newsale','➕ New Sale','newsale'],
     ['reports','📊 Reports','reports'],
-    ['offers','Campaigns','offers_view'],
-    ['policy','Policy',null],
-    ['settings','Settings','admin_only']
+    ['offers','🎯 Campaigns','offers_view'],
+    ['policy','📋 Policy',null],
+    ['settings','⚙️ Settings','admin_only']
   ];
   var tabs=allTabs.filter(function(t){
     if(!t[2])return true;
@@ -2353,7 +2352,7 @@ function pgDash(){
     +'<button class="btn bsm" onclick="window.dashATab=\'custom\';render()" style="border-radius:0;border:none;border-left:.5px solid var(--bd);padding:3px 9px;font-size:11px;'+(dashATab==='custom'?'background:var(--blb);color:var(--bld);font-weight:700':'')+'">Custom</button>'
     +'</div></div>';
   if(dashATab==='custom'){
-    html+='<input type="month" value="'+dashAMon+'" onchange="window.dashAMon=this.value;render()" style="margin-bottom:10px;font-size:12px;padding:4px 8px;border:.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--tx)"/>';
+    html+='<input type="month" value="'+dashAMon+'" onchange="window.dashAMon=this.value;render()" style="margin-bottom:10px;font-size:12px;padding:4px 8px;border:.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--t1)"/>';
   }
   if(!topList.length){
     html+='<div style="color:var(--t3);font-size:12px;padding:8px 0">No data for this period</div>';
@@ -3258,22 +3257,21 @@ window.changeBonus=function(projId){
     +'<div class="fld" style="grid-column:1/-1"><label>Note (Optional)</label>'
     +'<input id="nBonusNote" placeholder="jaise: New Phase, Festival Offer..."/></div>'
     +'</div>'
-    +'<button class="btn bbl" data-pid="'+projId+'" onclick="doSaveBonus(this.dataset.pid)">💾 Bonus Update</button>';
+    +'<button class="btn bbl" id="btnSaveBonus">💾 Bonus Update</button>';
   openM(html);
-};
-
-window.doSaveBonus=function(projId){
-  var newBonus=parseInt((document.getElementById('nBonus')||{}).value||'0');
-  var date=(document.getElementById('nBonusDate')||{}).value||new Date().toISOString().split('T')[0];
-  var note=((document.getElementById('nBonusNote')||{}).value||'').trim();
-  var pi=D.projects.findIndex(function(p){return p.id===projId;});if(pi<0)return;
-  var oldBonus=D.projects[pi].bonusPct||0;
-  D.projects[pi].bonusPct=newBonus;
-  if(!D.projects[pi].bonusHistory)D.projects[pi].bonusHistory=[];
-  D.projects[pi].bonusHistory.push({pct:newBonus,date:date,note:note||(oldBonus>0?'+'+oldBonus+'% → ':''+(newBonus>0?'+'+newBonus+'%':'No Bonus'))});
-  saveD();
-  toast('Bonus update! '+(oldBonus>0?'+'+oldBonus+'%':'0%')+' → '+(newBonus>0?'+'+newBonus+'%':'No Bonus')+'. Past sales unchanged.');
-  closeM();render();
+  document.getElementById('btnSaveBonus').addEventListener('click',function(){
+    var newBonus=parseInt((document.getElementById('nBonus')||{}).value||'0');
+    var date=(document.getElementById('nBonusDate')||{}).value||new Date().toISOString().split('T')[0];
+    var note=((document.getElementById('nBonusNote')||{}).value||'').trim();
+    var pi=D.projects.findIndex(function(p){return p.id===projId;});if(pi<0)return;
+    var oldBonus=D.projects[pi].bonusPct||0;
+    D.projects[pi].bonusPct=newBonus;
+    if(!D.projects[pi].bonusHistory)D.projects[pi].bonusHistory=[];
+    D.projects[pi].bonusHistory.push({pct:newBonus,date:date,note:note||(oldBonus>0?'+'+oldBonus+'% → ':''+(newBonus>0?'+'+newBonus+'%':'No Bonus'))});
+    saveD();
+    toast('Bonus update! '+(oldBonus>0?'+'+oldBonus+'%':'0%')+' → '+(newBonus>0?'+'+newBonus+'%':'No Bonus')+'. Past sales unchanged.');
+    closeM();render();
+  });
 };
 
 window.deleteProject=function(projId){
@@ -3677,54 +3675,60 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
 
     +'<div class="divl"></div>'
     +'<div style="display:flex;gap:8px;align-items:center">'
-    +'<button class="btn bbl" data-sid="'+saleId+'" onclick="doSaveSaleEdit(this.dataset.sid)">💾 Save Changes</button>'
+    +'<button class="btn bbl" id="btnSaveSaleE">💾 Save Changes</button>'
     +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
     +'<button class="btn bsm" data-sid="'+saleId+'" style="margin-left:auto;background:var(--reb);color:var(--re);border:1px solid var(--re)" onclick="deleteSaleRec(this.dataset.sid)">🗑️ Sale Delete</button>'
     +'</div>';
 
   openM(html);
-};
+  document.getElementById('btnSaveSaleE').addEventListener('click',function(){
+    var si=D.sales.findIndex(function(x){return x.id===saleId;});if(si<0)return;
+    var newBk=(document.getElementById('esBk')||{}).value||'';
+    var newCl=(document.getElementById('esCl')||{}).value||'';
+    if(newCl&&newBk&&new Date(newCl)<new Date(newBk)){toast('Closing date cannot be before booking date!',false);return;}
+    var s=D.sales[si];
+    var dateChanged=(newBk!==s.bookingDate)||(newCl!==s.closeDate);
 
-window.doSaveSaleEdit=function(saleId){
-  var si=D.sales.findIndex(function(x){return x.id===saleId;});if(si<0)return;
-  var newBk=(document.getElementById('esBk')||{}).value||'';
-  var newCl=(document.getElementById('esCl')||{}).value||'';
-  if(newCl&&newBk&&new Date(newCl)<new Date(newBk)){toast('Closing date cannot be before booking date!',false);return;}
-  var s=D.sales[si];
-  var dateChanged=(newBk!==s.bookingDate)||(newCl!==s.closeDate);
-  D.sales[si].partyName=document.getElementById('esParty').value.trim();
-  D.sales[si].remarks=document.getElementById('esRmk').value.trim();
-  if(dateChanged){
-    var proj=D.projects.find(function(p){return p.id===s.projId;});
-    var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===s.plotId;}):null;
-    var sGaj=plot?(plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj):(s.plotGaj||0);
-    var ch=getChain(s.sellerId);
-    var bonusPct=getProjBonus(proj,newBk||s.bookingDate);
-    var newChain=calcChain(sGaj,ch,0,newBk||s.bookingDate,newCl||s.closeDate,bonusPct);
-    var newDef=calcDef(ch,sGaj,newBk||s.bookingDate,newCl||s.closeDate);
-    var oldChainTotal=s.chainTotal||0;
-    var newChainTotal=newChain.reduce(function(t,c){return t+(c.total||0);},0);
-    var newDefTotal=newDef.reduce(function(t,c){return t+(c.amount||0);},0);
-    D.sales[si].bookingDate=newBk;
-    D.sales[si].closeDate=newCl;
-    D.sales[si].commissions=newChain;
-    D.sales[si].defCommissions=newDef;
-    D.sales[si].chainTotal=newChainTotal;
-    D.sales[si].defTotal=newDefTotal;
-    D.sales[si].bonusPct=bonusPct;
-    var diff=newChainTotal-oldChainTotal;
-    var diffMsg=diff>0?'+₹'+fmt(diff)+' zyada':diff<0?'-₹'+fmt(Math.abs(diff))+' kam':'koi change nahi';
-    saveD();
-    logAct('Sale Edit + Recalc: '+s.projName+' Plot '+s.plotNo+' | Commission: '+diffMsg);
-    toast('✅ Sale updated! Commission recalculated ('+diffMsg+')');
-  } else {
-    D.sales[si].bookingDate=newBk;
-    D.sales[si].closeDate=newCl;
-    saveD();
-    logAct('Sale Edit: '+s.projName+' | Plot '+s.plotNo);
-    toast('Sale record updated successfully! ✓');
-  }
-  closeM();render();
+    // Basic fields update
+    D.sales[si].partyName=document.getElementById('esParty').value.trim();
+    D.sales[si].remarks=document.getElementById('esRmk').value.trim();
+
+    if(dateChanged){
+      // Recalculate commission with new dates
+      var proj=D.projects.find(function(p){return p.id===s.projId;});
+      var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===s.plotId;}):null;
+      var sGaj=plot?(plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj):(s.plotGaj||0);
+      var ch=getChain(s.sellerId);
+      var bonusPct=getProjBonus(proj,newBk||s.bookingDate);
+      var newChain=calcChain(sGaj,ch,0,newBk||s.bookingDate,newCl||s.closeDate,bonusPct);
+      var newDef=calcDef(ch,sGaj,newBk||s.bookingDate,newCl||s.closeDate);
+      var oldChainTotal=s.chainTotal||0;
+      var newChainTotal=newChain.reduce(function(t,c){return t+(c.total||0);},0);
+      var newDefTotal=newDef.reduce(function(t,c){return t+(c.amount||0);},0);
+
+      // Gaj difference update (gaj same rehta hai, commission change hoti hai)
+      D.sales[si].bookingDate=newBk;
+      D.sales[si].closeDate=newCl;
+      D.sales[si].commissions=newChain;
+      D.sales[si].defCommissions=newDef;
+      D.sales[si].chainTotal=newChainTotal;
+      D.sales[si].defTotal=newDefTotal;
+      D.sales[si].bonusPct=bonusPct;
+
+      var diff=newChainTotal-oldChainTotal;
+      var diffMsg=diff>0?'+₹'+fmt(diff)+' zyada':diff<0?'-₹'+fmt(Math.abs(diff))+' kam':'koi change nahi';
+      saveD();
+      logAct('Sale Edit + Recalc: '+s.projName+' Plot '+s.plotNo+' | Commission: '+diffMsg);
+      toast('✅ Sale updated! Commission recalculated ('+diffMsg+')');
+    } else {
+      D.sales[si].bookingDate=newBk;
+      D.sales[si].closeDate=newCl;
+      saveD();
+      logAct('Sale Edit: '+s.projName+' | Plot '+s.plotNo);
+      toast('Sale record updated successfully! ✓');
+    }
+    closeM();render();
+  });
 };
 
 // Delete Sale Record
@@ -7050,8 +7054,6 @@ function fbLoadIfEmpty(){
       if(r.deleted)D.deleted=r.deleted;else if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
       if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
-      if(r.advances)D.advances=r.advances;else if(!D.advances)D.advances=[];
-      if(r.config)D.config=r.config;else if(!D.config)D.config={};
       window._localTs=remoteTs;
       fbStatus('ok');
       if(SESSION)render();
