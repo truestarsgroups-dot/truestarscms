@@ -365,7 +365,7 @@ function loadD(){
 }
 function saveD(){
   if(!isOnline()){
-    toast('📴 No internet connection — Changes will not be saved. Please connect first..',false);
+    toast('📴 No internet connection — Changes will not be saved. Please connect first.',false);
     return;
   }
   var ts=Date.now();
@@ -605,6 +605,7 @@ var srPage=1;
 function sw(t){
   TAB=t;searchQ='';
   r2P=1;r3P=1;r4AP=1;r4PP=1;r5P=1;r6P=1;
+  var mb=document.getElementById('mbox');if(mb)mb.style.display='none';
   if(t==='newsale'){sStep=1;sD={};sCh=[];sDf=[];}
   if(t==='projects'){pView='list';plotQueue=[];}
   if(t==='associates'){aView='list';aPage=1;}
@@ -1992,6 +1993,8 @@ function restoreData(file){
       if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(!D.transfers)D.transfers=[];
       if(!D.payments)D.payments=[];
+      if(!D.advances)D.advances=[];
+      if(!D.config)D.config={};
       saveD();
       toast('✅ Data restored! Projects:'+D.projects.length+' Associates:'+D.associates.length+' Sales:'+D.sales.length);
       TAB='dashboard';render();
@@ -2079,36 +2082,57 @@ function pgSettings(){
     +'<div class="fld" style="flex:1;min-width:150px"><label>New Password</label><input id="newAdminPwd" type="password" placeholder="New password"/></div>'
     +'<div class="fld" style="flex:1;min-width:150px"><label>Confirm Password</label><input id="confirmAdminPwd" type="password" placeholder="Confirm password"/></div>'
     +'<button class="btn bbl" onclick="changeAdminPwd()" style="white-space:nowrap">💾 Update</button>'
+    +'</div>';
+
+  // ── Payment Edit PIN ──
+  var auth=getAuth();
+  var existingPin=auth&&auth.payEditPin?auth.payEditPin:'';
+  html+='<div style="border-top:.5px solid var(--bd);padding-top:12px;margin-top:12px">';
+  html+='<div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:8px">Payment Edit PIN</div>';
+  html+='<div style="font-size:11px;color:var(--t2);margin-bottom:10px">'
+    +(existingPin
+      ?'<span style="color:var(--gr)">✅ PIN set — Edit button pe PIN maanga jaayega</span>'
+      :'<span style="color:var(--am)">⚠️ PIN not set — Anyone can edit payments</span>')
+    +'</div>';
+  html+='<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end">'
+    +'<div class="fld" style="flex:1;min-width:150px"><label>New PIN (4-6 digits)</label>'
+    +'<input id="payPinNew" type="password" placeholder="Enter PIN" maxlength="6" style="letter-spacing:2px"/></div>'
+    +'<button class="btn bbl bsm" onclick="savePayEditPin()">💾 Save PIN</button>'
+    +(existingPin?'<button class="btn bsm" style="color:var(--re);border:.5px solid var(--re)" onclick="removePayEditPin()">🗑 Remove</button>':'')
+    +'</div>'
     +'</div></div>';
 
   // ── Backup ──
   html+='<div class="card" style="margin-bottom:12px">';
-  html+='<div class="ct">💾 Data & Backup</div>';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">';
+  html+='<div class="ct" style="margin:0">💾 Data & Backup</div>';
+  html+=(lastBkDate?'<span style="font-size:11px;color:var(--t2)">Last backup: '+lastBkDate.slice(0,10)+'</span>':'<span style="font-size:11px;color:var(--re)">⚠️ No backup yet</span>');
+  html+='</div>';
   // Stats row
-  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">';
+  html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px">';
   html+='<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--bl)">'+D.projects.length+'</div><div style="font-size:11px;color:var(--t2)">Projects</div></div>';
   html+='<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--gr)">'+D.associates.length+'</div><div style="font-size:11px;color:var(--t2)">Associates</div></div>';
   html+='<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:20px;font-weight:700;color:var(--am)">'+D.sales.length+'</div><div style="font-size:11px;color:var(--t2)">Sales</div></div>';
   html+='<div style="background:var(--bg2);border-radius:8px;padding:10px;text-align:center"><div style="font-size:14px;font-weight:700;color:var(--t2)">~'+dataSize+' KB</div><div style="font-size:11px;color:var(--t2)">Size</div></div>';
   html+='</div>';
   // Info box
-  html+='<div style="background:var(--grb);border:1px solid var(--gr);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gr);margin-bottom:14px;display:flex;gap:8px;align-items:flex-start">'
-    +'<span style="flex-shrink:0;margin-top:1px">☁️</span>'
-    +'<span><b>Firebase Connected:</b> Data cloud pe save hai. Monthly backup bhi lena recommended hai.</span>'
+  html+='<div style="background:var(--grb);border:.5px solid var(--gr);border-radius:8px;padding:10px 14px;font-size:12px;color:var(--gr);margin-bottom:12px;display:flex;gap:8px;align-items:flex-start">'
+    +'<span style="flex-shrink:0">☁️</span>'
+    +'<span><b>Firebase Connected:</b> Data is saved to cloud. Monthly local backup recommended.</span>'
     +'</div>';
   // Backup cards
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">';
   html+='<div style="border:.5px solid var(--bd);border-radius:10px;padding:14px">'
     +'<div style="font-size:20px;margin-bottom:8px">📤</div>'
     +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">Export Backup</div>'
-    +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px">Saara data JSON file mein. Monthly recommended.</div>'
-    +'<button class="btn bgr" onclick="backupData()" style="width:100%">💾 Download (.json)</button>'
+    +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px">Complete data as JSON. Monthly recommended.</div>'
+    +'<button class="btn bgr" onclick="downloadLocalBackup()" style="width:100%">💾 Download (.json)</button>'
     +'</div>';
   html+='<div style="border:.5px solid var(--bd);border-radius:10px;padding:14px">'
     +'<div style="font-size:20px;margin-bottom:8px">📥</div>'
     +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">Restore Backup</div>'
-    +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px">Purana backup restore karega. Data replace hoga.</div>'
-    +'<label class="btn bbl" style="cursor:pointer;width:100%;justify-content:center">📂 Select File<input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this.files[0]);this.value=String()"/></label>'
+    +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px">Restore from backup file. Current data will be replaced.</div>'
+    +'<label class="btn bbl" style="cursor:pointer;width:100%;justify-content:center">📂 Select File<input type="file" id="restoreFile" accept=".json" style="display:none" onchange="confirmRestoreBackup()"/></label>'
     +'</div>';
   html+='</div></div>';
 
@@ -2626,8 +2650,8 @@ function aList(){
     +'oninput="doAssocSearch(this.value)" '
     +'style="flex:2;min-width:200px;font-size:13px;padding:8px 12px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>';
 
-  html+='<span style="font-size:12px;color:var(--t2);white-space:nowrap">'+filtered.length+' results</span>';
-  if(aFilter)html+='<button class="btn bgh bsm" onclick="aFilter=\'\';aPage=1;render()">✕ Clear</button>';
+  html+='<span id="aResCount" style="font-size:12px;color:var(--t2);white-space:nowrap">'+filtered.length+' results</span>';
+  if(aFilter)html+='<button id="aClrBtn" class="btn bgh bsm" onclick="aFilter=\'\';aPage=1;render()">✕ Clear</button>';
   html+='</div>';
 
   if(D.associates.length===0){
@@ -2973,19 +2997,6 @@ window.filterStep2Assoc=function(q){
   });
   if(!anyVisible)drop.style.display='none';
 };
-
-window.filterAssocList=function(q){
-  var drop=document.getElementById('sAssocDrop');
-  if(!drop)return;
-  drop.style.display='block';
-  q=(q||'').trim().toLowerCase();
-  var items=drop.querySelectorAll('div');
-  items.forEach(function(el){
-    var txt=el.textContent.toLowerCase();
-    el.style.display=(!q||txt.includes(q))?'':'none';
-  });
-};
-
 window.openTransferModal=function(){
   if(!D.associates.length){toast('No associates found!',false);return;}
   var aOpts='<option value="">— Who left? (Select) —</option>';
@@ -3179,7 +3190,7 @@ window.deleteAssoc=function(id){
       ||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===id;}));
   });
   if(hasSales){toast('Cannot delete — sale entries exist!',false);return;}
-  if(!confirm(a.name+' delete karna hai? Settings se restore kar sakte ho.'))return;
+  if(!confirm('Delete '+a.name+'? You can restore from Settings.'))return;
   if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
   if(!D.deleted.associates)D.deleted.associates=[];
   D.deleted.associates.push(Object.assign({},a,{deletedAt:new Date().toISOString(),deletedBy:SESSION?SESSION.name:'Admin'}));
@@ -3292,7 +3303,13 @@ window.savePlE=function(projId,plotId,locked){
   var pl=D.projects[pi].plots[pli];
   // Only update unlocked fields if sale exists
   if(!locked){
-    var v=document.getElementById('epNo');if(v&&v.value.trim())pl.plotNo=v.value.trim();
+    var v=document.getElementById('epNo');
+    if(v&&v.value.trim()&&v.value.trim()!==pl.plotNo){
+      // Duplicate plotNo check
+      var dupPlot=(D.projects[pi].plots||[]).find(function(x){return x.id!==plotId&&String(x.plotNo).trim()===String(v.value.trim());});
+      if(dupPlot){toast('⛔ Plot No. '+v.value.trim()+' already exists in this project!',false);return;}
+      pl.plotNo=v.value.trim();
+    } else if(v&&v.value.trim())pl.plotNo=v.value.trim();
     v=document.getElementById('epSz');if(v)pl.sizeGaj=parseFloat(v.value)||pl.sizeGaj;
     v=document.getElementById('epSal');if(v)pl.saleableGaj=parseFloat(v.value)||pl.sizeGaj;
   }
@@ -3666,8 +3683,8 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
   openM(html);
   document.getElementById('btnSaveSaleE').addEventListener('click',function(){
     var si=D.sales.findIndex(function(x){return x.id===saleId;});if(si<0)return;
-    var newBk=document.getElementById('esBk').value;
-    var newCl=document.getElementById('esCl').value;
+    var newBk=(document.getElementById('esBk')||{}).value||'';
+    var newCl=(document.getElementById('esCl')||{}).value||'';
     if(newCl&&newBk&&new Date(newCl)<new Date(newBk)){toast('Closing date cannot be before booking date!',false);return;}
     var s=D.sales[si];
     var dateChanged=(newBk!==s.bookingDate)||(newCl!==s.closeDate);
@@ -3863,18 +3880,20 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
   }
 
   // Old month-based payments (saleIds array) — adjust amount
-  D.payments.forEach(function(pay,pi){
-    if(!pay.saleIds||!pay.saleIds.includes(saleId))return;
+  // Iterate backwards so splice doesn't skip elements
+  for(var pi=D.payments.length-1;pi>=0;pi--){
+    var pay=D.payments[pi];
+    if(!pay.saleIds||!pay.saleIds.includes(saleId))continue;
     var salePays=(s.commissions||[]).filter(function(cm){return cm.id===pay.assocId;});
     var saleAmt=salePays.reduce(function(t,cm){return t+(cm.total||0);},0);
     var defPays=(s.defCommissions||[]).filter(function(cm){return cm.id===pay.assocId;});
     saleAmt+=defPays.reduce(function(t,cm){return t+(cm.amount||0);},0);
-    if(saleAmt<=0)return;
+    if(saleAmt<=0)continue;
     D.payments[pi].saleIds=pay.saleIds.filter(function(id){return id!==saleId;});
     D.payments[pi].amount=Math.max(0,(pay.amount||0)-saleAmt);
     D.payments[pi].pending=Math.max(0,(pay.pending||0)-saleAmt);
     if(D.payments[pi].amount<=0){D.payments.splice(pi,1);}
-  });
+  }
 
   // Soft delete
   if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
@@ -5639,7 +5658,7 @@ function calcOfferStats(offer){
     if(!assocMap[s.sellerId])assocMap[s.sellerId]={id:s.sellerId,name:s.sellerName||s.sellerId,projSales:{},salesList:[]};
     if(!assocMap[s.sellerId].projSales[s.projId])assocMap[s.sellerId].projSales[s.projId]={plots:0,gaj:0,projName:proj.name,projId:s.projId};
     assocMap[s.sellerId].projSales[s.projId].plots++;
-    assocMap[s.sellerId].projSales[s.projId].gaj+=Number(gaj);
+    assocMap[s.sellerId].projSales[s.projId].gaj+=(Number(gaj)||0);
     assocMap[s.sellerId].salesList.push({projName:proj.name,plotNo:s.plotNo||'—',gaj:Number(gaj),bookingDate:s.bookingDate||'—',closeDate:s.closeDate||'—'});
   });
 
@@ -6249,12 +6268,12 @@ function pgSearch(){
   }
   if(pRes.length){
     html+='<div class="card"><div class="ct">🗺️ Plots ('+pRes.length+')</div><div class="tw"><table><thead><tr><th>Project</th><th>Plot No</th><th>Gaj</th><th>Saleable</th><th>Facing</th><th>Status</th></tr></thead><tbody>';
-    pRes.forEach(function(pl){html+='<tr><td><b>'+pl.projName+'</b></td><td>'+pl.plotNo+'</td><td>'+pl.sizeGaj+'</td><td style="color:var(--pu);font-weight:700">'+(pl.saleableGaj!=null?pl.saleableGaj:pl.sizeGaj)+'</td><td>'+(pl.facing||'—')+'</td><td>'+statusBadge(pl.status)+'</td></tr>';});
+    pRes.forEach(function(pl){html+='<tr><td><b>'+esc(pl.projName)+'</b></td><td>'+esc(String(pl.plotNo))+'</td><td>'+pl.sizeGaj+'</td><td style="color:var(--pu);font-weight:700">'+(pl.saleableGaj!=null?pl.saleableGaj:pl.sizeGaj)+'</td><td>'+(pl.facing||'—')+'</td><td>'+statusBadge(pl.status)+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
   if(sRes.length){
     html+='<div class="card"><div class="ct">💰 Sales ('+sRes.length+')</div><div class="tw"><table><thead><tr><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Gaj</th><th>Date</th><th>Total ₹</th></tr></thead><tbody>';
-    sRes.forEach(function(s){html+='<tr><td><b>'+s.projName+'</b></td><td>'+s.plotNo+'</td><td>'+(s.partyName||'—')+'</td><td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td><td>'+s.plotGaj+'</td><td>'+(s.bookingDate||'—')+'</td><td style="color:var(--gr);font-weight:700">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</td></tr>';});
+    sRes.forEach(function(s){html+='<tr><td><b>'+esc(s.projName)+'</b></td><td>'+esc(String(s.plotNo))+'</td><td>'+esc(s.partyName||'—')+'</td><td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td><td>'+s.plotGaj+'</td><td>'+(s.bookingDate||'—')+'</td><td style="color:var(--gr);font-weight:700">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
   if(!aRes.length&&!pRes.length&&!sRes.length)html+='<div class="empty">No results found for "'+searchQ+'"</div>';
@@ -6936,36 +6955,23 @@ function fbStatus(s){
 
 // ── BACKUP & RESTORE ────────────────────────────────────
 window.downloadLocalBackup=function(silent){
-  var bk={data:JSON.parse(JSON.stringify(D)),savedAt:new Date().toISOString(),version:2};
+  if(!D.config)D.config={};
+  D.config.lastBkDate=new Date().toISOString();
+  var bk={data:JSON.parse(JSON.stringify(D)),savedAt:D.config.lastBkDate,version:2};
   var blob=new Blob([JSON.stringify(bk)],{type:'application/json'});
   var url=URL.createObjectURL(blob);
   var a=document.createElement('a');
   a.href=url;
-  a.download='truestars_backup_'+new Date().toISOString().slice(0,10)+'.json';
+  var ts=D.config.lastBkDate.slice(0,10);
+  a.download='TrueStars_Backup_'+ts+'.json';
   document.body.appendChild(a);a.click();
   document.body.removeChild(a);URL.revokeObjectURL(url);
-  if(!D.config)D.config={};
-  D.config.lastBkDate=new Date().toISOString();
   saveD();
-  if(!silent)toast('📥 Backup downloaded!');
+  logAct('Backup downloaded');
+  if(!silent)toast('✅ Backup downloaded! TrueStars_Backup_'+ts+'.json');
 };
-
-window.openRestoreBackup=function(){
-  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +'<b style="font-size:15px">🔄 Backup se Restore</b>'
-    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
-    +'<div class="info iam" style="margin-bottom:14px;font-size:12px">⚠️ <b>Warning:</b> Yeh current saara data replace kar dega. Pehle ek fresh backup download karo.</div>'
-    +'<div class="fld" style="margin-bottom:14px"><label>JSON Backup File select karo *</label>'
-    +'<input type="file" id="bkFile" accept=".json" style="font-size:13px"/></div>'
-    +'<div style="display:flex;gap:8px">'
-    +'<button class="btn bbl" onclick="confirmRestoreBackup()">✅ Restore Karo</button>'
-    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
-    +'</div>';
-  openM(html);
-};
-
 window.confirmRestoreBackup=function(){
-  var fileEl=document.getElementById('bkFile');
+  var fileEl=document.getElementById('bkFile')||document.getElementById('restoreFile');
   if(!fileEl||!fileEl.files||!fileEl.files[0]){toast('Please select a file!',false);return;}
   var reader=new FileReader();
   reader.onload=function(e){
@@ -6984,6 +6990,7 @@ window.confirmRestoreBackup=function(){
       D.transfers=data.transfers||[];
       D.payments=data.payments||[];
       D.advances=data.advances||[];
+      D.config=data.config||{};
       saveD();
       closeM();
       toast('✅ Backup restored successfully! ('+dt+')');
@@ -7394,24 +7401,6 @@ window.importAssocExcel=function(input){
   };
   reader.readAsArrayBuffer(file);
 };
-
-
-
-window.printAssocCard=function(id){
-  var a=D.associates.find(function(x){return x.id===id;});
-  if(!a)return;
-  var content=document.querySelector('#modal .mBox');
-  if(!content)return;
-  var w=window.open('','_blank','width=700,height=600');
-  w.document.write('<html><head><title>'+a.name+' — Profile</title>'
-    +'<style>*{box-sizing:border-box;font-family:Arial,sans-serif}body{padding:20px;font-size:13px}'
-    +'.badge{display:inline-block;padding:2px 8px;border-radius:4px;font-size:11px}'
-    +'@media print{.no-print{display:none}}</style></head>'
-    +'<body>'+content.innerHTML+'</body></html>');
-  w.document.close();
-  setTimeout(function(){w.print();},500);
-};
-
 window.showAssocDetail=function(id){
   var a=D.associates.find(function(x){return x.id===id;});
   if(!a)return; // works for Left associates too — they are still in D.associates
