@@ -486,6 +486,25 @@ function daysBetween(d1,d2){
   if(!d1||!d2)return null;
   return Math.floor((new Date(d2)-new Date(d1))/864e5);
 }
+// ── Date Mode helpers ────────────────────────────────
+// dateMode: 'booking' ya 'closing' — filter ke liye kaunsi date use ho
+function getFilterDate(sale){
+  return dateMode==='closing'?(sale.closeDate||sale.bookingDate||''):(sale.bookingDate||'');
+}
+function getMonthsFromSales(){
+  var monthSet={};
+  D.sales.forEach(function(s){
+    var d=getFilterDate(s);
+    if(d&&d.length>=7)monthSet[d.substr(0,7)]=1;
+  });
+  return Object.keys(monthSet).sort().reverse();
+}
+function dateModeBadge(){
+  return '<div style="display:flex;gap:4px;align-items:center;background:var(--bg3);border:.5px solid var(--bd);border-radius:7px;padding:3px 4px">'
+    +'<button onclick="dateMode=\'booking\';render()" class="btn bsm" style="padding:4px 10px;font-size:12px;'+(dateMode==='booking'?'background:var(--bl);color:#fff;border:none':'background:transparent;color:var(--t2);border:none')+'">📅 Booking</button>'
+    +'<button onclick="dateMode=\'closing\';render()" class="btn bsm" style="padding:4px 10px;font-size:12px;'+(dateMode==='closing'?'background:var(--gr);color:#fff;border:none':'background:transparent;color:var(--t2);border:none')+'">✅ Closing</button>'
+    +'</div>';
+}
 function closingPct(d){
   if(d===null||d===undefined)return 0;
   if(d<=25)return 10;
@@ -574,6 +593,7 @@ var aPage=1;     // current page (10 per page)
 var sStep=1,sD={},sCh=[],sDf=[];
 var rTab='r1';
 var selMonth='';
+var dateMode='closing'; // 'booking' | 'closing' — sabhi reports mein filter ka basis
 var stAssoc='',stFrom='',stTo='';
 var r2F='';
 var r2M='';
@@ -4220,7 +4240,7 @@ function rpt2(){
 
   // ── Build month list ──
   var monthSet={};
-  D.sales.forEach(function(s){if(s.bookingDate&&s.bookingDate.length>=7)monthSet[s.bookingDate.substr(0,7)]=1;});
+  D.sales.forEach(function(s){var d=getFilterDate(s);if(d&&d.length>=7)monthSet[d.substr(0,7)]=1;});
   var months=Object.keys(monthSet).sort().reverse();
 
   // ── Filter state: r2F = assoc id, r2M = month ──
@@ -4234,7 +4254,7 @@ function rpt2(){
       var inChain=s.commissions&&s.commissions.some(function(c){return dlIds.has(c.id);});
       if(!inChain)return false;
     }
-    if(r2M&&!(s.bookingDate&&s.bookingDate.startsWith(r2M)))return false;
+    if(r2M){var d=getFilterDate(s);if(!(d&&d.startsWith(r2M)))return false;}
     return true;
   });
 
@@ -4259,6 +4279,7 @@ function rpt2(){
   // ── Filter Bar ──
   html+='<div class="card" style="margin-bottom:10px;padding:10px 14px">'
     +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
+    +dateModeBadge()
     +'<div class="fld" style="flex:1;min-width:180px;margin:0"><label>Month Filter</label>'
     +'<select onchange="r2M=this.value;render()">'+mOpts+'</select></div>'
     +'<div class="fld" style="flex:1;min-width:200px;margin:0"><label>Associate Filter</label>'
@@ -4496,7 +4517,7 @@ function rpt4(){
 
   // Common filters
   var monthSet={};
-  D.sales.forEach(function(s){if(s.bookingDate&&s.bookingDate.length>=7)monthSet[s.bookingDate.substr(0,7)]=1;});
+  D.sales.forEach(function(s){var d=getFilterDate(s);if(d&&d.length>=7)monthSet[d.substr(0,7)]=1;});
   var months=Object.keys(monthSet).sort().reverse();
   var pOpts='<option value="">— All Projects —</option>';
   D.projects.forEach(function(p){pOpts+='<option value="'+p.id+'"'+(r4ProjF===p.id?' selected':'')+'>'+p.name+'</option>';});
@@ -4519,6 +4540,7 @@ function rpt4(){
   // ── Filters ──
   html+='<div class="card" style="margin-bottom:10px;padding:10px 14px">'
     +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
+    +dateModeBadge()
     +'<div class="fld" style="flex:1;min-width:130px;margin:0"><label>Month</label><select onchange="r4MonF=this.value;render()">'+mOpts+'</select></div>'
     +'<div class="fld" style="flex:1;min-width:160px;margin:0"><label>Project</label><select onchange="r4ProjF=this.value;render()">'+pOpts+'</select></div>'
     +(r4Tab==='assoc'?'<div class="fld" style="flex:1;min-width:160px;margin:0"><label>Associate</label><select onchange="r4AssocF=this.value;render()">'+aOpts+'</select></div>':'')
@@ -4538,7 +4560,7 @@ function rpt4Assoc(){
   var assocMap={};
   D.sales.forEach(function(sl){
     if(r4ProjF&&sl.projId!==r4ProjF)return;
-    if(r4MonF&&!(sl.bookingDate&&sl.bookingDate.startsWith(r4MonF)))return;
+    if(r4MonF){var d=getFilterDate(sl);if(!(d&&d.startsWith(r4MonF)))return;}
     if(sl.commissions)sl.commissions.forEach(function(c){
       if(r4AssocF&&c.id!==r4AssocF)return;
       if(!c.total||c.total<=0)return;
@@ -4646,7 +4668,7 @@ window.showBroSales=function(assocId,assocName){
 function rpt4Plot(){
   var filtered=D.sales.filter(function(sl){
     if(r4ProjF&&sl.projId!==r4ProjF)return false;
-    if(r4MonF&&!(sl.bookingDate&&sl.bookingDate.startsWith(r4MonF)))return false;
+    if(r4MonF){var d=getFilterDate(sl);if(!(d&&d.startsWith(r4MonF)))return false;}
     // Only show if has brokerage amount
     if(((sl.chainTotal||0)+(sl.defTotal||0))<=0)return false;
     return true;
@@ -4885,7 +4907,7 @@ window.expSingleAssoc=function(assocId){
   var ri=0;
   D.sales.forEach(function(sl){
     if(r4ProjF&&sl.projId!==r4ProjF)return;
-    var mon=sl.bookingDate?sl.bookingDate.substr(0,7):'—';
+    var mon=getFilterDate(sl).substr(0,7)||'—';
     if(r4MonF&&!mon.startsWith(r4MonF))return;
     var plotSize=sl.plotSizeGaj||sl.plotGaj;
     if(sl.commissions)sl.commissions.forEach(function(c){
@@ -4917,7 +4939,7 @@ window.openAssocInvoice=function(assocId){
   });
   if(!allSales.length){toast(a.name+' has no brokerage found!',false);return;}
   var monthSet={};
-  allSales.forEach(function(s){if(s.bookingDate&&s.bookingDate.length>=7)monthSet[s.bookingDate.substr(0,7)]=1;});
+  allSales.forEach(function(s){var d=getFilterDate(s);if(d&&d.length>=7)monthSet[d.substr(0,7)]=1;});
   var months=Object.keys(monthSet).sort().reverse();
   var projSet={};
   allSales.forEach(function(s){projSet[s.projId]={id:s.projId,name:s.projName};});
@@ -4932,7 +4954,7 @@ window.openAssocInvoice=function(assocId){
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     +'<b style="font-size:15px">Invoice — '+a.name+'</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">X</button></div>'
-    
+    +'<div class="info ibl" style="margin-bottom:12px;font-size:12px">📅 Month list <b>'+(dateMode==='closing'?'Closing Date':'Booking Date')+'</b> se generate ho rahi hai</div>'
     +'<div class="g2" style="margin-bottom:14px">'
     +'<div class="fld"><label>Month *</label><select id="aiMon">'+mOpts+'</select></div>'
     +'<div class="fld"><label>Project (Optional)</label><select id="aiProj">'+pOpts+'</select></div>'
@@ -4950,7 +4972,8 @@ window.printAssocInvoice=function(assocId){
   if(!mon){toast('Month is required!',false);return;}
   var sales=D.sales.filter(function(s){
     if(projF&&s.projId!==projF)return false;
-    if(!s.bookingDate||!s.bookingDate.startsWith(mon))return false;
+    var d=getFilterDate(s);
+    if(!d||!d.startsWith(mon))return false;
     var inChain=s.commissions&&s.commissions.some(function(c){return c.id===assocId&&c.total>0;});
     var inDef=s.defCommissions&&s.defCommissions.some(function(c){return c.id===assocId&&c.amount>0;});
     return inChain||inDef;
@@ -5114,7 +5137,7 @@ function rpt4Leg(){
 
   D.sales.forEach(function(sl){
     if(r4ProjF&&sl.projId!==r4ProjF)return;
-    if(r4MonF&&!(sl.bookingDate&&sl.bookingDate.startsWith(r4MonF)))return;
+    if(r4MonF){var d=getFilterDate(sl);if(!(d&&d.startsWith(r4MonF)))return;}
     if(sl.commissions)sl.commissions.forEach(function(c){
       if(!c.total||c.total<=0)return;
       var a=D.associates.find(function(x){return x.id===c.id;});
@@ -5242,7 +5265,7 @@ function expBrokerage(){
   var assocMap={};
   D.sales.forEach(function(sl){
     if(r4ProjF&&sl.projId!==r4ProjF)return;
-    if(r4MonF&&!(sl.bookingDate&&sl.bookingDate.startsWith(r4MonF)))return;
+    if(r4MonF){var d=getFilterDate(sl);if(!(d&&d.startsWith(r4MonF)))return;}
     if(sl.commissions)sl.commissions.forEach(function(c){
       if(!c.total||c.total<=0)return;
       if(!assocMap[c.id])assocMap[c.id]={name:c.name,rera:'',phone:'',total:0,lastDate:sl.bookingDate||''};
@@ -5272,8 +5295,8 @@ function expBrokerage(){
   D.associates.forEach(function(assoc){
     D.sales.forEach(function(sl){
       if(r4ProjF&&sl.projId!==r4ProjF)return;
-      if(r4MonF&&!(sl.bookingDate&&sl.bookingDate.startsWith(r4MonF)))return;
-      var mon=sl.bookingDate?sl.bookingDate.substr(0,7):'';
+      if(r4MonF){var d=getFilterDate(sl);if(!(d&&d.startsWith(r4MonF)))return;}
+      var mon=getFilterDate(sl).substr(0,7)||'';
       var chainC=sl.commissions&&sl.commissions.find(function(c){return c.id===assoc.id;});
       var defC=sl.defCommissions&&sl.defCommissions.find(function(c){return c.id===assoc.id;});
       var amt=(chainC?chainC.total:0)+(defC?defC.amount:0);
@@ -5295,7 +5318,7 @@ function expBroPlot(){
   var wb=XLSX.utils.book_new();
   var filtered=D.sales.filter(function(sl){
     if(r4ProjF&&sl.projId!==r4ProjF)return false;
-    if(r4MonF&&!(sl.bookingDate&&sl.bookingDate.startsWith(r4MonF)))return false;
+    if(r4MonF){var d=getFilterDate(sl);if(!(d&&d.startsWith(r4MonF)))return false;}
     if(((sl.chainTotal||0)+(sl.defTotal||0))<=0)return false;
     return true;
   });
@@ -5351,7 +5374,7 @@ function expBroLeg(){
   var rowMap={};
   D.sales.forEach(function(sl){
     if(r4ProjF&&sl.projId!==r4ProjF)return;
-    var mon=sl.bookingDate?sl.bookingDate.substr(0,7):'—';
+    var mon=getFilterDate(sl).substr(0,7)||'—';
     if(r4MonF&&!mon.startsWith(r4MonF))return;
 
     // Chain commissions
@@ -5411,10 +5434,10 @@ function expBroLeg(){
 function rpt5(){
   var months=[];
   var seen={};
-  D.sales.forEach(function(s){if(s.bookingDate&&s.bookingDate.length>=7){var m=s.bookingDate.substr(0,7);if(!seen[m]){seen[m]=true;months.push(m);}}});
+  D.sales.forEach(function(s){var d=getFilterDate(s);if(d&&d.length>=7){var m=d.substr(0,7);if(!seen[m]){seen[m]=true;months.push(m);}}});
   months.sort().reverse();
   var curM=selMonth||(months[0]||'');
-  var mSales=D.sales.filter(function(s){return s.bookingDate&&s.bookingDate.startsWith(curM);});
+  var mSales=D.sales.filter(function(s){var d=getFilterDate(s);return d&&d.startsWith(curM);});
   var assocMap={};
   mSales.forEach(function(sl){
     if(sl.commissions)sl.commissions.forEach(function(c){if(!assocMap[c.id])assocMap[c.id]={id:c.id,name:c.name,chain:0,def:0,sales:0};assocMap[c.id].chain+=c.total;assocMap[c.id].sales++;});
@@ -5431,6 +5454,7 @@ function rpt5(){
   var nextM=(curIdx>=0&&curIdx<months.length-1)?months[curIdx+1]:null;
   var html='<div class="card" style="margin-bottom:12px">'
     +'<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">'
+    +dateModeBadge()
     +(prevM?'<button class="btn bgh bsm" onclick="selMonth=\''+prevM+'\';render()">← '+prevM+'</button>':'<button class="btn bgh bsm" disabled>←</button>')
     +'<div class="fld" style="margin:0;flex:1;min-width:140px"><label>Month</label>'
     +'<select onchange="selMonth=this.value;render()"><option value="">— Select Month —</option>'+mOpts+'</select></div>'
@@ -5449,7 +5473,7 @@ function rpt5(){
     +'<div class="stat"><div class="sl">Total Brokerage</div><div class="sv" style="font-size:16px;color:var(--gr)">₹'+fmtL(totalChain+totalDef)+'</div></div>'
     +'</div>';
   
-  html+='<div class="card"><div class="ct">Associate-wise Commission — '+curM+'</div>'
+  html+='<div class="card"><div class="ct">Associate-wise Commission — '+curM+' <span style="font-size:11px;font-weight:400;color:var(--t2)">(by '+(dateMode==='closing'?'Closing':'Booking')+' Date)</span></div>'
     +'<div class="tw"><table><thead><tr><th>#</th><th>Name</th><th>Phone</th><th>Sales</th><th>Total Brokerage ₹</th></tr></thead><tbody>';
   // ── Pagination rpt5 assocList ──
   var R5_PER=15;
@@ -5479,7 +5503,7 @@ function rpt5(){
   var r5SPage=r5P>r5STotalPages?1:r5P;
   var r5SPageData=mSales.slice((r5SPage-1)*R5S_PER,r5SPage*R5S_PER);
 
-  html+='<div class="card"><div class="ct">Sale-wise Detail — '+curM+'</div><div class="tw"><table><thead><tr><th>#</th><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Gaj</th><th>Booking</th><th>Close</th><th>Days</th><th>Closing</th><th>Brokerage ₹</th></tr></thead><tbody>';
+  html+='<div class="card"><div class="ct">Sale-wise Detail — '+curM+' <span style="font-size:11px;font-weight:400;color:var(--t2)">(by '+(dateMode==='closing'?'Closing':'Booking')+' Date)</span></div><div class="tw"><table><thead><tr><th>#</th><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Gaj</th><th>Booking</th><th>Close</th><th>Days</th><th>Closing</th><th>Brokerage ₹</th></tr></thead><tbody>';
   r5SPageData.forEach(function(s,i){
     var rowNum=(r5SPage-1)*R5S_PER+i+1;
     var d2=daysBetween(s.bookingDate,s.closeDate);var cp=closingPct(d2);
