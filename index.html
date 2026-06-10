@@ -5759,6 +5759,7 @@ function pgOffers(){
   if(!can('offers_view'))return '<div class="empty">⛔ Access Denied</div>';
   if(ofView==='add')return ofForm();
   if(ofView==='detail'&&ofId)return ofDetail();
+  if(ofView==='achievers')return ofAllAchievers();
   return ofList();
 }
 
@@ -5766,7 +5767,10 @@ function ofList(){
   var isAdmin=SESSION.role==='admin';
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">';
   html+='<h2 style="font-size:15px;font-weight:700">🎯 Campaigns & Offers</h2>';
+  html+='<div style="display:flex;gap:8px;flex-wrap:wrap">';
+  html+='<button class="btn" style="background:linear-gradient(135deg,#b8860b,#f0c040);color:#fff;border:none;font-weight:700" onclick="ofView=\'achievers\';render()">🏆 All Achievers</button>';
   if(isAdmin)html+='<button class="btn bbl" onclick="ofView=\'add\';ofId=null;render()">+ New Campaign</button>';
+  html+='</div>';
   html+='</div>';
 
   if(!D.offers||D.offers.length===0){
@@ -5833,6 +5837,145 @@ function ofList(){
     html+='</div>';
   });
 
+  return html;
+}
+
+function ofAllAchievers(){
+  if(!D.offers||D.offers.length===0){
+    return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">'
+      +'<button class="btn bgh bsm" onclick="ofView=\'list\';render()">← Back</button>'
+      +'<h2 style="font-size:15px;font-weight:700">🏆 All Achievers</h2></div>'
+      +'<div class="empty">Koi campaign nahi hai</div>';
+  }
+
+  // Collect all achievers across all campaigns
+  var allRows=[];
+  D.offers.forEach(function(offer){
+    var stats=calcOfferStats(offer);
+    stats.forEach(function(s){
+      if(!s.rewardLevel)return;
+      var rwLabel=s.rewardLevel.rewards
+        ?s.rewardLevel.rewards.map(function(r){return r.reward;}).join(' + ')
+        :s.rewardLevel.reward;
+      var aObj=D.associates.find(function(x){return x.id===s.id;})||{};
+      // Store sales in global map
+      if(!window._campSalesMap)window._campSalesMap={};
+      var mapKey='ca_'+s.id+'_'+offer.id;
+      window._campSalesMap[mapKey]={name:s.name,sales:s.salesList||[]};
+      allRows.push({
+        campName:offer.name,
+        campId:offer.id,
+        assocId:s.id,
+        assocName:s.name,
+        phone:aObj.phone||'—',
+        rera:aObj.rera||'—',
+        plots:s.totalPlots,
+        gaj:s.totalGaj,
+        reward:rwLabel,
+        mapKey:mapKey,
+        startDate:offer.startDate,
+        endDate:offer.endDate
+      });
+    });
+  });
+
+  // Campaign filter state
+  var campF=window._achCampF||'';
+
+  // Campaign filter options
+  var campOpts='<option value="">— Sabhi Campaigns —</option>';
+  D.offers.forEach(function(o){
+    campOpts+='<option value="'+o.id+'"'+(campF===o.id?' selected':'')+'>'+esc(o.name)+'</option>';
+  });
+
+  // Apply filter
+  var filtered=campF?allRows.filter(function(r){return r.campId===campF;}):allRows;
+
+  // Group by associate name for name-wise view
+  var assocMap={};
+  filtered.forEach(function(r){
+    var key=r.assocId;
+    if(!assocMap[key])assocMap[key]={
+      assocId:r.assocId,assocName:r.assocName,
+      phone:r.phone,rera:r.rera,
+      campaigns:[],totalPlots:0,totalGaj:0
+    };
+    assocMap[key].campaigns.push(r);
+    assocMap[key].totalPlots+=r.plots;
+    assocMap[key].totalGaj+=r.gaj;
+  });
+  var assocList=Object.values(assocMap).sort(function(a,b){return a.assocName.localeCompare(b.assocName);});
+
+  var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
+    +'<button class="btn bgh bsm" onclick="ofView=\'list\';render()">← Back</button>'
+    +'<h2 style="font-size:15px;font-weight:700;flex:1">🏆 All Achievers</h2>'
+    +'</div>';
+
+  // Filter bar
+  html+='<div class="card" style="margin-bottom:12px;padding:10px 14px">'
+    +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
+    +'<div class="fld" style="flex:1;min-width:200px;margin:0"><label>Campaign Filter</label>'
+    +'<select onchange="window._achCampF=this.value;render()">'+campOpts+'</select></div>'
+    +(campF?'<button class="btn bgh bsm" onclick="window._achCampF=\'\';render()">✕ Clear</button>':'')
+    +'</div></div>';
+
+  // Summary stats
+  html+='<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;margin-bottom:12px">'
+    +'<div class="stat"><div class="sl">🏆 Achievers</div><div class="sv" style="color:var(--gr)">'+assocList.length+'</div></div>'
+    +'<div class="stat"><div class="sl">🎯 Campaigns</div><div class="sv" style="color:var(--bl)">'+(campF?1:D.offers.length)+'</div></div>'
+    +'<div class="stat"><div class="sl">🏗️ Total Plots</div><div class="sv" style="color:var(--pu)">'+filtered.reduce(function(t,r){return t+r.plots;},0)+'</div></div>'
+    +'<div class="stat"><div class="sl">📐 Total Sq.Yd</div><div class="sv" style="color:var(--am)">'+filtered.reduce(function(t,r){return t+r.gaj;},0)+'</div></div>'
+    +'</div>';
+
+  if(assocList.length===0){
+    html+='<div class="empty">Koi achiever nahi mila</div>';
+    return html;
+  }
+
+  // Name-wise table
+  html+='<div class="card" style="padding:0">'
+    +'<div style="padding:10px 16px;border-bottom:.5px solid var(--bd);font-size:13px;font-weight:700;color:var(--t2)">👤 Name-wise Achievers List</div>'
+    +'<div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
+    +'<th>#</th>'
+    +'<th>Associate Name</th>'
+    +'<th>Phone</th>'
+    +'<th>RERA</th>'
+    +'<th>Campaign</th>'
+    +'<th>Plots</th>'
+    +'<th>Sq.Yd</th>'
+    +'<th>Reward</th>'
+    +'<th>Sale Details</th>'
+    +'</tr></thead><tbody>';
+
+  var rowNum=0;
+  assocList.forEach(function(a){
+    a.campaigns.forEach(function(r,ci){
+      rowNum++;
+      var isFirst=(ci===0);
+      html+='<tr style="background:'+(rowNum%2===0?'var(--bg3)':'#fff')+';'+(isFirst&&a.campaigns.length>1?'border-top:2px solid var(--bd)':'')+'">'
+        +'<td style="color:var(--t3)">'+rowNum+'</td>'
+        +'<td>'
+          +(isFirst
+            ?'<div data-cskey="'+r.mapKey+'" onclick="showCampSalesDetail(this.dataset.cskey)" style="cursor:pointer;color:var(--bl);font-weight:700;font-size:14px">'+esc(a.assocName)+'</div>'
+             +(a.rera&&a.rera!=='—'?'<div style="font-size:10px;color:var(--t2)">RERA: '+esc(a.rera)+'</div>':'')
+            :'<span style="color:var(--t3);font-size:12px">↳ same</span>'
+          )
+        +'</td>'
+        +'<td style="font-size:12px">'+(isFirst?esc(a.phone):'')+'</td>'
+        +'<td style="font-size:11px;color:var(--bl)">'+(isFirst&&a.rera!=='—'?esc(a.rera):'')+'</td>'
+        +'<td>'
+          +'<div data-oid="'+r.campId+'" onclick="ofId=this.dataset.oid;ofView=\'detail\';ofTab=\'winners\';render()" style="cursor:pointer;font-size:12px;font-weight:600;color:var(--pu)" title="Campaign detail kholo">'+esc(r.campName)+'</div>'
+          +'<div style="font-size:10px;color:var(--t3)">'+r.startDate+' → '+r.endDate+'</div>'
+        +'</td>'
+        +'<td style="font-weight:700;color:var(--bl)">'+r.plots+'</td>'
+        +'<td style="font-weight:700;color:var(--pu)">'+r.gaj+'</td>'
+        +'<td><span style="background:linear-gradient(135deg,#b8860b,#f0c040);color:#fff;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:700">🏆 '+esc(r.reward)+'</span></td>'
+        +'<td><button class="btn bbl bsm" data-cskey="'+r.mapKey+'" onclick="showCampSalesDetail(this.dataset.cskey)">📋 Details</button></td>'
+        +'</tr>';
+    });
+  });
+
+  html+='</tbody></table></div></div>';
   return html;
 }
 
@@ -5911,73 +6054,7 @@ function ofDetail(){
   var qualifiers=stats.filter(function(s){return s.rewardLevel;});
   var inProgress=stats.filter(function(s){return !s.rewardLevel;});
 
-  // ── Tab buttons ──
-  html+='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
-  html+='<button onclick="ofTab=\'leaderboard\';render()" class="btn '+(ofTab==='leaderboard'?'bbl':'bgh')+'" style="font-size:13px">📊 Leaderboard</button>';
-  html+='<button onclick="ofTab=\'winners\';render()" class="btn '+(ofTab==='winners'?'bbl':'bgh')+'" style="font-size:13px">🏆 Achievers Report <span style="background:'+(ofTab==='winners'?'rgba(255,255,255,.3)':'var(--bl)')+';color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">'+qualifiers.length+'</span></button>';
-  html+='</div>';
-
-  // ── WINNERS / ACHIEVERS TAB ──
-  if(ofTab==='winners'){
-    html+='<div class="card">';
-    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">';
-    html+='<div class="ct" style="margin:0">🏆 Achievers — '+esc(offer.name)+'</div>';
-    html+='<span style="font-size:12px;color:var(--t2)">'+qualifiers.length+' associate'+(qualifiers.length!==1?'s':'')+' qualified</span>';
-    html+='</div>';
-
-    if(qualifiers.length===0){
-      html+='<div class="empty">Abhi tak koi associate qualify nahi hua</div>';
-    } else {
-      html+='<div class="tw"><table><thead><tr>'
-        +'<th>#</th>'
-        +'<th>Associate Name</th>'
-        +'<th>Phone</th>'
-        +'<th>Plots</th>'
-        +'<th>Sq.Yd</th>'
-        +'<th>Reward Won</th>'
-        +'<th>Sale Details</th>'
-        +'</tr></thead><tbody>';
-
-      qualifiers.forEach(function(s,i){
-        var aObj=D.associates.find(function(x){return x.id===s.id;})||{};
-        var rwLabel=s.rewardLevel.rewards
-          ?s.rewardLevel.rewards.map(function(r){return '🏆 '+esc(r.reward);}).join(' + ')
-          :'🏆 '+esc(s.rewardLevel.reward);
-        // Store sales in global map
-        if(!window._campSalesMap)window._campSalesMap={};
-        var mapKey='cw_'+s.id+'_'+offer.id;
-        window._campSalesMap[mapKey]={name:s.name,sales:s.salesList||[]};
-
-        html+='<tr style="background:linear-gradient(90deg,rgba(46,125,50,.06),transparent)">'
-          +'<td style="font-weight:700;color:var(--t3)">'+(i+1)+'</td>'
-          +'<td>'
-            +'<div data-cskey="'+mapKey+'" onclick="showCampSalesDetail(this.dataset.cskey)" style="cursor:pointer;color:var(--bl);font-weight:700;font-size:14px" title="Click for sale details">'+esc(s.name)+'</div>'
-            +(aObj.rera?'<div style="font-size:10px;color:var(--t2)">RERA: '+esc(aObj.rera)+'</div>':'')
-          +'</td>'
-          +'<td style="font-size:12px">'+(aObj.phone||'—')+'</td>'
-          +'<td style="font-weight:700;color:var(--bl)">'+s.totalPlots+'</td>'
-          +'<td style="font-weight:700;color:var(--pu)">'+s.totalGaj+'</td>'
-          +'<td><span style="background:linear-gradient(135deg,#b8860b,#f0c040);color:#fff;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block">'+rwLabel+'</span></td>'
-          +'<td><button class="btn bbl bsm" data-cskey="'+mapKey+'" onclick="showCampSalesDetail(this.dataset.cskey)">📋 View Details</button></td>'
-          +'</tr>';
-      });
-
-      html+='</tbody></table></div>';
-
-      // Summary footer
-      var totalWinPlots=qualifiers.reduce(function(t,s){return t+s.totalPlots;},0);
-      var totalWinGaj=qualifiers.reduce(function(t,s){return t+s.totalGaj;},0);
-      html+='<div style="display:flex;gap:16px;padding:10px 14px;background:var(--grb);border-radius:8px;margin-top:10px;flex-wrap:wrap">'
-        +'<span style="font-size:13px;color:var(--gr);font-weight:600">✅ '+qualifiers.length+' Achievers</span>'
-        +'<span style="font-size:13px;color:var(--bl);font-weight:600">🏗️ '+totalWinPlots+' Plots</span>'
-        +'<span style="font-size:13px;color:var(--pu);font-weight:600">📐 '+totalWinGaj+' Sq.Yd</span>'
-        +'</div>';
-    }
-    html+='</div>';
-    return html;
-  }
-
-  // ── LEADERBOARD TAB ──
+  // ── LEADERBOARD ──
   html+='<div class="card">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
   html+='<div class="ct" style="margin:0">🏅 Leaderboard</div>';
