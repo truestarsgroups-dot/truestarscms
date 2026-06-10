@@ -5618,6 +5618,7 @@ function rpt6(){
 // ═══════════════════════════════════════════════════════
 var ofView='list'; // list | add | detail
 var ofId=null;
+var ofTab='leaderboard'; // leaderboard | winners
 
 function calcOfferStats(offer){
   // Returns array of {assocId, assocName, projectResults, qualifiedCount, rewardLevel}
@@ -5664,7 +5665,7 @@ function calcOfferStats(offer){
     if(!assocMap[s.sellerId].projSales[s.projId])assocMap[s.sellerId].projSales[s.projId]={plots:0,gaj:0,projName:proj.name,projId:s.projId};
     assocMap[s.sellerId].projSales[s.projId].plots++;
     assocMap[s.sellerId].projSales[s.projId].gaj+=Number(gaj);
-    assocMap[s.sellerId].salesList.push({projName:proj.name,plotNo:s.plotNo||'—',gaj:Number(gaj),bookingDate:s.bookingDate||'—',closeDate:s.closeDate||'—'});
+    assocMap[s.sellerId].salesList.push({projName:proj.name,plotNo:s.plotNo||'—',gaj:Number(gaj),bookingDate:s.bookingDate||'—',closeDate:s.closeDate||'—',partyName:s.partyName||'—'});
   });
 
   // Calculate results per associate
@@ -5795,7 +5796,7 @@ function ofList(){
     var stats=calcOfferStats(offer);
     var qualCount=stats.filter(function(s){return s.rewardLevel;}).length;
 
-    html+='<div class="card" style="margin-bottom:12px;cursor:pointer" onclick="ofId=\''+offer.id+'\';ofView=\'detail\';render()">';
+    html+='<div class="card" style="margin-bottom:12px;cursor:pointer" onclick="ofId=\''+offer.id+'\';ofView=\'detail\';ofTab=\'leaderboard\';render()">';
     html+='<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">';
     html+='<div>';
     html+='<div style="font-size:15px;font-weight:700;margin-bottom:4px">'+esc(offer.name)+'</div>';
@@ -5910,6 +5911,73 @@ function ofDetail(){
   var qualifiers=stats.filter(function(s){return s.rewardLevel;});
   var inProgress=stats.filter(function(s){return !s.rewardLevel;});
 
+  // ── Tab buttons ──
+  html+='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
+  html+='<button onclick="ofTab=\'leaderboard\';render()" class="btn '+(ofTab==='leaderboard'?'bbl':'bgh')+'" style="font-size:13px">📊 Leaderboard</button>';
+  html+='<button onclick="ofTab=\'winners\';render()" class="btn '+(ofTab==='winners'?'bbl':'bgh')+'" style="font-size:13px">🏆 Achievers Report <span style="background:'+(ofTab==='winners'?'rgba(255,255,255,.3)':'var(--bl)')+';color:#fff;border-radius:10px;padding:1px 7px;font-size:11px;margin-left:4px">'+qualifiers.length+'</span></button>';
+  html+='</div>';
+
+  // ── WINNERS / ACHIEVERS TAB ──
+  if(ofTab==='winners'){
+    html+='<div class="card">';
+    html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:8px">';
+    html+='<div class="ct" style="margin:0">🏆 Achievers — '+esc(offer.name)+'</div>';
+    html+='<span style="font-size:12px;color:var(--t2)">'+qualifiers.length+' associate'+(qualifiers.length!==1?'s':'')+' qualified</span>';
+    html+='</div>';
+
+    if(qualifiers.length===0){
+      html+='<div class="empty">Abhi tak koi associate qualify nahi hua</div>';
+    } else {
+      html+='<div class="tw"><table><thead><tr>'
+        +'<th>#</th>'
+        +'<th>Associate Name</th>'
+        +'<th>Phone</th>'
+        +'<th>Plots</th>'
+        +'<th>Sq.Yd</th>'
+        +'<th>Reward Won</th>'
+        +'<th>Sale Details</th>'
+        +'</tr></thead><tbody>';
+
+      qualifiers.forEach(function(s,i){
+        var aObj=D.associates.find(function(x){return x.id===s.id;})||{};
+        var rwLabel=s.rewardLevel.rewards
+          ?s.rewardLevel.rewards.map(function(r){return '🏆 '+esc(r.reward);}).join(' + ')
+          :'🏆 '+esc(s.rewardLevel.reward);
+        // Store sales in global map
+        if(!window._campSalesMap)window._campSalesMap={};
+        var mapKey='cw_'+s.id+'_'+offer.id;
+        window._campSalesMap[mapKey]={name:s.name,sales:s.salesList||[]};
+
+        html+='<tr style="background:linear-gradient(90deg,rgba(46,125,50,.06),transparent)">'
+          +'<td style="font-weight:700;color:var(--t3)">'+(i+1)+'</td>'
+          +'<td>'
+            +'<div data-cskey="'+mapKey+'" onclick="showCampSalesDetail(this.dataset.cskey)" style="cursor:pointer;color:var(--bl);font-weight:700;font-size:14px" title="Click for sale details">'+esc(s.name)+'</div>'
+            +(aObj.rera?'<div style="font-size:10px;color:var(--t2)">RERA: '+esc(aObj.rera)+'</div>':'')
+          +'</td>'
+          +'<td style="font-size:12px">'+(aObj.phone||'—')+'</td>'
+          +'<td style="font-weight:700;color:var(--bl)">'+s.totalPlots+'</td>'
+          +'<td style="font-weight:700;color:var(--pu)">'+s.totalGaj+'</td>'
+          +'<td><span style="background:linear-gradient(135deg,#b8860b,#f0c040);color:#fff;padding:4px 10px;border-radius:8px;font-size:12px;font-weight:700;display:inline-block">'+rwLabel+'</span></td>'
+          +'<td><button class="btn bbl bsm" data-cskey="'+mapKey+'" onclick="showCampSalesDetail(this.dataset.cskey)">📋 View Details</button></td>'
+          +'</tr>';
+      });
+
+      html+='</tbody></table></div>';
+
+      // Summary footer
+      var totalWinPlots=qualifiers.reduce(function(t,s){return t+s.totalPlots;},0);
+      var totalWinGaj=qualifiers.reduce(function(t,s){return t+s.totalGaj;},0);
+      html+='<div style="display:flex;gap:16px;padding:10px 14px;background:var(--grb);border-radius:8px;margin-top:10px;flex-wrap:wrap">'
+        +'<span style="font-size:13px;color:var(--gr);font-weight:600">✅ '+qualifiers.length+' Achievers</span>'
+        +'<span style="font-size:13px;color:var(--bl);font-weight:600">🏗️ '+totalWinPlots+' Plots</span>'
+        +'<span style="font-size:13px;color:var(--pu);font-weight:600">📐 '+totalWinGaj+' Sq.Yd</span>'
+        +'</div>';
+    }
+    html+='</div>';
+    return html;
+  }
+
+  // ── LEADERBOARD TAB ──
   html+='<div class="card">';
   html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">';
   html+='<div class="ct" style="margin:0">🏅 Leaderboard</div>';
@@ -5931,7 +5999,11 @@ function ofDetail(){
       var rowBg=s.rewardLevel?'background:linear-gradient(90deg,rgba(46,125,50,.07),transparent)':'';
       html+='<tr style="'+rowBg+'">';
       html+='<td style="color:var(--t3);font-weight:700">'+(i+1)+'</td>';
-      html+='<td><b>'+esc(s.name)+'</b></td>';
+      // Store in global map for ALL associates (not just qualified)
+      if(!window._campSalesMap)window._campSalesMap={};
+      var mapKey='cs_'+s.id+'_'+offer.id;
+      window._campSalesMap[mapKey]={name:s.name,sales:s.salesList||[]};
+      html+='<td><div data-cskey="'+mapKey+'" onclick="showCampSalesDetail(this.dataset.cskey)" style="cursor:pointer;color:var(--bl);font-weight:700" title="Click for sale details">'+esc(s.name)+'</div></td>';
 
       html+='<td style="font-weight:700">'+s.totalPlots+'</td>';
       html+='<td style="font-weight:700">'+s.totalGaj+'</td>';
@@ -5946,10 +6018,6 @@ function ofDetail(){
         var rwLabel=s.rewardLevel.rewards
           ?s.rewardLevel.rewards.map(function(r){return '🏆 '+esc(r.reward);}).join(' + ')
           :'🏆 '+esc(s.rewardLevel.reward);
-        // Store sales data in global map, use index for onclick
-        if(!window._campSalesMap)window._campSalesMap={};
-        var mapKey='cs_'+s.id;
-        window._campSalesMap[mapKey]={name:s.name,sales:s.salesList||[]};
         html+='<td><div data-cskey="'+mapKey+'" onclick="showCampSalesDetail(this.dataset.cskey)" style="background:linear-gradient(135deg,#b8860b,#f0c040);color:#fff;padding:5px 12px;border-radius:10px;font-size:12px;font-weight:700;display:inline-block;cursor:pointer" title="Click for sale details">'+rwLabel+' 📋</div></td>';
       } else {
         // Combined: show what's needed
@@ -6219,28 +6287,41 @@ window.showCampSalesDetail=function(key){
   var assocName=d.name;
   var sales=d.sales||[];
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +'<b style="font-size:15px">📋 Sales — '+esc(assocName)+'</b>'
+    +'<div>'
+    +'<b style="font-size:16px">📋 '+esc(assocName)+'</b>'
+    +'<div style="font-size:12px;color:var(--t2);margin-top:2px">Campaign Sales Detail</div>'
+    +'</div>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>';
   if(sales.length===0){
     html+='<div style="text-align:center;padding:20px;color:var(--t3)">No sales found.</div>';
   } else {
-    html+='<div class="tw"><table><thead><tr>'
-      +'<th>#</th><th>Project</th><th>Plot No</th><th>Sq.Yd</th><th>Booking Date</th><th>Closing Date</th>'
+    html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:13px">'
+      +'<thead><tr style="background:var(--bg3)">'
+      +'<th style="padding:8px 10px;text-align:left;border-bottom:.5px solid var(--bd)">#</th>'
+      +'<th style="padding:8px 10px;text-align:left;border-bottom:.5px solid var(--bd)">Project</th>'
+      +'<th style="padding:8px 10px;text-align:left;border-bottom:.5px solid var(--bd)">Plot No</th>'
+      +'<th style="padding:8px 10px;text-align:left;border-bottom:.5px solid var(--bd)">Sq.Yd</th>'
+      +'<th style="padding:8px 10px;text-align:left;border-bottom:.5px solid var(--bd)">Buyer</th>'
+      +'<th style="padding:8px 10px;text-align:left;border-bottom:.5px solid var(--bd)">Booking Date</th>'
+      +'<th style="padding:8px 10px;text-align:left;border-bottom:.5px solid var(--bd)">Closing Date</th>'
       +'</tr></thead><tbody>';
     sales.forEach(function(s,i){
-      html+='<tr>'
-        +'<td style="color:var(--t3)">'+(i+1)+'</td>'
-        +'<td><b>'+esc(s.projName)+'</b></td>'
-        +'<td><span class="badge bbl2">'+esc(s.plotNo)+'</span></td>'
-        +'<td><b>'+s.gaj+'</b></td>'
-        +'<td style="color:var(--t2)">'+esc(s.bookingDate)+'</td>'
-        +'<td style="color:var(--t2)">'+esc(s.closeDate)+'</td>'
+      html+='<tr style="background:'+(i%2===0?'#fff':'var(--bg3)')+'">'
+        +'<td style="padding:8px 10px;color:var(--t3)">'+(i+1)+'</td>'
+        +'<td style="padding:8px 10px"><b>'+esc(s.projName)+'</b></td>'
+        +'<td style="padding:8px 10px"><span class="badge bbl2">'+esc(s.plotNo)+'</span></td>'
+        +'<td style="padding:8px 10px;font-weight:700;color:var(--pu)">'+s.gaj+' gaj</td>'
+        +'<td style="padding:8px 10px;font-size:12px;color:var(--t2)">'+(s.partyName?esc(s.partyName):'—')+'</td>'
+        +'<td style="padding:8px 10px;color:var(--bl)">'+(s.bookingDate?esc(s.bookingDate):'—')+'</td>'
+        +'<td style="padding:8px 10px;color:var(--gr);font-weight:600">'+(s.closeDate?esc(s.closeDate):'—')+'</td>'
         +'</tr>';
     });
     html+='</tbody></table></div>';
     var totalGaj=sales.reduce(function(t,s){return t+s.gaj;},0);
-    html+='<div style="margin-top:10px;padding:10px;background:var(--bg2);border-radius:8px;font-size:13px">'
-      +'Total: <b>'+sales.length+' Plots</b> &nbsp;|&nbsp; <b>'+totalGaj+' Sq.Yd</b></div>';
+    html+='<div style="display:flex;gap:16px;margin-top:10px;padding:10px 14px;background:var(--bg2);border-radius:8px;flex-wrap:wrap">'
+      +'<span style="font-size:13px;font-weight:600;color:var(--bl)">🏗️ Plots: <b>'+sales.length+'</b></span>'
+      +'<span style="font-size:13px;font-weight:600;color:var(--pu)">📐 Total Sq.Yd: <b>'+totalGaj+'</b></span>'
+      +'</div>';
   }
   openM(html);
 };
