@@ -432,13 +432,6 @@ function resetIdleTimer(){
 
 // ─── INTERNET CHECK ───────────────────────────────────
 function isOnline(){return navigator.onLine;}
-function checkNet(){
-  if(!isOnline()){
-    toast('📴 No internet connection — Please connect and try again.',false);
-    return false;
-  }
-  return true;
-}
 // Online/Offline banner
 window.addEventListener('online',function(){
   var b=document.getElementById('offlineBanner');
@@ -466,7 +459,10 @@ function getChain(id){
 }
 function getDownline(id){
   var res=[];
+  var visited={};
   function dfs(aid,d){
+    if(visited[aid])return; // circular hierarchy protection
+    visited[aid]=true;
     var a=D.associates.find(function(x){return x.id===aid;});
     if(!a)return;
     res.push(Object.assign({},a,{_d:d}));
@@ -491,14 +487,6 @@ function daysBetween(d1,d2){
 // dateMode: 'booking' ya 'closing' — filter ke liye kaunsi date use ho
 function getFilterDate(sale){
   return dateMode==='closing'?(sale.closeDate||sale.bookingDate||''):(sale.bookingDate||'');
-}
-function getMonthsFromSales(){
-  var monthSet={};
-  D.sales.forEach(function(s){
-    var d=getFilterDate(s);
-    if(d&&d.length>=7)monthSet[d.substr(0,7)]=1;
-  });
-  return Object.keys(monthSet).sort().reverse();
 }
 function dateModeBadge(){
   return '<div style="display:flex;gap:4px;align-items:center;background:var(--bg3);border:.5px solid var(--bd);border-radius:7px;padding:3px 4px">'
@@ -546,6 +534,7 @@ function calcChain(sGaj,ch,projRate,bk,cl,bonusOverride){
 }
 
 function calcDef(ch,sGaj,bk,cl){
+  if(!ch||!ch.length)return [];
   // Defence commission mein sirf base rate milega
   // Rate increment (rInc) aur closing day bonus/penalty NAHI lagega
   var wComm=new Set();
@@ -606,6 +595,8 @@ var r4Tab='assoc'; // assoc | plot | leg | pay
 var r4PaySearch='';
 var r4PayStatus=''; // '' | pending | paid | partial
 var r4PayAssoc=''; // selected associate for detail view
+var r4PayPendingOnly=false; // detail page: sirf pending plots dikhao
+var r4PayExpandedPlot=''; // detail page: expanded payment history plot
 var r4SecF='';     // leg tab: sector/location filter
 var r4LegAssocF=''; // leg tab: specific associate filter
 var r1F='';  // report1 search filter
@@ -1034,14 +1025,23 @@ function rpt4Pay(){
     paidMap[p.assocId]+=(p.paid||p.amount||0);
   });
 
+  // Orphan payments — jinke sale nahi hain unhe bhi show karo
+  D.payments.forEach(function(p){
+    if(!p.assocId)return;
+    if(!assocPay[p.assocId]){
+      var assocObj=D.associates.find(function(a){return a.id===p.assocId;});
+      assocPay[p.assocId]={id:p.assocId,name:(assocObj&&assocObj.name)||p.assocName||p.assocId,total:0};
+    }
+  });
+
   var rows=Object.values(assocPay).map(function(a){
     var saleIdPaid=D.payments.filter(function(p){return p.assocId===a.id&&p.saleId;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
     var monthPaid=D.payments.filter(function(p){return p.assocId===a.id&&!p.saleId;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
     var paid=saleIdPaid+monthPaid;
     var pending=Math.max(0,a.total-paid);
     var status=paid<=0?'pending':pending<=0?'paid':'partial';
-    return Object.assign({},a,{paid:paid,pending:pending,status:status,chain:a.chain,def:a.def});
-  }).filter(function(a){return a.total>0;});
+    return Object.assign({},a,{paid:paid,pending:pending,status:status});
+  }).filter(function(a){return a.total>0||a.paid>0;});
 
   // Search filter
   var q=r4PaySearch.toLowerCase();
@@ -1115,20 +1115,51 @@ function rpt4Pay(){
 }
 
 // ── ASSOCIATE PAYMENT DETAIL PAGE ──────────────────────
+window.payAllPending=function(assocId){
+  var pendingRows=[];
+  var today=new Date().toISOString().slice(0,10);
+  D.sales.forEach(function(s){
+    var inChain=(s.commissions&&s.commissions.some(function(c){return c.id===assocId;}))||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===assocId;}));
+    if(!inChain&&s.sellerId!==assocId)return;
+    var alreadyPaid=D.payments.some(function(p){return p.assocId===assocId&&p.saleId===s.id;});
+    if(alreadyPaid)return;
+    var cm=(s.commissions||[]).find(function(c){return c.id===assocId;});
+    var df=(s.defCommissions||[]).find(function(c){return c.id===assocId;});
+    var comm=(cm?cm.total:0)+(df?df.amount:0);
+    if(comm>0)pendingRows.push({s:s,comm:comm});
+  });
+  if(!pendingRows.length){toast('Koi pending payment nahi hai!',false);return;}
+  var total=pendingRows.reduce(function(t,r){return t+r.comm;},0);
+  if(!confirm('⚠️ '+pendingRows.length+' pending payments ek saath mark karein?\n\nTotal: ₹'+fmt(total)+'\nDate: '+today+'\nMode: Online\n\nConfirm?'))return;
+  if(!D.payments)D.payments=[];
+  var a=D.associates.find(function(x){return x.id===assocId;});
+  pendingRows.forEach(function(row){
+    D.payments.push({
+      id:'_pay'+Date.now()+Math.random().toString(36).substr(2,5),
+      assocId:assocId,assocName:(a||{}).name||'',
+      saleId:row.s.id,projName:row.s.projName,plotNo:row.s.plotNo,
+      paid:row.comm,amount:row.comm,netPaid:row.comm,
+      mode:'Online',payDate:today,utr:'',note:'Bulk payment',
+      markedBy:SESSION?SESSION.name:'Admin',createdAt:new Date().toISOString()
+    });
+  });
+  saveD();toast('✅ '+pendingRows.length+' payments marked! Total: ₹'+fmt(total));render();
+};
+
 function rpt4PayDetail(assocId){
   var a=D.associates.find(function(x){return x.id===assocId;});
   if(!a)return '<div class="empty">Associate nahi mila</div>';
   if(!D.payments)D.payments=[];
 
-  // Helper: is this saleId paid for this assocId?
-  function isSalePaid(sid){
-    return D.payments.some(function(p){return p.assocId===assocId&&p.saleId===sid;});
-  }
+  function isSalePaid(sid){return D.payments.some(function(p){return p.assocId===assocId&&p.saleId===sid;});}
   function getSalePay(sid){
     return D.payments.filter(function(p){return p.assocId===assocId&&p.saleId===sid;})
       .sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');})[0]||null;
   }
-  // Backward compat: old month-based payments (no saleId)
+  function getAllSalePays(sid){
+    return D.payments.filter(function(p){return p.assocId===assocId&&p.saleId===sid;})
+      .sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');});
+  }
   var oldPays=D.payments.filter(function(p){return p.assocId===assocId&&!p.saleId;});
   var oldPaidAmt=oldPays.reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
 
@@ -1142,12 +1173,10 @@ function rpt4PayDetail(assocId){
     if(s.sellerId===assocId)return false;
     if(r4ProjF&&s.projId!==r4ProjF)return false;
     if(r4MonF){var d=getFilterDate(s);if(!(d&&d.startsWith(r4MonF)))return false;}
-    return ((s.commissions&&s.commissions.some(function(c){return c.id===assocId;}))
-       ||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===assocId;})));
+    return ((s.commissions&&s.commissions.some(function(c){return c.id===assocId;}))||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===assocId;})));
   });
   var allSales=selfSales.concat(teamSales);
 
-  // Commission per sale
   function saleComm(s){
     var cm=(s.commissions||[]).find(function(c){return c.id===assocId;});
     var df=(s.defCommissions||[]).find(function(c){return c.id===assocId;});
@@ -1155,22 +1184,22 @@ function rpt4PayDetail(assocId){
   }
 
   var totalComm=allSales.reduce(function(t,s){return t+saleComm(s);},0);
-  var newPaidAmt=D.payments.filter(function(p){return p.assocId===assocId&&p.saleId;})
-    .reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
+  var newPaidAmt=D.payments.filter(function(p){return p.assocId===assocId&&p.saleId;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
   var totalPaid=newPaidAmt+oldPaidAmt;
   var totalPending=Math.max(0,totalComm-totalPaid);
   var selfComm=selfSales.reduce(function(t,s){return t+saleComm(s);},0);
   var teamComm=teamSales.reduce(function(t,s){return t+saleComm(s);},0);
+  var pendingCount=allSales.filter(function(s){return !isSalePaid(s.id);}).length;
   var waNum=a.phone?a.phone.replace(/[^0-9]/g,''):'';
   if(waNum.length===10)waNum='91'+waNum;
 
-  // Group by project
   var projMap={};
   allSales.forEach(function(s){
     var pk=s.projId||s.projName;
     if(!projMap[pk])projMap[pk]={name:s.projName,sales:[],total:0,paid:0};
     var comm=saleComm(s);
-    var paid=isSalePaid(s.id)?(getSalePay(s.id).paid||getSalePay(s.id).amount||0):0;
+    var sp=getSalePay(s.id);
+    var paid=sp?(sp.paid||sp.amount||0):0;
     projMap[pk].sales.push({s:s,comm:comm,paid:paid,isSelf:s.sellerId===assocId});
     projMap[pk].total+=comm;
     projMap[pk].paid+=paid;
@@ -1179,17 +1208,19 @@ function rpt4PayDetail(assocId){
 
   var html='';
 
-  // Breadcrumb
+  // Breadcrumb + actions
   html+='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
-    +'<button class="btn bgh bsm" onclick="goBackPayList()">← Back</button>'
+    +'<button class="btn bgh bsm" onclick="goBackPayList();r4PayPendingOnly=false;r4PayExpandedPlot=String();">← Back</button>'
     +'<span style="font-size:12px;color:var(--t2)">Payment Details /</span>'
     +'<span style="font-size:14px;font-weight:700;color:var(--bl)">'+esc(a.name)+'</span>'
     +'<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'
-    +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;text-decoration:none;padding:5px 12px">📱 WhatsApp</a>':'')
+    +(pendingCount>0?'<button class="btn bsm" style="background:var(--gr);color:#fff;border:none;white-space:nowrap" data-aid="'+assocId+'" onclick="payAllPending(this.dataset.aid)">⚡ Pay All ('+pendingCount+')</button>':'')
+    +'<button class="btn bsm" style="background:'+(r4PayPendingOnly?'var(--am)':'var(--bg2)')+';color:'+(r4PayPendingOnly?'#fff':'var(--t2)')+';border:1px solid '+(r4PayPendingOnly?'var(--am)':'var(--bd)')+'" onclick="r4PayPendingOnly=!r4PayPendingOnly;render()">'+(r4PayPendingOnly?'🟡 Pending Only':'⬜ All Plots')+'</button>'
+    +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;text-decoration:none;padding:5px 10px">📱 WA</a>':'')
     +'<button class="btn bsm" style="background:var(--blb);color:var(--bl);border:1px solid var(--bl)" data-aid="'+assocId+'" onclick="rTab=\'r1\';r1ProfileId=this.dataset.aid;render()">👤 Profile</button>'
     +'</div></div>';
 
-  // Info bar
+  // Info bar — bank details
   html+='<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;padding:9px 12px;background:var(--bg2);border-radius:10px;border:.5px solid var(--bd);align-items:center">';
   if(a.phone)html+='<span style="font-size:12px">📱 <b>'+esc(a.phone)+'</b></span>';
   if(a.bankName)html+='<span style="font-size:11px;color:var(--t3)">·</span><span style="font-size:12px;color:var(--t2)">🏦 '+esc(a.bankName)+'</span>';
@@ -1198,15 +1229,11 @@ function rpt4PayDetail(assocId){
   html+='</div>';
 
   // Advance balance
-  var pendingAdvances=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
+  var pendingAdvances=(D.advances||[]).filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
   var advanceBalance=pendingAdvances.reduce(function(t,adv){return t+adv.amount;},0);
   if(advanceBalance>0){
     var advDetails=pendingAdvances.map(function(adv){
-      return '<div style="font-size:11px;color:var(--t2);padding:2px 0">'
-        +'<span style="color:var(--bl)">'+esc(adv.reason||'—')+'</span>'
-        +' · ₹'+fmt(adv.amount)
-        +'<span style="color:var(--t3);margin-left:6px">'+(adv.createdAt?adv.createdAt.slice(0,10):'')+'</span>'
-        +'</div>';
+      return '<div style="font-size:11px;color:var(--t2);padding:2px 0"><span style="color:var(--bl)">'+esc(adv.reason||'—')+'</span> · ₹'+fmt(adv.amount)+'<span style="color:var(--t3);margin-left:6px">'+(adv.createdAt?adv.createdAt.slice(0,10):'')+'</span></div>';
     }).join('');
     html+='<div style="background:var(--blb);border:1.5px solid var(--bl);border-radius:10px;padding:10px 14px;margin-bottom:12px">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
@@ -1214,14 +1241,13 @@ function rpt4PayDetail(assocId){
       +'<div style="font-size:11px;color:var(--t2);margin-top:1px">Agli payment se automatically deduct hoga</div></div>'
       +'<div style="display:flex;align-items:center;gap:8px">'
       +'<span style="font-size:20px;font-weight:700;color:var(--bl)">₹'+fmtL(advanceBalance)+'</span>'
-      +'<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re);white-space:nowrap" '
-      +'data-aid="'+assocId+'" data-amt="'+advanceBalance+'" onclick="openRefundModal(this.dataset.aid,parseFloat(this.dataset.amt))">🔄 Refund Entry</button>'
+      +'<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re);white-space:nowrap" data-aid="'+assocId+'" data-amt="'+advanceBalance+'" onclick="openRefundModal(this.dataset.aid,parseFloat(this.dataset.amt))">🔄 Refund</button>'
       +'</div></div>'
       +'<div style="font-size:11px;border-top:1px solid var(--bl)30;padding-top:6px">'+advDetails+'</div>'
       +'</div>';
   }
 
-  // 4 stats
+  // Stats
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">'
     +'<div class="stat"><div class="sl">Total Commission</div><div class="sv" style="font-size:16px">₹'+fmtL(totalComm)+'</div><div style="font-size:10px;color:var(--t3)">'+allSales.length+' plots</div></div>'
     +'<div class="stat"><div class="sl">Self Sales</div><div class="sv" style="font-size:16px;color:var(--bl)">₹'+fmtL(selfComm)+'</div><div style="font-size:10px;color:var(--t3)">'+selfSales.length+' plots</div></div>'
@@ -1229,78 +1255,71 @@ function rpt4PayDetail(assocId){
     +'<div class="stat" style="border-left:3px solid var(--am)"><div class="sl">🟡 Pending</div><div class="sv" style="color:var(--am)">₹'+fmtL(totalPending)+'</div><div style="font-size:10px;color:var(--gr)">Paid: ₹'+fmtL(totalPaid)+'</div></div>'
     +'</div>';
 
-  // Project-wise plot tables
+  // Project-wise tables
   projArr.forEach(function(proj){
     var projPending=Math.max(0,proj.total-proj.paid);
+    var visibleRows=r4PayPendingOnly?proj.sales.filter(function(r){return !isSalePaid(r.s.id);}):proj.sales;
+    if(!visibleRows.length)return;
+
     html+='<div class="card" style="padding:0;margin-bottom:12px;overflow:hidden">'
       +'<div style="padding:10px 14px;border-bottom:.5px solid var(--bd);display:flex;justify-content:space-between;align-items:center;background:var(--bg2)">'
       +'<div class="ct" style="margin:0">🏗️ '+esc(proj.name)+'</div>'
       +'<div style="display:flex;gap:8px;align-items:center">'
-      +'<span style="font-size:12px;color:var(--t2)">Total: <b>₹'+fmt(proj.total)+'</b></span>'
-      +(proj.paid>0?'<span style="font-size:11px;color:var(--gr)">Paid: ₹'+fmt(proj.paid)+'</span>':'')
-      +(projPending>0?'<span style="font-size:11px;color:var(--am)">Pending: ₹'+fmt(projPending)+'</span>':'')
+      +'<span style="font-size:12px;color:var(--t2)">₹'+fmt(proj.total)+'</span>'
+      +(proj.paid>0?'<span style="font-size:11px;color:var(--gr)">✅ ₹'+fmt(proj.paid)+'</span>':'')
+      +(projPending>0?'<span style="font-size:11px;color:var(--am)">⏳ ₹'+fmt(projPending)+'</span>':'')
       +'</div></div>'
       +'<div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
-      +'<th>Plot</th><th>Role</th><th>Seller</th><th>Gaj</th><th>Close Date</th><th>Commission</th><th>Paid</th><th>Status</th><th>Action</th>'
+      +'<th>Plot</th><th>Role</th><th>Seller</th><th>Gaj</th><th>Close Date</th><th>Commission</th><th>Paid On</th><th>UTR</th><th>Status</th><th>Action</th>'
       +'</tr></thead><tbody>';
 
-    proj.sales.forEach(function(row){
+    visibleRows.forEach(function(row){
       var s=row.s;
       var sp=getSalePay(s.id);
+      var allPays=getAllSalePays(s.id);
       var paid=sp?(sp.paid||sp.amount||0):0;
       var isPaid=isSalePaid(s.id);
       var pending=Math.max(0,row.comm-paid);
+      var isExpanded=(r4PayExpandedPlot===s.id);
 
-      html+='<tr>'
-        +'<td><span class="badge bbl2" style="font-size:11px">'+esc(s.plotNo)+'</span></td>'
-        +'<td>'+(row.isSelf
-          ?'<span class="badge bgn" style="font-size:10px">🌟 Self</span>'
-          :'<span class="badge bpu" style="font-size:10px">👥 Team</span>')+'</td>'
+      html+='<tr style="background:'+(isPaid?'':'pending'===''?'':'#FFFBF0')+'">'
+        +'<td><span class="badge bbl2" style="font-size:11px;cursor:pointer" data-pid="'+s.id+'" onclick="r4PayExpandedPlot=(r4PayExpandedPlot===this.dataset.pid?String():(this.dataset.pid));render()">'+esc(s.plotNo)+(allPays.length>0?' 📋':'')+'</span></td>'
+        +'<td>'+(row.isSelf?'<span class="badge bgn" style="font-size:10px">🌟 Self</span>':'<span class="badge bpu" style="font-size:10px">👥 Team</span>')+'</td>'
         +'<td style="font-size:12px">'+(row.isSelf?'<span style="color:var(--gr)">Self</span>':esc(s.sellerName))+'</td>'
         +'<td style="font-weight:600">'+fmtG(s.plotGaj)+'</td>'
         +'<td style="font-size:12px">'+(s.closeDate||s.bookingDate||'—')+'</td>'
-        +'<td style="font-weight:700">₹'+fmt(row.comm)+'</td>'
-        +'<td style="color:var(--gr);font-weight:600">'+(paid>0?'₹'+fmt(paid):'—')+'</td>'
+        +'<td style="font-weight:700;color:var(--bl)">₹'+fmt(row.comm)+'</td>'
+        +'<td style="font-size:11px;color:var(--gr)">'+(sp?sp.payDate+'<br><span style="color:var(--t3);font-size:10px">'+esc(sp.mode||'')+'</span>':'—')+'</td>'
+        +'<td style="font-size:11px;font-family:monospace;color:var(--t2)">'+(sp&&sp.utr?esc(sp.utr):'—')+'</td>'
+        +'<td>'+(isPaid?'<span class="badge bgn">✅ Paid</span>':pending<row.comm&&paid>0?'<span class="badge bbl2">🔵 Partial</span>':'<span class="badge bam">🟡 Pending</span>')+'</td>'
         +'<td>'+(isPaid
-          ?'<span class="badge bgn">✅ Paid</span>'
-          :pending<row.comm&&paid>0
-          ?'<span class="badge bbl2">🔵 Partial</span>'
-          :'<span class="badge bam">🟡 Pending</span>')+'</td>'
-        +'<td>'
-        +(isPaid
           ?'<button class="btn bsm" style="font-size:11px;background:var(--blb);color:var(--bl);border:1px solid var(--bl)" data-aid="'+assocId+'" data-sid="'+s.id+'" data-comm="'+row.comm+'" data-proj="'+esc(s.projName)+'" data-plot="'+esc(s.plotNo)+'" onclick="payEditPinCheck(this.dataset)">✏️ Edit</button>'
           :'<button class="btn bsm" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr);white-space:nowrap" data-aid="'+assocId+'" data-sid="'+s.id+'" data-comm="'+row.comm+'" data-proj="'+esc(s.projName)+'" data-plot="'+esc(s.plotNo)+'" onclick="openPlotPayModal(this.dataset)">💳 Mark Paid</button>')
         +'</td></tr>';
-    });
 
+      // Expandable inline payment history
+      if(isExpanded&&allPays.length>0){
+        html+='<tr><td colspan="10" style="padding:0;background:var(--blb)">'
+          +'<div style="padding:8px 14px">'
+          +'<div style="font-size:11px;font-weight:700;color:var(--bl);margin-bottom:5px">📋 Payment History — Plot '+esc(s.plotNo)+'</div>';
+        allPays.forEach(function(p){
+          html+='<div style="display:flex;gap:10px;align-items:center;padding:3px 0;border-bottom:.5px solid var(--bl)20;font-size:11px">'
+            +'<span style="color:var(--gr);font-weight:700;min-width:70px">₹'+fmt(p.paid||p.amount||0)+'</span>'
+            +'<span style="color:var(--t2)">'+( p.payDate||'—')+'</span>'
+            +'<span class="badge bbl2" style="font-size:10px">'+(p.mode||'—')+'</span>'
+            +(p.utr?'<span style="font-family:monospace;color:var(--t3)">'+esc(p.utr)+'</span>':'')
+            +(p.note?'<span style="color:var(--t2);font-style:italic">'+esc(p.note)+'</span>':'')
+            +'<span style="color:var(--t3);margin-left:auto">by '+(p.markedBy||'Admin')+'</span>'
+            +'</div>';
+        });
+        html+='</div></td></tr>';
+      }
+    });
     html+='</tbody></table></div></div>';
   });
 
-  // Payment History
-  var allMyPays=D.payments.filter(function(p){return p.assocId===assocId;}).sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');});
-  if(allMyPays.length>0){
-    html+='<div class="card" style="padding:0;overflow:hidden">'
-      +'<div style="padding:10px 14px;border-bottom:.5px solid var(--bd)"><div class="ct" style="margin:0">📜 Payment History</div></div>'
-      +'<div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
-      +'<th>Date</th><th>Project</th><th>Plot</th><th>Amount</th><th>Mode</th><th>UTR</th><th>Note</th><th>By</th>'
-      +'</tr></thead><tbody>';
-    allMyPays.forEach(function(p){
-      html+='<tr>'
-        +'<td style="font-size:12px">'+(p.payDate||'—')+'</td>'
-        +'<td style="font-size:12px">'+(p.projName||p.month||'—')+'</td>'
-        +'<td><span class="badge bbl2" style="font-size:10px">'+(p.plotNo||p.month||'—')+'</span></td>'
-        +'<td style="font-weight:700;color:var(--gr)">₹'+fmt(p.paid||p.amount||0)+'</td>'
-        +'<td><span class="badge bbl2">'+(p.mode||'—')+'</span></td>'
-        +'<td style="font-size:12px;font-family:monospace">'+(p.utr||'—')+'</td>'
-        +'<td style="font-size:12px;color:var(--t2)">'+(p.note||'—')+'</td>'
-        +'<td style="font-size:11px;color:var(--t3)">'+(p.markedBy||'Admin')+'</td>'
-        +'</tr>';
-    });
-    html+='</tbody></table></div></div>';
-  }
   return html;
 }
-
 // ── PLOT-WISE PAYMENT MODAL ─────────────────────────────
 
 
@@ -1445,6 +1464,12 @@ window.savePlotPayment=function(btn){
   var a=D.associates.find(function(x){return x.id===assocId;});
   if(!D.advances)D.advances=[];
 
+  // Duplicate payment guard — same saleId+assocId ke liye
+  var alreadyPaid=D.payments.find(function(p){return p.saleId===saleId&&p.assocId===assocId;});
+  if(alreadyPaid){
+    if(!confirm('⚠️ Is sale ka payment pehle se exist karta hai (₹'+fmt(alreadyPaid.paid||alreadyPaid.amount||0)+' on '+alreadyPaid.payDate+'). Phir bhi save karein?'))return;
+  }
+
   // Advance balance check — auto deduct karo
   var pendingAdvances=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
   var totalAdvance=pendingAdvances.reduce(function(t,adv){return t+adv.amount;},0);
@@ -1470,7 +1495,7 @@ window.savePlotPayment=function(btn){
   }
 
   D.payments.push({
-    id:'_pay'+Date.now(),
+    id:'_pay'+Date.now()+Math.random().toString(36).substr(2,5),
     assocId:assocId,
     assocName:(a||{}).name||'',
     saleId:saleId,
@@ -1601,7 +1626,7 @@ window.savePayment=function(btn){
   }
 
   D.payments.push({
-    id:'_pay'+Date.now(),
+    id:'_pay'+Date.now()+Math.random().toString(36).substr(2,5),
     assocId:assocId,
     assocName:(D.associates.find(function(x){return x.id===assocId;})||{}).name||'',
     month:month,
@@ -1839,7 +1864,7 @@ window.runIntegrityScanner=function(){
   // ── CHECK 9: Duplicate sale (same project + same plot) ──
   var saleKey={};
   D.sales.forEach(function(s){
-    var key=(s.projId||s.projName)+'__'+String(s.plotNo).trim().toLowerCase();
+    var key=s.plotId||(s.projId+'__'+String(s.plotNo).trim().toLowerCase());
     if(!saleKey[key]){
       saleKey[key]=[];
     }
@@ -1865,7 +1890,7 @@ window.runIntegrityScanner=function(){
     var proj=D.projects.find(function(p){return p.id===s.projId;});
     if(!proj||!proj.plots)return;
     var plot=proj.plots.find(function(pl){
-      return String(pl.plotNo).trim().toLowerCase()===String(s.plotNo).trim().toLowerCase();
+      return pl.id===s.plotId||(String(pl.plotNo).trim().toLowerCase()===String(s.plotNo).trim().toLowerCase());
     });
     if(plot&&plot.status!=='sold'){
       issues.push({
@@ -1876,6 +1901,28 @@ window.runIntegrityScanner=function(){
       });
     }
   });
+
+  // ── CHECK 11: Orphan payments — linked sale ya associate exist nahi karta ──
+  if(D.payments&&D.payments.length){
+    D.payments.forEach(function(p){
+      // Associate missing
+      if(p.assocId&&!D.associates.find(function(a){return a.id===p.assocId;})){
+        warnings.push({
+          type:'orphan_payment_assoc',cat:'payment',severity:'medium',
+          id:p.id,name:(p.assocName||p.assocId)+' — ₹'+fmt(p.paid||p.amount||0),
+          msg:'Payment ka associate exist nahi karta (deleted?) — ₹'+fmt(p.paid||p.amount||0)+' on '+(p.payDate||'?')
+        });
+      }
+      // Sale missing (for plot-based payments)
+      if(p.saleId&&!D.sales.find(function(s){return s.id===p.saleId;})){
+        warnings.push({
+          type:'orphan_payment_sale',cat:'payment',severity:'medium',
+          id:p.id,name:(p.assocName||'?')+' — '+( p.projName||'?')+' Plot '+(p.plotNo||'?'),
+          msg:'Payment ka sale record exist nahi karta (deleted?) — ₹'+fmt(p.paid||p.amount||0)+' on '+(p.payDate||'?')
+        });
+      }
+    });
+  }
 
   // ── RENDER RESULT ──
   var el=document.getElementById('scannerResult');
@@ -2022,6 +2069,9 @@ function restoreData(file){
       if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(!D.transfers)D.transfers=[];
       if(!D.payments)D.payments=[];
+      if(!D.advances)D.advances=[];
+      if(!D.config)D.config={};
+      if(!D.offers)D.offers=[];
       saveD();
       toast('✅ Data restored! Projects:'+D.projects.length+' Associates:'+D.associates.length+' Sales:'+D.sales.length);
       TAB='dashboard';render();
@@ -2875,6 +2925,7 @@ window.editAssoc=function(id){
     +'<b style="font-size:13px;display:block;margin-bottom:8px">📦 Update Gaj</b>'
     +'<div class="info iam" style="margin-bottom:10px">'
     +'<div style="font-size:12px;font-weight:700;margin-bottom:6px">Add Gaj (add to existing)</div>'
+    +'<div class="fld" style="margin-bottom:6px"><label style="font-size:11px">Reason / Note *</label><input id="eAGReason" placeholder="e.g. Tour bonus, Manual correction..." style="font-size:12px"/></div>'
     +'<div style="display:flex;gap:8px"><input id="eAG" type="number" min="0" placeholder="e.g. 200" oninput="prvG(\''+id+'\')"/>'
     +'<button class="btn bgh bsm" onclick="doAG(\''+id+'\')">+ Add</button></div>'
     +'<div style="font-size:11px;margin-top:4px;color:var(--t2)">Current <b>'+fmtG(a.totalGaj)+'</b> gaj + input = Total &nbsp;|&nbsp; Sales Gaj (for Tour & Tab benefits): <b>'+(a.salesGaj||0)+'</b></div>'
@@ -2945,10 +2996,14 @@ window.doAG=function(id){
     return;
   }
   var i=D.associates.findIndex(function(x){return x.id===id;});if(i<0)return;
+  var reason=((document.getElementById('eAGReason')||{}).value||'').trim();
+  if(!reason){toast('⛔ Reason/Note is required!',false);document.getElementById('eAGReason').focus();return;}
   var o=rOf(D.associates[i].totalGaj);
+  var prevGaj=D.associates[i].totalGaj;
   // totalGaj badhao (slab for) — salesGaj nahi badhega (Tour/Tab for)
   D.associates[i].totalGaj=Math.round((D.associates[i].totalGaj+v)*100)/100;
   var n=rOf(D.associates[i].totalGaj);
+  logAct('Manual Gaj: '+a.name+' | '+(v>0?'+':'')+v+' gaj | '+prevGaj+' → '+D.associates[i].totalGaj+' | Reason: '+reason);
   saveD();toast(v+' gaj added! Total: '+D.associates[i].totalGaj+(n>o?' 🎉 Slab Upgrade!':''));closeM();render();
 };
 window.saveAInfo=function(id){
@@ -2956,14 +3011,44 @@ window.saveAInfo=function(id){
   var i=D.associates.findIndex(function(x){return x.id===id;});if(i<0)return;
   var n=document.getElementById('eNm')?document.getElementById('eNm').value.trim():'';
   if(!n){toast('Name is required!',false);return;}
-  function gv2(eid){var el=document.getElementById(eid);return el?el.value.trim():'';}
-  var ePhone=gv2('ePh').replace(/\D/g,'');
-  if(ePhone){
-    var dupP=D.associates.find(function(x){return x.id!==id&&x.phone&&x.phone.replace(/\D/g,'')===ePhone;});
-    if(dupP){if(!confirm('⚠️ This phone number already exists: "'+dupP.name+'" ke paas registered hai!\n\nFir bhi save karna hai?'))return;}
-  }
   function gv(eid){var el=document.getElementById(eid);return el?el.value.trim():'';}
-  D.associates[i].name=n;
+  // ── Saari validations PEHLE — field assign BAAD mein (bug fix) ──
+  var newParentId=document.getElementById('ePr')?document.getElementById('ePr').value||null:null;
+  if(newParentId===id){toast('⛔ An associate cannot be their own upliner!',false);return;}
+  var oldParentId=D.associates[i].parentId||null;
+  var hasSalesBlock=D.sales.some(function(s){
+    return s.sellerId===id||(s.commissions&&s.commissions.some(function(c){return c.id===id;}))||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===id;}));
+  });
+  if(hasSalesBlock&&(newParentId!==oldParentId)){
+    toast('⛔ Upliner cannot be changed — please delete the related sales first, then update the upliner., phir sales dobara enter karo!',false);
+    return;
+  }
+  // Duplicate phone check (with confirm — allow karna user ka choice)
+  var ePhone=(gv('ePh')||'').replace(/\D/g,'');
+  if(ePhone){
+    var dupPhone=D.associates.find(function(x){return x.id!==id&&x.phone&&x.phone.replace(/\D/g,'')===ePhone;});
+    if(dupPhone){if(!confirm('⚠️ This phone number already exists: "'+dupPhone.name+'" ke paas registered hai!\n\nFir bhi save karna hai?'))return;}
+  }
+  // Duplicate PAN check (exclude self)
+  var pan2=(gv('ePan')||'').trim().toUpperCase();
+  if(pan2.length>0){
+    var dupPan2=D.associates.find(function(x){return x.id!==id&&x.pan&&x.pan.trim().toUpperCase()===pan2;});
+    if(dupPan2){toast('⚠️ This PAN already exists: '+dupPan2.name,false);return;}
+  }
+  // Duplicate code check (exclude self)
+  var code2=(gv('eCd')||'').trim();
+  if(code2.length>0){
+    var dupCode2=D.associates.find(function(x){return x.id!==id&&x.code&&x.code.trim()===code2;});
+    if(dupCode2){toast('⚠️ This Code already exists: '+dupCode2.name,false);return;}
+  }
+  // ── Validations pass — ab fields assign karo ──
+  // oldName PEHLE capture karo — update ke baad compare nahi hoga
+  var oldName=D.associates[i].name;
+  // (Left) tag preserve karo — editing se remove nahi hona chahiye
+  var wasLeft=oldName&&oldName.includes('(Left)');
+  var cleanN=n.replace(/\(Left\)/gi,'').trim();
+  var finalName=wasLeft?(cleanN+' (Left)'):cleanN;
+  D.associates[i].name=finalName;
   D.associates[i].fatherName=gv('eFh');
   D.associates[i].phone=gv('ePh');
   D.associates[i].joiningDate=gv('eJd');
@@ -2978,24 +3063,18 @@ window.saveAInfo=function(id){
   D.associates[i].bankName=gv('eBnk');
   D.associates[i].accNo=gv('eAc');
   D.associates[i].ifsc=gv('eIfs');
-  var newParentId=document.getElementById('ePr')?document.getElementById('ePr').value||null:null;
-  if(newParentId===id){toast('⛔ An associate cannot be their own upliner!',false);return;}
-  // ── UPLINER CHANGE BLOCK: Sales hain toh upliner change allowed nahi ──
-  var oldParentId=D.associates[i].parentId||null;
-  var hasSalesBlock=D.sales.some(function(s){
-    return s.sellerId===id||(s.commissions&&s.commissions.some(function(c){return c.id===id;}))||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===id;}));
-  });
-  if(hasSalesBlock&&(newParentId!==oldParentId)){
-    toast('⛔ Upliner cannot be changed — please delete the related sales first, then update the upliner., phir sales dobara enter karo!',false);
-    return;
-  }
-  // Duplicate phone check (exclude self)
-  var ph2=(gv('ePh')||'').replace(/[^0-9]/g,'');
-  if(ph2.length>=10){
-    var dupP=D.associates.find(function(x){return x.id!==id&&x.phone&&x.phone.replace(/[^0-9]/g,'')===ph2;});
-    if(dupP){toast('⚠️ This phone number already exists: '+dupP.name,false);return;}
-  }
   D.associates[i].parentId=newParentId;
+  // ── Name change propagation — sales, payments, advances mein bhi update karo ──
+  if(oldName!==finalName){
+    var n=finalName;
+    D.sales.forEach(function(s,si){
+      if(s.sellerId===id)D.sales[si].sellerName=n;
+      if(s.commissions)s.commissions.forEach(function(c,ci){if(c.id===id)D.sales[si].commissions[ci].name=n;});
+      if(s.defCommissions)s.defCommissions.forEach(function(c,ci){if(c.id===id)D.sales[si].defCommissions[ci].name=n;});
+    });
+    if(D.payments)D.payments.forEach(function(p,pi){if(p.assocId===id)D.payments[pi].assocName=n;});
+    if(D.advances)D.advances.forEach(function(a,ai){if(a.assocId===id)D.advances[ai].assocName=n;});
+  }
   saveD();logAct('Associate Update: '+n);toast('Info saved successfully! ✓');closeM();render();
 };
 // ── ASSOCIATE LEFT / TRANSFER ─────────────────────────
@@ -3335,9 +3414,14 @@ window.changeBonus=function(projId){
     var note=((document.getElementById('nBonusNote')||{}).value||'').trim();
     var pi=D.projects.findIndex(function(p){return p.id===projId;});if(pi<0)return;
     var oldBonus=D.projects[pi].bonusPct||0;
+    if(oldBonus===newBonus){toast('Bonus already '+( newBonus>0?'+'+newBonus+'%':'No Bonus')+' hai — koi change nahi.',false);return;}
     D.projects[pi].bonusPct=newBonus;
     if(!D.projects[pi].bonusHistory)D.projects[pi].bonusHistory=[];
-    D.projects[pi].bonusHistory.push({pct:newBonus,date:date,note:note||(oldBonus>0?'+'+oldBonus+'% → ':''+(newBonus>0?'+'+newBonus+'%':'No Bonus'))});
+    // Same date pe duplicate entry nahi — overwrite karo
+    var existIdx=D.projects[pi].bonusHistory.findIndex(function(h){return h.date===date;});
+    var entry={pct:newBonus,date:date,note:note||(oldBonus>0?'+'+oldBonus+'% → ':''+(newBonus>0?'+'+newBonus+'%':'No Bonus'))};
+    if(existIdx>=0)D.projects[pi].bonusHistory[existIdx]=entry;
+    else D.projects[pi].bonusHistory.push(entry);
     saveD();
     toast('Bonus update! '+(oldBonus>0?'+'+oldBonus+'%':'0%')+' → '+(newBonus>0?'+'+newBonus+'%':'No Bonus')+'. Past sales unchanged.');
     closeM();render();
@@ -3373,6 +3457,12 @@ window.savePlE=function(projId,plotId,locked){
   var pl=D.projects[pi].plots[pli];
   // Only update unlocked fields if sale exists
   if(!locked){
+    var newNo=document.getElementById('epNo')?document.getElementById('epNo').value.trim():'';
+    if(newNo&&newNo.toUpperCase()!==String(pl.plotNo).toUpperCase()){
+      // Duplicate plotNo check (exclude self)
+      var dupPl=D.projects[pi].plots.find(function(x){return x.id!==plotId&&String(x.plotNo).toUpperCase()===newNo.toUpperCase();});
+      if(dupPl){toast('⚠️ Plot '+newNo+' already exists in this project!',false);return;}
+    }
     var v=document.getElementById('epNo');if(v&&v.value.trim())pl.plotNo=v.value.trim();
     v=document.getElementById('epSz');if(v)pl.sizeGaj=parseFloat(v.value)||pl.sizeGaj;
     v=document.getElementById('epSal');if(v)pl.saleableGaj=parseFloat(v.value)||pl.sizeGaj;
@@ -3380,6 +3470,12 @@ window.savePlE=function(projId,plotId,locked){
   var v=document.getElementById('epFc');if(v)pl.facing=v.value.trim();
   v=document.getElementById('epLc');if(v)pl.location=v.value.trim();
   if(!locked){v=document.getElementById('epSt');if(v)pl.status=v.value;}
+  // ── PlotNo change propagation — sales mein bhi update karo ──
+  var updatedNo=D.projects[pi].plots[pli].plotNo;
+  if(!locked&&updatedNo){
+    D.sales.forEach(function(s,si){if(s.plotId===plotId)D.sales[si].plotNo=updatedNo;});
+    if(D.payments)D.payments.forEach(function(p,pi2){if(p.saleId&&D.sales.find(function(s){return s.id===p.saleId&&s.plotId===plotId;}))D.payments[pi2].plotNo=updatedNo;});
+  }
   saveD();toast('Plot updated successfully!');closeM();render();
 };
 
@@ -3503,7 +3599,7 @@ function sS2(){
 }
 
 function sS3(){
-  if(!sCh.length)return '';
+  if(!sCh.length){sStep=2;render();return '';}
   var proj=D.projects.find(function(p){return p.id===sD.projId;});
   var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
   var cT=sCh.reduce(function(s,c){return s+c.total;},0);
@@ -3749,7 +3845,9 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     var si=D.sales.findIndex(function(x){return x.id===saleId;});if(si<0)return;
     var newBk=document.getElementById('esBk').value;
     var newCl=document.getElementById('esCl').value;
-    if(newCl&&newBk&&new Date(newCl)<new Date(newBk)){toast('Closing date cannot be before booking date!',false);return;}
+    if(!newBk){toast('⛔ Booking Date is required!',false);return;}
+    if(!newCl){toast('⛔ Close Date is required!',false);return;}
+    if(new Date(newCl)<new Date(newBk)){toast('Closing date cannot be before booking date!',false);return;}
     var s=D.sales[si];
     var dateChanged=(newBk!==s.bookingDate)||(newCl!==s.closeDate);
 
@@ -3912,7 +4010,6 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
       D.associates[ai].salesGaj=Math.max(0,Math.round(((D.associates[ai].salesGaj||0)-sGaj)*100)/100);
     }
   });
-  var _sd=D.sales.find(function(x){return x.id===saleId;});
   // ── Payment reverse — is sale se linked payments handle karo ──
   if(!D.payments)D.payments=[];
   if(!D.advances)D.advances=[];
@@ -3920,7 +4017,6 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
   // New plot-wise payments (saleId based) — directly advance mein daalo
   var linkedPlotPays=D.payments.filter(function(p){return p.saleId===saleId;});
   if(linkedPlotPays.length>0){
-    if(!D.advances)D.advances=[];
     var totalAdvAmt=0;
     linkedPlotPays.forEach(function(p){
       var amt=p.paid||p.amount||0;
@@ -3954,15 +4050,17 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
     D.payments[pi].saleIds=pay.saleIds.filter(function(id){return id!==saleId;});
     D.payments[pi].amount=Math.max(0,(pay.amount||0)-saleAmt);
     D.payments[pi].pending=Math.max(0,(pay.pending||0)-saleAmt);
-    if(D.payments[pi].amount<=0){D.payments.splice(pi,1);}
+
   });
+  // forEach ke baad zero-amount payments remove karo (forEach mein splice se index shift hota tha)
+  D.payments=D.payments.filter(function(p){if(!p.saleIds)return true;return (p.amount||0)>0;});
 
   // Soft delete
   if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
   if(!D.deleted.sales)D.deleted.sales=[];
-  if(_sd)D.deleted.sales.push(Object.assign({},_sd,{deletedAt:new Date().toISOString(),deletedBy:SESSION?SESSION.name:'Admin'}));
+  if(s)D.deleted.sales.push(Object.assign({},s,{deletedAt:new Date().toISOString(),deletedBy:SESSION?SESSION.name:'Admin'}));
   D.sales=D.sales.filter(function(x){return x.id!==saleId;});
-  saveD();logAct('Sale Soft Delete: '+(_sd?_sd.projName+' | Plot '+_sd.plotNo:''));toast('Sale deleted! You can restore it from Settings. ✓');closeM();render();
+  saveD();logAct('Sale Soft Delete: '+(s?s.projName+' | Plot '+s.plotNo:''));toast('Sale deleted! You can restore it from Settings. ✓');closeM();render();
 };
 
 // ═══════════════════════════════════════════════════════
@@ -3996,7 +4094,6 @@ function pgRpt(){
   return html;
 }
 
-function setR1Mode(m){r1Mode=m===0?'total':'legwise';r1LegId='';r1FocusId='';r1P=1;render();}
 function setR1Leg(v){r1LegId=v;r1FocusId='';r1P=1;render();}
 function setR1Focus(v){r1FocusId=v;r1P=1;render();}
 
@@ -4342,10 +4439,10 @@ function rpt2(){
     +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
     +dateModeBadge()
     +'<div class="fld" style="flex:1;min-width:180px;margin:0"><label>Month Filter</label>'
-    +'<select onchange="r2M=this.value;render()">'+mOpts+'</select></div>'
+    +'<select onchange="r2M=this.value;r2P=1;render()">'+mOpts+'</select></div>'
     +'<div class="fld" style="flex:1;min-width:200px;margin:0"><label>Associate Filter</label>'
-    +'<select onchange="r2F=this.value;render()">'+aOpts+'</select></div>'
-    +((r2F||r2M)?'<button class="btn bgh bsm" onclick="r2F=\'\';r2M=\'\';render()">✕ Clear</button>':'')
+    +'<select onchange="r2F=this.value;r2P=1;render()">'+aOpts+'</select></div>'
+    +((r2F||r2M)?'<button class="btn bgh bsm" onclick="r2F=\'\';r2M=\'\';r2P=1;render()">✕ Clear</button>':'')
     +'<button class="btn bbl bsm" onclick="expR2()" style="align-self:flex-end">📥 Excel Export</button>'
     +'</div>'
     // Summary stats
@@ -4516,7 +4613,7 @@ function rpt3(){
     +'<option value="sold"'+(r3SF==='sold'?' selected':'')+'>Sold</option>'
     +'<option value="booked"'+(r3SF==='booked'?' selected':'')+'>Booked</option>'
     +'</select></div>'
-    +((r3F||r3SF)?'<button class="btn bgh bsm" style="align-self:flex-end" onclick="r3F=String();r3SF=String();render()">✕ Clear All</button>':'')
+    +((r3F||r3SF)?'<button class="btn bgh bsm" style="align-self:flex-end" onclick="r3F=String();r3SF=String();r3P=1;render()">✕ Clear All</button>':'')
     +'<button class="btn bbl bsm" onclick="expR3()" style="align-self:flex-end">📥 Excel Export</button>'
     +'</div>'
     +'<div class="g4" style="margin-top:10px">'
@@ -4602,10 +4699,10 @@ function rpt4(){
   html+='<div class="card" style="margin-bottom:10px;padding:10px 14px">'
     +'<div style="display:flex;gap:8px;align-items:flex-end;flex-wrap:wrap">'
     +dateModeBadge()
-    +'<div class="fld" style="flex:1;min-width:130px;margin:0"><label>Month</label><select onchange="r4MonF=this.value;render()">'+mOpts+'</select></div>'
-    +'<div class="fld" style="flex:1;min-width:160px;margin:0"><label>Project</label><select onchange="r4ProjF=this.value;render()">'+pOpts+'</select></div>'
-    +(r4Tab==='assoc'?'<div class="fld" style="flex:1;min-width:160px;margin:0"><label>Associate</label><select onchange="r4AssocF=this.value;render()">'+aOpts+'</select></div>':'')
-    +((r4ProjF||r4MonF||r4AssocF||r4SecF||r4LegAssocF)?'<button class="btn bgh bsm" onclick="r4ProjF=\'\';r4MonF=\'\';r4AssocF=\'\';r4SecF=\'\';r4LegAssocF=\'\';render()">✕ Clear All</button>':'')
+    +'<div class="fld" style="flex:1;min-width:130px;margin:0"><label>Month</label><select onchange="r4MonF=this.value;r4AP=1;r4PP=1;render()">'+mOpts+'</select></div>'
+    +'<div class="fld" style="flex:1;min-width:160px;margin:0"><label>Project</label><select onchange="r4ProjF=this.value;r4AP=1;r4PP=1;render()">'+pOpts+'</select></div>'
+    +(r4Tab==='assoc'?'<div class="fld" style="flex:1;min-width:160px;margin:0"><label>Associate</label><select onchange="r4AssocF=this.value;r4AP=1;r4PP=1;render()">'+aOpts+'</select></div>':'')
+    +((r4ProjF||r4MonF||r4AssocF||r4SecF||r4LegAssocF)?'<button class="btn bgh bsm" onclick="r4ProjF=\'\';r4MonF=\'\';r4AssocF=\'\';r4SecF=\'\';r4LegAssocF=\'\';r4AP=1;r4PP=1;render()">✕ Clear All</button>':'')
     +'</div></div>';
 
   if(r4Tab==='assoc')html+=rpt4Assoc(mOpts,pOpts,aOpts);
@@ -5629,9 +5726,9 @@ function rpt6(){
   var aOpts=D.associates.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).map(function(a){return '<option value="'+a.id+'"'+(stAssoc===a.id?' selected':'')+'>'+a.name+' | '+dOf(a.totalGaj)+'</option>';}).join('');
   var html='<div class="card" style="margin-bottom:12px">'
     +'<div class="g2"><div class="fld"><label>Select Associate</label>'
-    +'<select onchange="stAssoc=this.value;render()"><option value="">— Select —</option>'+aOpts+'</select></div>'
-    +'<div class="fld"><label>From Date</label><input type="date" id="stFr" value="'+(stFrom||'')+'" onchange="stFrom=this.value;render()"/></div>'
-    +'<div class="fld"><label>To Date</label><input type="date" id="stTo" value="'+(stTo||'')+'" onchange="stTo=this.value;render()"/></div>'
+    +'<select onchange="stAssoc=this.value;r6P=1;render()"><option value="">— Select —</option>'+aOpts+'</select></div>'
+    +'<div class="fld"><label>From Date</label><input type="date" id="stFr" value="'+(stFrom||'')+'" onchange="stFrom=this.value;r6P=1;render()"/></div>'
+    +'<div class="fld"><label>To Date</label><input type="date" id="stTo" value="'+(stTo||'')+'" onchange="stTo=this.value;r6P=1;render()"/></div>'
     +'</div></div>';
   
   if(!stAssoc){
@@ -6593,6 +6690,8 @@ function bindAll(){
     var n=((document.getElementById('epNm')||{}).value||'').trim();
     if(!n){toast('Project name is required!',false);return;}
     var p=D.projects[pi];
+    // oldPName PEHLE capture karo — update ke baad compare nahi hoga
+    var oldPName=p.name;
     p.name=n;
     p.companyName=gv('epCo');
     p.rera=gv('epRera');
@@ -6603,6 +6702,13 @@ function bindAll(){
     p.accNo=gv('epAc');
     p.ifsc=gv('epIfs');
     // Bonus edit form se nahi badlega — sirf 'Bonus Change' button se change hoga
+    // ── Project name change propagation — sales mein bhi update karo ──
+    if(oldPName!==n){
+      D.sales.forEach(function(s,si){if(s.projId===pId)D.sales[si].projName=n;});
+      // payments mein projName saleId se match karke update karo (projId field nahi hota)
+      var affectedSaleIds=new Set(D.sales.filter(function(s){return s.projId===pId;}).map(function(s){return s.id;}));
+      if(D.payments)D.payments.forEach(function(pay,pi2){if(pay.saleId&&affectedSaleIds.has(pay.saleId))D.payments[pi2].projName=n;});
+    }
     saveD();toast('Project updated successfully! ✓');pView='plots';render();
   });
 
@@ -6611,6 +6717,8 @@ function bindAll(){
     if(!can('projects_edit')){toast('Access denied!',false);return;}
     var n=(document.getElementById('pNm')||{}).value||'';n=n.trim();
     if(!n){toast('Project Name is required!',false);document.getElementById('pNm').focus();return;}
+    var dupProj=D.projects.find(function(p){return p.name.trim().toLowerCase()===n.toLowerCase();});
+    if(dupProj){toast('⚠️ "'+n+'" naam ka project pehle se exist karta hai!',false);return;}
     if(!gv('pCo')){toast('Company Name is required!',false);document.getElementById('pCo').focus();return;}
     if(!gv('pRera')){toast('RERA No. is required!',false);document.getElementById('pRera').focus();return;}
     if(!gv('pLd')){toast('Launch Date is required!',false);document.getElementById('pLd').focus();return;}
@@ -6819,6 +6927,17 @@ function bindAll(){
     if(!gv('aBnk')){toast('Bank Name is required!',false);document.getElementById('aBnk').focus();return;}
     if(!gv('aAc')){toast('Account No. is required!',false);document.getElementById('aAc').focus();return;}
     if(!gv('aIfs')){toast('IFSC Code is required!',false);document.getElementById('aIfs').focus();return;}
+    // Duplicate checks PEHLE karo — unshift ke baad nahi (bug fix)
+    var pan=(gv('aPan')||'').trim().toUpperCase();
+    if(pan.length>0){
+      var dupPan=D.associates.find(function(x){return x.pan&&x.pan.trim().toUpperCase()===pan;});
+      if(dupPan){toast('⚠️ This PAN already exists: '+dupPan.name,false);return;}
+    }
+    var code=(gv('aCd')||'').trim();
+    if(code.length>0){
+      var dupCode=D.associates.find(function(x){return x.code&&x.code.trim()===code;});
+      if(dupCode){toast('⚠️ This Code already exists: '+dupCode.name,false);return;}
+    }
     D.associates.unshift({id:uid(),
       name:n,
       fatherName:gv('aFh'),
@@ -6837,24 +6956,6 @@ function bindAll(){
       ifsc:gv('aIfs'),
       parentId:((document.getElementById('aPr')||{}).value||null),
       totalGaj:0,createdAt:new Date().toISOString()});
-    // Duplicate phone check
-    var ph=(gv('aPh')||'').replace(/[^0-9]/g,'');
-    if(ph.length>=10){
-      var dupPhone=D.associates.find(function(x){return x.phone&&x.phone.replace(/[^0-9]/g,'')===ph;});
-      if(dupPhone){toast('⚠️ This phone number already exists: '+dupPhone.name,false);return;}
-    }
-    // Duplicate PAN check
-    var pan=(gv('aPan')||'').trim().toUpperCase();
-    if(pan.length>0){
-      var dupPan=D.associates.find(function(x){return x.pan&&x.pan.trim().toUpperCase()===pan;});
-      if(dupPan){toast('⚠️ This PAN already exists: '+dupPan.name,false);return;}
-    }
-    // Duplicate code check
-    var code=(gv('aCd')||'').trim();
-    if(code.length>0){
-      var dupCode=D.associates.find(function(x){return x.code&&x.code.trim()===code;});
-      if(dupCode){toast('⚠️ This Code already exists: '+dupCode.name,false);return;}
-    }
     saveD();logAct('New Associate Add: '+n);toast(n+' added successfully! ✓');aView='list';render();
   });
   
@@ -6883,9 +6984,16 @@ function bindAll(){
     var proj=D.projects.find(function(p){return p.id===sD.projId;});
     var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
     if(!proj||!plot)return;
+    // ── sCh fresh recalculate — stale commission se bachao ──
+    var _ch=getChain(sD.assocId);
+    var _sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
+    sD.bonusPct=getProjBonus(proj,sD.bookingDate);
+    sCh=calcChain(_sGaj,_ch,0,sD.bookingDate,sD.closeDate,sD.bonusPct);
+    sDf=calcDef(_ch,_sGaj,sD.bookingDate,sD.closeDate);
+    if(!sCh.length){toast('⛔ Commission calculate nahi ho saka — associate/dates check karo!',false);return;}
     // ── Duplicate sale check ──
     var dupSale=D.sales.find(function(s){
-      return s.projId===sD.projId&&String(s.plotNo).trim().toLowerCase()===String(plot.plotNo).trim().toLowerCase();
+      return s.plotId===sD.plotId;
     });
     if(dupSale){
       toast('⛔ '+proj.name+' Plot '+plot.plotNo+' ki sale pehle se exist karta hai (Seller: '+( dupSale.sellerName||'?')+', Date: '+(dupSale.bookingDate||'?')+')! Duplicate entry nahi ho sakti.',false);
@@ -6959,9 +7067,14 @@ function expR1(){
   if(!window.XLSX){toast('XLSX library not loaded — please open via internet!',false);return;}
   var wb=XLSX.utils.book_new();
 
+  var _btVisited={};
   function bt(pid,l){
     return D.associates.filter(function(a){return pid===null?!a.parentId:a.parentId===pid;})
-      .reduce(function(acc,a){return acc.concat([Object.assign({},a,{_l:l})],bt(a.id,l+1));},[]); 
+      .reduce(function(acc,a){
+        if(_btVisited[a.id])return acc; // circular hierarchy protection
+        _btVisited[a.id]=true;
+        return acc.concat([Object.assign({},a,{_l:l})],bt(a.id,l+1));
+      },[]); 
   }
   var tree=bt(null,0);
 
@@ -7333,6 +7446,8 @@ function fbLoadIfEmpty(){
       if(r.deleted)D.deleted=r.deleted;else if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(r.transfers)D.transfers=r.transfers;else if(!D.transfers)D.transfers=[];
       if(r.payments)D.payments=r.payments;else if(!D.payments)D.payments=[];
+      if(r.advances)D.advances=r.advances;else if(!D.advances)D.advances=[];
+      if(r.config)D.config=r.config;else if(!D.config)D.config={};
       window._localTs=remoteTs;
       fbStatus('ok');
       if(SESSION)render();
