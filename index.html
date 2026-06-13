@@ -13,71 +13,159 @@
   --am:#8a5200;--amb:#fff3e0;
   --pu:#5b4ac7;--pub:#eeecfd;
   --re:#c0392b;--reb:#fdecea;
-  --bd:#ddd;--bg:#f5f5f5;--bg2:#fff;--bg3:#f9f9f9;
-  --tx:#222;--t2:#666;--t3:#999
+  --bd:#e2e8f0;--bg:#f1f5f9;--bg2:#fff;--bg3:#f8fafc;
+  --tx:#1e293b;--t2:#64748b;--t3:#94a3b8;
+  --shadow:0 1px 3px rgba(0,0,0,.08),0 1px 2px rgba(0,0,0,.06);
+  --shadow-md:0 4px 6px rgba(0,0,0,.07),0 2px 4px rgba(0,0,0,.06);
+  --shadow-lg:0 10px 25px rgba(0,0,0,.1),0 4px 10px rgba(0,0,0,.08);
+  --radius:10px;--radius-sm:6px;--radius-lg:14px;
+  --transition:all .18s cubic-bezier(.4,0,.2,1);
 }
-body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:14px}
-.hdr{background:var(--bl);color:#fff;padding:12px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 2px 6px rgba(0,0,0,.2);flex-wrap:wrap;gap:8px}
-.hdr-l{display:flex;align-items:center;gap:10px}
-.hdr h1{font-size:16px;font-weight:700;margin:0}
-.hdr p{font-size:11px;opacity:.8;margin:0}
-.nav{background:#fff;border-bottom:.5px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 16px;gap:0}
-.nav a{padding:10px 14px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:2px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0;position:relative;z-index:2}
-.nav a.on{color:var(--bl);border-color:var(--bl)}
+
+/* ── BASE ── */
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--tx);font-size:14px;line-height:1.5;-webkit-font-smoothing:antialiased}
+
+/* ── SPINNER ── */
+#appSpinner{position:fixed;inset:0;background:#fff;z-index:9999;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;transition:opacity .3s}
+#appSpinner.hide{opacity:0;pointer-events:none}
+.spinner-ring{width:44px;height:44px;border:3px solid var(--blb);border-top-color:var(--bl);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.spinner-text{font-size:13px;color:var(--t2);font-weight:500;animation:pulse 1.4s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
+
+/* ── PAGE TRANSITION ── */
+@keyframes fadeUp{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+.page-enter{animation:fadeUp .22s ease forwards}
+
+/* ── HEADER ── */
+.hdr{background:linear-gradient(135deg,var(--bld) 0%,var(--bl) 100%);color:#fff;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:50;box-shadow:0 2px 8px rgba(13,74,138,.25);flex-wrap:wrap;gap:8px}
+.hdr-l{display:flex;align-items:center;gap:12px}
+.hdr h1{font-size:16px;font-weight:700;margin:0;letter-spacing:-.2px}
+.hdr p{font-size:10px;opacity:.75;margin:0;letter-spacing:.2px}
+
+/* ── NAV ── */
+.nav{background:#fff;border-bottom:1px solid var(--bd);display:flex;align-items:center;overflow-x:auto;padding:0 16px;gap:0;box-shadow:var(--shadow)}
+.nav::-webkit-scrollbar{display:none}
+.nav a{padding:11px 14px;font-size:13px;font-weight:600;color:var(--t2);border-bottom:2.5px solid transparent;cursor:pointer;white-space:nowrap;flex-shrink:0;position:relative;z-index:2;transition:var(--transition)}
+.nav a:hover{color:var(--bl);background:var(--blb)}
+.nav a.on{color:var(--bl);border-color:var(--bl);background:var(--blb)}
 #srchWrap{margin-left:auto;padding:4px 0;flex-shrink:0;position:relative;z-index:1}
-#srchWrap input{font-size:12px;padding:5px 10px;border:.5px solid var(--bd);border-radius:6px;width:200px}
-.main{max-width:1200px;margin:0 auto;padding:16px}
-.card{background:#fff;border:.5px solid var(--bd);border-radius:10px;padding:14px 18px;margin-bottom:12px}
-.ct{font-size:14px;font-weight:700;margin-bottom:12px}
-.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
-.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:8px}
-.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:8px}
-.stat{background:var(--bg3);border:.5px solid var(--bd);border-radius:8px;padding:12px;text-align:center}
-.sv{font-size:22px;font-weight:700;margin-top:2px}
-.sl{font-size:11px;color:var(--t3);font-weight:500}
-.fld{display:flex;flex-direction:column;gap:3px}
-.fld label{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.3px}
-input,select{font-size:13px;padding:7px 9px;border:.5px solid var(--bd);border-radius:7px;background:#fff;color:var(--tx);width:100%}
-input:focus,select:focus{outline:none;border-color:var(--bl)}
-input:disabled,select:disabled{background:var(--bg3);color:var(--t3)}
-.btn{padding:8px 16px;border-radius:7px;font-size:13px;font-weight:600;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:5px}
-.btn:disabled{opacity:.4;cursor:not-allowed}
-.bbl{background:var(--bl);color:#fff}
-.bgr{background:var(--gr);color:#fff}
-.bgh{background:var(--bg3);color:var(--t2);border:.5px solid var(--bd);cursor:pointer}
+#srchWrap input{font-size:12px;padding:6px 12px 6px 32px;border:1.5px solid var(--bd);border-radius:20px;width:200px;background:var(--bg3);transition:var(--transition)}
+#srchWrap input:focus{border-color:var(--bl);box-shadow:0 0 0 3px rgba(26,111,196,.12);background:#fff;outline:none}
+#srchWrap::before{content:'🔍';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:11px;pointer-events:none}
+
+/* ── MAIN ── */
+.main{max-width:1200px;margin:0 auto;padding:18px}
+
+/* ── CARDS ── */
+.card{background:#fff;border:1px solid var(--bd);border-radius:var(--radius-lg);padding:16px 20px;margin-bottom:14px;box-shadow:var(--shadow);transition:box-shadow .2s}
+.card:hover{box-shadow:var(--shadow-md)}
+.ct{font-size:14px;font-weight:700;margin-bottom:14px;color:var(--tx);letter-spacing:-.1px}
+
+/* ── GRIDS ── */
+.g2{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:12px}
+.g3{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px}
+.g4{display:grid;grid-template-columns:repeat(auto-fit,minmax(110px,1fr));gap:10px}
+
+/* ── STAT CARDS ── */
+.stat{background:var(--bg3);border:1px solid var(--bd);border-radius:var(--radius);padding:14px;text-align:center;transition:var(--transition)}
+.stat:hover{border-color:var(--bl);box-shadow:0 0 0 3px rgba(26,111,196,.08)}
+.sv{font-size:22px;font-weight:700;margin-top:3px;letter-spacing:-.5px}
+.sl{font-size:11px;color:var(--t3);font-weight:600;text-transform:uppercase;letter-spacing:.4px}
+
+/* ── FORMS ── */
+.fld{display:flex;flex-direction:column;gap:4px}
+.fld label{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px}
+input,select{font-size:13px;padding:8px 11px;border:1.5px solid var(--bd);border-radius:var(--radius-sm);background:#fff;color:var(--tx);width:100%;transition:var(--transition)}
+input:focus,select:focus{outline:none;border-color:var(--bl);box-shadow:0 0 0 3px rgba(26,111,196,.1)}
+input:hover:not(:focus):not(:disabled),select:hover:not(:focus):not(:disabled){border-color:#94a3b8}
+input:disabled,select:disabled{background:var(--bg3);color:var(--t3);cursor:not-allowed}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 16px;border-radius:var(--radius-sm);font-size:13px;font-weight:600;cursor:pointer;border:none;display:inline-flex;align-items:center;gap:5px;transition:var(--transition);position:relative;overflow:hidden}
+.btn:hover{filter:brightness(1.08);transform:translateY(-1px);box-shadow:var(--shadow-md)}
+.btn:active{transform:translateY(0);filter:brightness(.96)}
+.btn:disabled{opacity:.42;cursor:not-allowed;transform:none;filter:none;box-shadow:none}
+.bbl{background:var(--bl);color:#fff;box-shadow:0 2px 4px rgba(26,111,196,.3)}
+.bgr{background:var(--gr);color:#fff;box-shadow:0 2px 4px rgba(46,125,30,.3)}
+.bgh{background:#fff;color:var(--t2);border:1.5px solid var(--bd);cursor:pointer}
+.bgh:hover{background:var(--bg3);color:var(--tx);border-color:#94a3b8}
 .bsm{padding:4px 10px;font-size:12px;border-radius:5px}
-.bot{background:transparent;color:var(--bl);border:1px solid var(--bl)}
-.badge{display:inline-block;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600}
+.bsm:hover{transform:translateY(0);box-shadow:var(--shadow)}
+.bot{background:transparent;color:var(--bl);border:1.5px solid var(--bl)}
+.bot:hover{background:var(--blb)}
+
+/* ── BADGES ── */
+.badge{display:inline-block;padding:2px 9px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.1px}
 .bgn{background:var(--grb);color:var(--gr)}
 .bam{background:var(--amb);color:var(--am)}
 .bbl2{background:var(--blb);color:var(--bl)}
 .bpu{background:var(--pub);color:var(--pu)}
-.tw{overflow-x:auto;border:.5px solid var(--bd);border-radius:8px}
+
+/* ── TABLES ── */
+.tw{overflow-x:auto;border:1px solid var(--bd);border-radius:var(--radius);box-shadow:var(--shadow)}
 table{width:100%;border-collapse:collapse;font-size:13px}
-th{padding:8px 10px;text-align:left;background:var(--bg3);border-bottom:.5px solid var(--bd);font-size:11px;font-weight:700;color:var(--t2);white-space:nowrap;text-transform:uppercase}
-td{padding:8px 10px;border-bottom:.5px solid var(--bd);vertical-align:middle}
+th{padding:9px 12px;text-align:left;background:var(--bg3);border-bottom:1px solid var(--bd);font-size:10.5px;font-weight:700;color:var(--t2);white-space:nowrap;text-transform:uppercase;letter-spacing:.4px}
+td{padding:9px 12px;border-bottom:1px solid var(--bg);vertical-align:middle}
 tr:last-child td{border-bottom:none}
+tbody tr{transition:background .12s}
 tbody tr:hover td{background:var(--blb)}
-.empty{padding:32px;text-align:center;color:var(--t3);border:2px dashed var(--bd);border-radius:10px}
-.info{padding:9px 13px;border-radius:8px;font-size:12px;margin-bottom:10px}
-.ibl{background:var(--blb);color:var(--bld);border:1px solid #b3d1f5}
-.igr{background:var(--grb);color:var(--gr);border:1px solid #b8e0b0}
-.iam{background:var(--amb);color:var(--am);border:1px solid #ffd08a}
-.ipu{background:var(--pub);color:var(--pu);border:1px solid #c5bef5}
-.sbar{height:6px;background:#e0e0e0;border-radius:3px;overflow:hidden;margin:4px 0}
-.sfil{height:100%;background:var(--bl);border-radius:3px}
-.divl{height:1px;background:var(--bd);margin:12px 0}
+tbody tr:hover td:first-child{border-left:2.5px solid var(--bl)}
+
+/* ── EMPTY STATES ── */
+.empty{padding:40px 20px;text-align:center;color:var(--t3);border:2px dashed var(--bd);border-radius:var(--radius-lg);background:var(--bg3)}
+.empty::before{content:'📭';display:block;font-size:32px;margin-bottom:10px}
+
+/* ── INFO BOXES ── */
+.info{padding:10px 14px;border-radius:var(--radius-sm);font-size:12px;margin-bottom:10px;border-left:3px solid}
+.ibl{background:var(--blb);color:var(--bld);border-color:var(--bl)}
+.igr{background:var(--grb);color:var(--gr);border-color:var(--gr)}
+.iam{background:var(--amb);color:var(--am);border-color:var(--am)}
+.ipu{background:var(--pub);color:var(--pu);border-color:var(--pu)}
+
+/* ── PROGRESS ── */
+.sbar{height:7px;background:var(--bd);border-radius:4px;overflow:hidden;margin:4px 0}
+.sfil{height:100%;background:linear-gradient(90deg,var(--bl),#4d9de0);border-radius:4px;transition:width .6s cubic-bezier(.4,0,.2,1)}
+
+/* ── MISC ── */
+.divl{height:1px;background:var(--bd);margin:14px 0}
 .steps{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap}
-.step{padding:5px 13px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid}
+.step{padding:5px 14px;border-radius:20px;font-size:12px;font-weight:600;border:1.5px solid;transition:var(--transition)}
 .sdn{background:var(--grb);color:var(--gr);border-color:var(--gr)}
 .sac{background:var(--bl);color:#fff;border-color:var(--bl)}
 .std{background:var(--bg3);color:var(--t3);border-color:var(--bd)}
-.ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:200;align-items:center;justify-content:center;padding:16px}
+
+/* ── MODAL ── */
+.ov{display:none;position:fixed;inset:0;background:rgba(15,23,42,.5);z-index:200;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
 .ov.open{display:flex}
-.modal{background:#fff;border-radius:12px;padding:20px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.2)}
-#toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(60px);padding:10px 22px;border-radius:8px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap}
+@keyframes modalIn{from{opacity:0;transform:scale(.95) translateY(8px)}to{opacity:1;transform:scale(1) translateY(0)}}
+.modal{background:#fff;border-radius:var(--radius-lg);padding:22px;width:100%;max-width:540px;max-height:92vh;overflow-y:auto;box-shadow:var(--shadow-lg);animation:modalIn .2s cubic-bezier(.34,1.56,.64,1)}
+
+/* ── TOAST ── */
+#toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(70px);padding:11px 22px;border-radius:10px;font-size:13px;font-weight:600;z-index:999;opacity:0;transition:all .25s cubic-bezier(.34,1.56,.64,1);pointer-events:none;white-space:nowrap;box-shadow:var(--shadow-lg)}
 #toast.show{transform:translateX(-50%) translateY(0);opacity:1}
-@media(max-width:600px){.main{padding:10px}th,td{padding:6px 7px;font-size:12px}}
+
+/* ── SCROLLBAR ── */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--bd);border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:var(--t3)}
+
+/* ── MOBILE ── */
+@media(max-width:768px){
+  .main{padding:12px}
+  .g2,.g3,.g4{grid-template-columns:1fr 1fr}
+  th,td{padding:7px 9px;font-size:12px}
+  .btn{padding:7px 13px}
+  .hdr{padding:10px 14px}
+  .card{padding:12px 14px;border-radius:var(--radius)}
+  .tw{border-radius:var(--radius-sm)}
+}
+@media(max-width:480px){
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  #srchWrap input{width:140px}
+  .sv{font-size:18px}
+}
 /* ── PRINT STYLES ─────────────────────────────────── */
 @media print{
   /* Hide non-essential elements */
@@ -135,6 +223,11 @@ tbody tr:hover td{background:var(--blb)}
 <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
 </head>
 <body>
+<div id="appSpinner">
+  <img src="data:image/png;base64,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" style="height:56px;width:auto;opacity:.9;margin-bottom:4px"/>
+  <div class="spinner-ring"></div>
+  <div class="spinner-text">Loading TrueStars...</div>
+</div>
 <div class="hdr">
   <div class="hdr-l">
     <img src="data:image/png;base64,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" style="height:44px;width:auto;display:block;" alt="TrueStars Logo"/>
@@ -565,12 +658,20 @@ function toast(msg,ok){
   if(ok===undefined)ok=true;
   var t=document.getElementById('toast');
   t.textContent=msg;
-  t.style.background=ok?'#1a5e1a':'#8b1a1a';
+  t.style.background=ok?'#166534':'#991b1b';
+  t.style.boxShadow=ok?'0 4px 14px rgba(22,101,52,.35)':'0 4px 14px rgba(153,27,27,.35)';
   t.style.color='#fff';
+  t.classList.remove('show');
+  void t.offsetWidth;
   t.classList.add('show');
-  setTimeout(function(){t.classList.remove('show');},3000);
+  clearTimeout(window._tT);
+  window._tT=setTimeout(function(){t.classList.remove('show');},3200);
 }
-function openM(html){document.getElementById('mbox').innerHTML=html;document.getElementById('modal').classList.add('open');}
+function openM(html){
+  var mbox=document.getElementById('mbox');
+  mbox.innerHTML=html;
+  document.getElementById('modal').classList.add('open');
+}
 function closeM(){document.getElementById('modal').classList.remove('open');}
 document.addEventListener('click',function(e){if(e.target.id==='modal')closeM();});
 
@@ -615,6 +716,7 @@ var r2P=1; var r3P=1; var r4AP=1; var r4PP=1; var r5P=1; var r6P=1; // report pa
 var srPage=1;
 
 function sw(t){
+  if(TAB===t&&t!=='newsale')return; // same tab click ignore
   TAB=t;searchQ='';
   r2P=1;r3P=1;r4AP=1;r4PP=1;r5P=1;r6P=1;
   if(t==='newsale'){sStep=1;sD={};sCh=[];sDf=[];}
@@ -1038,9 +1140,11 @@ function rpt4Pay(){
     var saleIdPaid=D.payments.filter(function(p){return p.assocId===a.id&&p.saleId;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
     var monthPaid=D.payments.filter(function(p){return p.assocId===a.id&&!p.saleId;}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
     var paid=saleIdPaid+monthPaid;
-    var pending=Math.max(0,a.total-paid);
-    var status=paid<=0?'pending':pending<=0?'paid':'partial';
-    return Object.assign({},a,{paid:paid,pending:pending,status:status});
+    var rawPending=a.total-paid; // negative = overpaid
+    var pending=Math.max(0,rawPending);
+    var overpaid=rawPending<0?Math.abs(rawPending):0;
+    var status=overpaid>0?'overpaid':paid<=0?'pending':pending<=0?'paid':'partial';
+    return Object.assign({},a,{paid:paid,pending:pending,overpaid:overpaid,status:status});
   }).filter(function(a){return a.total>0||a.paid>0;});
 
   // Search filter
@@ -1086,7 +1190,9 @@ function rpt4Pay(){
     +'</tr></thead><tbody>';
 
   rows.forEach(function(a,i){
-    var statusBadge=a.status==='paid'
+    var statusBadge=a.status==='overpaid'
+      ?'<span class="badge" style="background:#fff0e0;color:#c45c00;border:1px solid #c45c00">⚠️ Overpaid</span>'
+      :a.status==='paid'
       ?'<span class="badge bgn">✅ Paid</span>'
       :a.status==='partial'
       ?'<span class="badge bbl2">🔵 Partial</span>'
@@ -1095,13 +1201,13 @@ function rpt4Pay(){
     var lastPay=D.payments.filter(function(p){return p.assocId===a.id;}).sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');});
     var lastDate=lastPay.length?lastPay[0].payDate:'—';
 
-    html+='<tr>'
+    html+='<tr style="background:'+(a.overpaid>0?'#fff8f0':'')+'">'
       +'<td style="color:var(--t3)">'+(i+1)+'</td>'
       +'<td><b data-aid="'+a.id+'" onclick="r4PayAssoc=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
       +'<div style="font-size:10px;color:var(--t3)">Last pay: '+lastDate+'</div></td>'
       +'<td style="font-weight:700">₹'+fmt(a.total)+'</td>'
       +'<td style="color:var(--gr);font-weight:700">₹'+fmt(a.paid)+'</td>'
-      +'<td style="color:var(--am);font-weight:700">₹'+fmt(a.pending)+'</td>'
+      +'<td style="font-weight:700;color:'+(a.overpaid>0?'#c45c00':'var(--am)')+'">'+( a.overpaid>0?'⚠️ +₹'+fmt(a.overpaid)+' Overpaid':'₹'+fmt(a.pending))+'</td>'
       +'<td>'+statusBadge+'</td>'
       +'<td>'
       +'<button class="btn bbl bsm" data-aid="'+a.id+'" onclick="r4PayAssoc=this.dataset.aid;render()" style="margin-right:4px">📋 Detail</button>'
@@ -1130,20 +1236,45 @@ window.payAllPending=function(assocId){
   });
   if(!pendingRows.length){toast('Koi pending payment nahi hai!',false);return;}
   var total=pendingRows.reduce(function(t,r){return t+r.comm;},0);
-  if(!confirm('⚠️ '+pendingRows.length+' pending payments ek saath mark karein?\n\nTotal: ₹'+fmt(total)+'\nDate: '+today+'\nMode: Online\n\nConfirm?'))return;
+  if(!D.advances)D.advances=[];
+  var pendAdv=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
+  var totalAdvBal=pendAdv.reduce(function(t,adv){return t+adv.amount;},0);
+  var advMsg=totalAdvBal>0?'\n\n° Advance Balance: ₹'+fmt(totalAdvBal)+' adjust hoga':'';
+  if(!confirm('⚠️ '+pendingRows.length+' pending payments ek saath mark karein?\n\nTotal: ₹'+fmt(total)+'\nDate: '+today+'\nMode: Online'+advMsg+'\n\nConfirm?'))return;
   if(!D.payments)D.payments=[];
   var a=D.associates.find(function(x){return x.id===assocId;});
+  var advRemaining=totalAdvBal;
   pendingRows.forEach(function(row){
+    var advUsed=0;var netPaid=row.comm;
+    if(advRemaining>0){
+      advUsed=Math.min(advRemaining,row.comm);
+      netPaid=Math.max(0,row.comm-advUsed);
+      advRemaining-=advUsed;
+    }
     D.payments.push({
       id:'_pay'+Date.now()+Math.random().toString(36).substr(2,5),
       assocId:assocId,assocName:(a||{}).name||'',
       saleId:row.s.id,projName:row.s.projName,plotNo:row.s.plotNo,
-      paid:row.comm,amount:row.comm,netPaid:row.comm,
-      mode:'Online',payDate:today,utr:'',note:'Bulk payment',
+      paid:row.comm,amount:row.comm,
+      advanceDeducted:advUsed>0?advUsed:undefined,
+      netPaid:netPaid,mode:'Online',payDate:today,utr:'',
+      note:'Bulk payment'+(advUsed>0?' [Advance ₹'+fmt(advUsed)+' deducted]':''),
       markedBy:SESSION?SESSION.name:'Admin',createdAt:new Date().toISOString()
     });
   });
-  saveD();toast('✅ '+pendingRows.length+' payments marked! Total: ₹'+fmt(total));render();
+  if(totalAdvBal>advRemaining){
+    var toUse=totalAdvBal-advRemaining;
+    pendAdv.forEach(function(adv){
+      var ai=D.advances.findIndex(function(x){return x.id===adv.id;});
+      if(ai<0||toUse<=0)return;
+      if(adv.amount<=toUse){D.advances[ai].status='used';D.advances[ai].usedAt=new Date().toISOString();toUse-=adv.amount;}
+      else{
+        D.advances.push(Object.assign({},adv,{id:'_adv'+Date.now()+Math.random().toString(36).substr(2,5),amount:toUse,status:'used',usedAt:new Date().toISOString()}));
+        D.advances[ai].amount=adv.amount-toUse;toUse=0;
+      }
+    });
+  }
+  saveD();toast('✅ '+pendingRows.length+' payments marked! Total: ₹'+fmt(total)+(totalAdvBal>advRemaining?' (Advance ₹'+fmt(totalAdvBal-advRemaining)+' adjust hua)':''));render();
 };
 
 function rpt4PayDetail(assocId){
@@ -1214,6 +1345,7 @@ function rpt4PayDetail(assocId){
     +'<span style="font-size:12px;color:var(--t2)">Payment Details /</span>'
     +'<span style="font-size:14px;font-weight:700;color:var(--bl)">'+esc(a.name)+'</span>'
     +'<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'
+    +'<button class="btn bsm" style="background:var(--amb);color:var(--am);border:1px solid var(--am);white-space:nowrap" data-aid="'+assocId+'" onclick="openAddAdvanceModal(this.dataset.aid)">💵 Add Advance</button>'
     +(pendingCount>0?'<button class="btn bsm" style="background:var(--gr);color:#fff;border:none;white-space:nowrap" data-aid="'+assocId+'" onclick="payAllPending(this.dataset.aid)">⚡ Pay All ('+pendingCount+')</button>':'')
     +'<button class="btn bsm" style="background:'+(r4PayPendingOnly?'var(--am)':'var(--bg2)')+';color:'+(r4PayPendingOnly?'#fff':'var(--t2)')+';border:1px solid '+(r4PayPendingOnly?'var(--am)':'var(--bd)')+'" onclick="r4PayPendingOnly=!r4PayPendingOnly;render()">'+(r4PayPendingOnly?'🟡 Pending Only':'⬜ All Plots')+'</button>'
     +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;text-decoration:none;padding:5px 10px">📱 WA</a>':'')
@@ -1385,6 +1517,20 @@ window.verifyPayEditPinBtn=function(dsEncoded){
   }catch(e){toast('Error: '+e.message,false);}
 };
 
+window.updateAdvPreview=function(commAmt,totalAdvBalance){
+  var cb=document.getElementById('pmAdvAdj');
+  var adj=cb&&cb.checked?Math.min(totalAdvBalance,commAmt):0;
+  var net=Math.max(0,commAmt-adj);
+  var el=document.getElementById('advPreview');
+  if(!el)return;
+  el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--t2)">Commission:</span><span>₹'+fmt(commAmt)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--re)">Advance Adjust:</span><span style="color:var(--re)">- ₹'+fmt(adj)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid var(--bd);padding-top:4px"><span>Net Payment:</span><span style="color:var(--gr)">₹'+fmt(net)+'</span></div>';
+  // Amount field bhi update karo
+  var amtEl=document.getElementById('pmAmt');
+  if(amtEl)amtEl.value=net;
+};
+
 window.openPlotPayModal=function(ds){
   var assocId=ds.aid, saleId=ds.sid;
   var commAmt=parseFloat(ds.comm||0);
@@ -1405,14 +1551,45 @@ window.openPlotPayModal=function(ds){
   var prefillUtr=existPay?existPay.utr||'':'';
   var prefillNote=existPay?existPay.note||'':'';
 
+  // Advance balance check for this associate
+  if(!D.advances)D.advances=[];
+  var pendingAdvances=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
+  var totalAdvBalance=pendingAdvances.reduce(function(t,adv){return t+adv.amount;},0);
+  var advAdjust=!isEdit&&totalAdvBalance>0?Math.min(totalAdvBalance,commAmt):0;
+  var netAfterAdv=Math.max(0,commAmt-advAdjust);
+
+  // Advance section HTML
+  var advSection='';
+  if(!isEdit&&totalAdvBalance>0){
+    var advRows=pendingAdvances.map(function(adv){
+      return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:3px 0;border-bottom:.5px solid var(--bl)20">'
+        +'<span style="color:var(--t2)">'+esc(adv.reason||'General Advance')+'</span>'
+        +'<span style="color:var(--bl);font-weight:600">₹'+fmt(adv.amount)+'</span>'
+        +'</div>';
+    }).join('');
+    advSection='<div style="background:var(--blb);border:1.5px solid var(--bl);border-radius:10px;padding:12px 14px;margin-bottom:12px">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+      +'<div style="font-size:13px;font-weight:700;color:var(--bl)">💰 Advance Pending: ₹'+fmt(totalAdvBalance)+'</div>'
+      +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--bl)">'
+      +'<input type="checkbox" id="pmAdvAdj" '+(advAdjust>0?'checked':'')+' onchange="updateAdvPreview('+commAmt+','+totalAdvBalance+')" style="width:16px;height:16px;cursor:pointer"/> Adjust karein?'
+      +'</label></div>'
+      +'<div style="margin-bottom:8px">'+advRows+'</div>'
+      +'<div id="advPreview" style="background:#fff;border-radius:6px;padding:8px 10px;font-size:12px">'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--t2)">Commission:</span><span>₹'+fmt(commAmt)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--re)">Advance Adjust:</span><span style="color:var(--re)">- ₹'+fmt(advAdjust)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid var(--bd);padding-top:4px"><span>Net Payment:</span><span style="color:var(--gr)">₹'+fmt(netAfterAdv)+'</span></div>'
+      +'</div></div>';
+  }
+
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     +'<b style="font-size:15px">'+(isEdit?'✏️ Payment Edit':'💳 Plot Payment Mark Karo')+'</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
-    +'<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:14px">'
+    +'<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:12px">'
     +'<div style="font-weight:700;font-size:14px;color:var(--bl)">'+esc(a.name)+'</div>'
     +'<div style="font-size:12px;color:var(--t2);margin-top:3px">🏗️ '+esc(projName)+' — Plot <b>'+esc(plotNo)+'</b></div>'
     +(isEdit?'<div style="font-size:12px;color:var(--am);margin-top:3px">⚠️ Purani payment edit ho rahi hai</div>':'<div style="font-size:13px;color:var(--am);margin-top:4px">Commission: <b>₹'+fmt(commAmt)+'</b></div>')
     +'</div>'
+    +advSection
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Payment Mode *</label>'
     +'<select id="pmMode">'
@@ -1421,14 +1598,14 @@ window.openPlotPayModal=function(ds){
     +'<div class="fld"><label>Payment Date *</label>'
     +'<input type="date" id="pmDate" value="'+prefillDate+'" max="'+today+'"/></div>'
     +'<div class="fld"><label>Amount *</label>'
-    +'<input type="number" id="pmAmt" value="'+prefillAmt+'" min="1" step="0.01" placeholder="₹ Amount"/></div>'
+    +'<input type="number" id="pmAmt" value="'+prefillAmt+'" min="0" step="0.01" placeholder="₹ Amount"/></div>'
     +'<div class="fld"><label>UTR / Ref No <span style="color:var(--t3)">(optional)</span></label>'
     +'<input id="pmUtr" value="'+prefillUtr+'" placeholder="e.g. 4521XXXXXXXX"/></div>'
     +'<div class="fld" style="grid-column:1/-1"><label>Note (optional)</label>'
     +'<input id="pmNote" value="'+prefillNote+'" placeholder="e.g. Plot 55 ka payment..."/></div>'
     +'</div>'
     +'<div style="display:flex;gap:8px;align-items:center">'
-    +'<button class="btn bbl" data-aid="'+assocId+'" data-sid="'+saleId+'" data-proj="'+esc(projName)+'" data-plot="'+esc(plotNo)+'" data-editid="'+editPayId+'" onclick="savePlotPayment(this)">💾 '+(isEdit?'Update':'Save Payment')+'</button>'
+    +'<button class="btn bbl" data-aid="'+assocId+'" data-sid="'+saleId+'" data-proj="'+esc(projName)+'" data-plot="'+esc(plotNo)+'" data-editid="'+editPayId+'" data-comm="'+commAmt+'" data-advbal="'+totalAdvBalance+'" onclick="savePlotPayment(this)">💾 '+(isEdit?'Update':'Save Payment')+'</button>'
     +(isEdit?'<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re)" data-pid="'+editPayId+'" onclick="deletePaymentConfirm(this.dataset.pid)">🗑️ Delete</button>':'')
     +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
     +'</div>';
@@ -1445,7 +1622,9 @@ window.savePlotPayment=function(btn){
   var amt=parseFloat((document.getElementById('pmAmt')||{}).value||'0');
   var utr=((document.getElementById('pmUtr')||{}).value||'').trim();
   var note=((document.getElementById('pmNote')||{}).value||'').trim();
-  if(!amt||amt<=0){toast('Please enter amount!',false);return;}
+  var advCbCheck=document.getElementById('pmAdvAdj');
+  var isAdvFullyCovered=advCbCheck&&advCbCheck.checked&&amt===0;
+  if(!isAdvFullyCovered&&(!amt||amt<0)){toast('Please enter amount!',false);return;}
   if(!D.payments)D.payments=[];
 
   // Edit existing
@@ -1470,15 +1649,19 @@ window.savePlotPayment=function(btn){
     if(!confirm('⚠️ Is sale ka payment pehle se exist karta hai (₹'+fmt(alreadyPaid.paid||alreadyPaid.amount||0)+' on '+alreadyPaid.payDate+'). Phir bhi save karein?'))return;
   }
 
-  // Advance balance check — auto deduct karo
+  // Advance adjust — user ne checkbox se choose kiya?
+  var commAmt2=parseFloat(btn.dataset.comm||amt);
+  var totalAdvBalance2=parseFloat(btn.dataset.advbal||0);
+  var advCb=document.getElementById('pmAdvAdj');
+  var doAdvAdj=advCb&&advCb.checked&&totalAdvBalance2>0;
   var pendingAdvances=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
   var totalAdvance=pendingAdvances.reduce(function(t,adv){return t+adv.amount;},0);
   var finalAmt=amt;
   var advanceUsed=0;
-  if(totalAdvance>0){
-    advanceUsed=Math.min(totalAdvance,amt);
-    finalAmt=Math.max(0,amt-advanceUsed);
-    // Mark advances as used
+  if(doAdvAdj&&totalAdvance>0){
+    advanceUsed=Math.min(totalAdvance,commAmt2);
+    finalAmt=Math.max(0,commAmt2-advanceUsed);
+    // FIFO — advances use mark karo
     var remaining=advanceUsed;
     pendingAdvances.forEach(function(adv){
       var ai=D.advances.findIndex(function(x){return x.id===adv.id;});
@@ -1486,14 +1669,22 @@ window.savePlotPayment=function(btn){
       if(adv.amount<=remaining){
         D.advances[ai].status='used';
         D.advances[ai].usedAt=new Date().toISOString();
+        D.advances[ai].usedInSale=saleId;
         remaining-=adv.amount;
       } else {
+        // Partial use — split
+        D.advances.push(Object.assign({},adv,{
+          id:'_adv'+Date.now()+Math.random().toString(36).substr(2,5),
+          amount:remaining,status:'used',
+          usedAt:new Date().toISOString(),usedInSale:saleId
+        }));
         D.advances[ai].amount=adv.amount-remaining;
         remaining=0;
       }
     });
   }
 
+  var commissionAmt=advanceUsed>0?commAmt2:amt; // full commission value save karo
   D.payments.push({
     id:'_pay'+Date.now()+Math.random().toString(36).substr(2,5),
     assocId:assocId,
@@ -1501,14 +1692,15 @@ window.savePlotPayment=function(btn){
     saleId:saleId,
     projName:projName,
     plotNo:plotNo,
-    paid:amt, amount:amt,
+    paid:commissionAmt, amount:commissionAmt, // full commission — advance adjusted
     advanceDeducted:advanceUsed>0?advanceUsed:undefined,
-    netPaid:finalAmt,
+    netPaid:finalAmt, // actual cash paid (commission - advance)
     mode:mode, payDate:payDate,
-    utr:utr, note:note+(advanceUsed>0?' [Advance ₹'+fmt(advanceUsed)+' deducted]':''),
+    utr:utr, note:note+(advanceUsed>0?' [Advance ₹'+fmt(advanceUsed)+' deducted — Net: ₹'+fmt(finalAmt)+']':''),
     markedBy:SESSION?SESSION.name:'Admin',
     createdAt:new Date().toISOString()
   });
+  logAct('Payment: '+(a?a.name:assocId)+' | '+projName+' Plot '+plotNo+' | ₹'+fmt(commissionAmt)+(advanceUsed>0?' [Adv ₹'+fmt(advanceUsed)+' adjusted]':''));
 
   if(advanceUsed>0){
     toast('✅ Payment saved! Advance ₹'+fmt(advanceUsed)+' deduct kiya — Net pay: ₹'+fmt(finalAmt));
@@ -1519,7 +1711,7 @@ window.savePlotPayment=function(btn){
   // WhatsApp
   var waNum=a&&a.phone?a.phone.replace(/[^0-9]/g,''):'';
   if(waNum.length===10)waNum='91'+waNum;
-  var msg='Namaste '+((a&&a.name)||'')+'ji,\n\n'+projName+' Plot '+plotNo+' ka commission payment ho gaya hai.\n\nAmount: Rs.'+fmt(amt)+'\nMode: '+mode+(utr?'\nUTR/Ref: '+utr:'')+'\nDate: '+payDate+'\n\n— TrueStars Real Estate';
+  var msg='Namaste '+((a&&a.name)||'')+'ji,\n\n'+projName+' Plot '+plotNo+' ka commission payment ho gaya hai.\n\nCommission: Rs.'+fmt(commissionAmt)+(advanceUsed>0?'\nAdvance Adjusted: Rs.'+fmt(advanceUsed)+'\nNet Cash: Rs.'+fmt(finalAmt):'')+' \nMode: '+mode+(utr?'\nUTR/Ref: '+utr:'')+'\nDate: '+payDate+'\n\n— TrueStars Real Estate';
   toast('✅ Payment saved!');
   if(waNum){
     setTimeout(function(){
@@ -1590,7 +1782,24 @@ window.clearPayFilters=function(){r4PaySearch='';r4PayStatus='';render();}
 window.deletePaymentConfirm=function(payId){
   if(!confirm('Are you sure you want to delete this payment record?'))return;
   var idx=D.payments.findIndex(function(p){return p.id===payId;});
-  if(idx>=0){D.payments.splice(idx,1);saveD();toast('Payment deleted!');closeM();render();}
+  if(idx<0)return;
+  var p=D.payments[idx];
+  // Advance restore — agar advance deduct tha toh wapas pending karo
+  if(p.advanceDeducted&&p.advanceDeducted>0&&p.saleId){
+    if(!D.advances)D.advances=[];
+    var toRestore=p.advanceDeducted;
+    D.advances.forEach(function(adv,ai){
+      if(adv.usedInSale===p.saleId&&adv.assocId===p.assocId&&adv.status==='used'&&toRestore>0){
+        D.advances[ai].status='pending';
+        delete D.advances[ai].usedInSale;
+        delete D.advances[ai].usedAt;
+        toRestore-=adv.amount;
+      }
+    });
+  }
+  logAct('Payment Deleted: '+(p.assocName||p.assocId)+' | '+(p.projName||'')+' Plot '+(p.plotNo||'')+' | ₹'+fmt(p.paid||p.amount||0));
+  D.payments.splice(idx,1);
+  saveD();toast('Payment deleted!');closeM();render();
 };
 
 window.savePayment=function(btn){
@@ -1999,7 +2208,13 @@ window.runIntegrityScanner=function(){
 // ──────────────────────────────────────────────────────────
 
 // ─── RENDER ───────────────────────────────────────────
+function hideSpinner(){
+  var sp=document.getElementById('appSpinner');
+  if(sp){sp.classList.add('hide');setTimeout(function(){sp.style.display='none';},350);}
+}
+
 function render(){
+  hideSpinner();
   if(!SESSION){showLoginScreen();return;}
   document.getElementById('hdrDate').textContent=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
 
@@ -2038,6 +2253,9 @@ function render(){
   var m=document.getElementById('main');
   var pages={dashboard:pgDash,projects:pgProj,associates:pgAssoc,salesrec:pgSalesRec,newsale:pgSale,reports:pgRpt,offers:pgOffers,policy:pgPol,search:pgSearch,settings:pgSettings};
   m.innerHTML=(pages[TAB]||pgDash)();
+  m.classList.remove('page-enter');
+  void m.offsetWidth; // reflow trigger
+  m.classList.add('page-enter');
   bindAll();
 }
 
@@ -3902,6 +4120,72 @@ window.goBackPayList=function(){
   render();
 };
 
+window.openAddAdvanceModal=function(assocId){
+  var a=D.associates.find(function(x){return x.id===assocId;});
+  if(!a)return;
+  var today=new Date().toISOString().slice(0,10);
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">💵 Advance Entry</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
+    +'<div style="background:var(--blb);border-radius:8px;padding:10px 14px;margin-bottom:14px">'
+    +'<div style="font-weight:700;font-size:14px;color:var(--bl)">'+esc(a.name)+'</div>'
+    +'<div style="font-size:12px;color:var(--t2);margin-top:2px">Yeh amount future commission payment se automatically adjust hoga</div>'
+    +'</div>'
+    +'<div class="g2" style="margin-bottom:12px">'
+    +'<div class="fld"><label>Amount *</label>'
+    +'<input type="number" id="advAmt" min="1" step="0.01" placeholder="₹ e.g. 50000"/></div>'
+    +'<div class="fld"><label>Date *</label>'
+    +'<input type="date" id="advDate" value="'+today+'" max="'+today+'"/></div>'
+    +'<div class="fld"><label>Mode</label>'
+    +'<select id="advMode">'
+    +['Cash','Online','UPI','NEFT','IMPS','Cheque'].map(function(m){return '<option>'+m+'</option>';}).join('')
+    +'</select></div>'
+    +'<div class="fld"><label>Reason *</label>'
+    +'<input id="advReason" placeholder="e.g. Personal advance request, Tour expense..."/></div>'
+    +'<div class="fld" style="grid-column:1/-1"><label>Note (optional)</label>'
+    +'<input id="advNote" placeholder="Additional details..."/></div>'
+    +'</div>'
+    +'<div style="display:flex;gap:8px">'
+    +'<button class="btn bbl" data-aid="'+assocId+'" onclick="saveManualAdvance(this)">💾 Save Advance</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
+    +'</div>';
+  openM(html);
+  setTimeout(function(){var el=document.getElementById('advAmt');if(el)el.focus();},100);
+};
+
+window.saveManualAdvance=function(btn){
+  if(!SESSION){toast('Login required!',false);return;}
+  var assocId=btn.dataset.aid;
+  var a=D.associates.find(function(x){return x.id===assocId;});
+  if(!a)return;
+  var amt=parseFloat((document.getElementById('advAmt')||{}).value||'0');
+  var advDate=(document.getElementById('advDate')||{}).value||'';
+  var advMode=(document.getElementById('advMode')||{}).value||'Cash';
+  var reason=((document.getElementById('advReason')||{}).value||'').trim();
+  var note=((document.getElementById('advNote')||{}).value||'').trim();
+  if(!amt||amt<=0){toast('Amount required!',false);document.getElementById('advAmt').focus();return;}
+  if(!advDate){toast('Date required!',false);return;}
+  if(!reason){toast('Reason required!',false);document.getElementById('advReason').focus();return;}
+  if(!D.advances)D.advances=[];
+  D.advances.push({
+    id:'_adv'+Date.now()+Math.random().toString(36).substr(2,5),
+    assocId:assocId,assocName:a.name,
+    amount:amt,
+    reason:reason,
+    note:note,
+    mode:advMode,
+    advDate:advDate,
+    status:'pending',
+    type:'manual',
+    createdAt:new Date().toISOString(),
+    createdBy:SESSION?SESSION.name:'Admin'
+  });
+  saveD();
+  logAct('Advance Added: '+a.name+' | ₹'+fmt(amt)+' | Reason: '+reason);
+  toast('✅ Advance entry saved! ₹'+fmt(amt)+' — future commission se adjust hoga');
+  closeM();render();
+};
+
 window.openRefundModal=function(assocId, advanceBalance){
   var a=D.associates.find(function(x){return x.id===assocId;});
   if(!a)return;
@@ -4014,19 +4298,30 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
   if(!D.payments)D.payments=[];
   if(!D.advances)D.advances=[];
 
+  // usedInSale advances restore karo — sale delete hone pe advance wapas pending ho
+  D.advances.forEach(function(adv,ai){
+    if(adv.usedInSale===saleId&&adv.status==='used'){
+      D.advances[ai].status='pending';
+      delete D.advances[ai].usedInSale;
+      delete D.advances[ai].usedAt;
+    }
+  });
+
   // New plot-wise payments (saleId based) — directly advance mein daalo
+  // NOTE: sirf un payments ka advance banao jinpe advance adjust NAHI tha
   var linkedPlotPays=D.payments.filter(function(p){return p.saleId===saleId;});
   if(linkedPlotPays.length>0){
     var totalAdvAmt=0;
     linkedPlotPays.forEach(function(p){
-      var amt=p.paid||p.amount||0;
-      if(amt<=0)return;
-      totalAdvAmt+=amt;
+      // netPaid = actual cash paid (advance se cover hua toh 0)
+      var cashAmt=p.netPaid!=null?p.netPaid:(p.paid||p.amount||0);
+      if(cashAmt<=0)return; // purely advance-covered payment — already restored above
+      totalAdvAmt+=cashAmt;
       D.advances.push({
         id:'_adv'+Date.now()+Math.random().toString(36).substr(2,5),
         assocId:p.assocId,
         assocName:p.assocName||'',
-        amount:amt,
+        amount:cashAmt,
         reason:'Sale delete: '+esc(s.projName)+' Plot '+esc(s.plotNo),
         saleId:saleId,
         createdAt:new Date().toISOString(),
@@ -7313,6 +7608,7 @@ function expExcel(){
 var _fbDB=null, _fbReady=false;
 
 function fbStatus(s){
+  hideSpinner();
   // Update settings badge too
   var badge=document.getElementById('fbStatusBadge');
   if(badge){
