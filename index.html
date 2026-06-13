@@ -1009,7 +1009,7 @@ window.showChainPopup=function(saleId){
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
     +'<div>'
     +'<b style="font-size:15px">🔗 Chain Detail</b>'
-    +'<div style="font-size:12px;color:var(--t2);margin-top:2px">'+esc(s.projName)+' — Plot <b>'+esc(s.plotNo)+'</b> | '+fmtG(s.plotGaj)+' gaj | '+(s.bookingDate||'—')+' → '+(s.closeDate||'—')+'</div>'
+    +'<div style="font-size:12px;color:var(--t2);margin-top:2px">'+esc(s.projName)+' — Plot <b>'+esc(s.plotNo)+'</b> | '+fmtG(s.plotGaj)+' Sq.Yd | '+(s.bookingDate||'—')+' → '+(s.closeDate||'—')+'</div>'
     +'</div>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button>'
     +'</div>';
@@ -1024,7 +1024,7 @@ window.showChainPopup=function(saleId){
   if(s.commissions&&s.commissions.length>0){
     html+='<div style="font-size:12px;font-weight:600;color:var(--bl);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">⛓️ Chain Commission</div>';
     html+='<div class="tw" style="margin-bottom:12px"><table><thead><tr>'
-      +'<th>#</th><th>Name</th><th>Level</th><th>Gaj</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
+      +'<th>#</th><th>Name</th><th>Level</th><th>Sq.Yd</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
     s.commissions.forEach(function(cm,i){
       var isLeftM=cm.name&&cm.name.includes('(Left)');
       var isFirstSeller=(i===0);
@@ -1033,7 +1033,7 @@ window.showChainPopup=function(saleId){
         +'<td><b>'+(isLeftM?'<span style="color:var(--re)">'+esc(cm.name)+'</span>'+leftBadge(cm.name):esc(cm.name||'—'))+'</b>'+(isFirstSeller?' 🌟 <span style="font-size:10px;color:var(--gr)">Seller</span>':'')+'</td>'
         +'<td style="color:var(--t2);font-size:12px">'+(cm.depth!==undefined?'D'+cm.depth:'—')+'</td>'
         +'<td style="color:var(--pu);font-weight:700">'+(cm.gaj||s.plotGaj)+'</td>'
-        +'<td style="font-size:12px">₹'+(cm.rate||0)+'/gaj</td>'
+        +'<td style="font-size:12px">₹'+(cm.rate||0)+'/Sq.Yd</td>'
         +'<td style="color:var(--gr);font-weight:700">₹'+fmt(cm.total||0)+'</td>'
         +'</tr>';
     });
@@ -1481,7 +1481,7 @@ function rpt4PayDetail(assocId){
       +(projPending>0?'<span style="font-size:11px;color:var(--am)">⏳ ₹'+fmt(projPending)+'</span>':'')
       +'</div></div>'
       +'<div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
-      +'<th>Plot</th><th>Role</th><th>Seller</th><th>Gaj</th><th>Close Date</th><th>Commission</th><th>Paid On</th><th>UTR</th><th>Status</th><th>Action</th>'
+      +'<th>Plot</th><th>Role</th><th>Seller</th><th>Sq.Yd</th><th>Close Date</th><th>Commission</th><th>Paid On</th><th>UTR</th><th>Status</th><th>Action</th>'
       +'</tr></thead><tbody>';
 
     visibleRows.forEach(function(row){
@@ -2038,7 +2038,7 @@ window.runIntegrityScanner=function(){
     if(salesGajMismatch||totalGajMismatch){
       var msg='';
       if(salesGajMismatch)msg+='salesGaj mismatch: stored='+storedSalesGaj+', actual='+actualFromSales+'. ';
-      if(totalGajMismatch)msg+='totalGaj: stored='+stored+', correct='+correctTotal+' (sales '+actualFromSales+' + manual '+otherGajManual+')';
+      if(totalGajMismatch)msg+='totalSq.Yd: stored='+stored+', correct='+correctTotal+' (sales '+actualFromSales+' + manual '+otherGajManual+')';
       issues.push({
         type:'gaj_mismatch',cat:'associate',severity:'high',
         id:a.id,name:a.name,
@@ -2268,7 +2268,7 @@ window.runIntegrityScanner=function(){
     issues.forEach(function(issue){
       // What to do guidance
       var guide='';
-      if(issue.type==='gaj_mismatch')guide='Manual fix: Associate Edit → Add Gaj se correct karo, ya Sales delete/re-enter karo';
+      if(issue.type==='gaj_mismatch')guide='Manual fix: Associate Edit → Add Sq.Yd se correct karo, ya Sales delete/re-enter karo';
       else if(issue.type==='orphan_parent')guide='Manual fix: Associate Edit → Upliner sahi set karo';
       else if(issue.type==='circular')guide='Manual fix: Associate Edit → Upliner hatao (Top Level karo)';
       else if(issue.type==='orphan_sale_proj')guide='Manual fix: Is sale ko delete karo (Sales Record se)';
@@ -2680,7 +2680,7 @@ function pgDash(){
 
   // Row 2: 4 stat cards
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">'
-    +'<div class="stat"><div class="sl">📊 Total Gaj</div><div class="sv" style="color:var(--pu)">'+fmtG(totGaj)+'</div><div style="font-size:10px;color:var(--t3);margin-top:1px">sq.yd sold</div></div>'
+    +'<div class="stat"><div class="sl">📊 Total Sq.Yd</div><div class="sv" style="color:var(--pu)">'+fmtG(totGaj)+'</div><div style="font-size:10px;color:var(--t3);margin-top:1px">Sq.Yd sold</div></div>'
     +'<div class="stat"><div class="sl">💰 Total Brokerage</div><div class="sv" style="font-size:18px;color:var(--gr)">₹'+fmtL(cT+dT)+'</div><div style="font-size:10px;color:var(--t3);margin-top:1px">₹'+fmt(Math.round(cT+dT))+' total</div></div>'
     +'<div class="stat" style="background:var(--reb);border-color:#F09595"><div class="sl" style="color:var(--re)">⏳ Pending</div><div class="sv" style="font-size:18px;color:var(--re)">₹'+fmtL(totalPending)+'</div><div style="font-size:10px;color:var(--re);margin-top:1px">₹'+fmt(Math.round(totalPending))+' unpaid</div></div>'
     +'<div class="stat"><div class="sl">📅 This Month</div><div class="sv" style="color:var(--am)">'+thisMonClose+'</div><div style="font-size:10px;color:var(--t3);margin-top:1px">closings · '+thisMonBook+' bookings</div></div>'
@@ -2759,7 +2759,7 @@ function pgDash(){
         +'<div style="font-size:11px;color:var(--t2)">'+(a.sales||0)+' sales</div>'
         +'</div>'
         +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px">'
-        +'<div style="font-weight:700;color:var(--pu);font-size:13px;white-space:nowrap">'+fmtG(a.gaj)+' gaj</div>'
+        +'<div style="font-weight:700;color:var(--pu);font-size:13px;white-space:nowrap">'+fmtG(a.gaj)+' Sq.Yd</div>'
         +'<div style="width:70px;height:4px;background:var(--bg3);border-radius:99px;overflow:hidden"><div style="width:'+pct+'%;height:100%;background:#7F77DD;border-radius:99px"></div></div>'
         +'</div></div>';
     });
@@ -2825,7 +2825,7 @@ function pgDash(){
       +'<div class="ct" style="margin:0">📈 Recent Sales</div>'
       +'<button class="btn bgh bsm" onclick="sw(\'salesrec\')">View All →</button></div>'
       +'<div class="tw" style="border:none;border-radius:0;margin:-14px -18px 0"><table><thead><tr>'
-      +'<th>Project</th><th>Plot</th><th>Seller</th><th>Gaj</th><th>Close Date</th><th>Total ₹</th>'
+      +'<th>Project</th><th>Plot</th><th>Seller</th><th>Sq.Yd</th><th>Close Date</th><th>Total ₹</th>'
       +'</tr></thead><tbody>';
     rec.forEach(function(s){
       html+='<tr style="cursor:pointer" onclick="goSalesRec()" title="Sales Record mein dekho">'
@@ -2996,8 +2996,8 @@ function pPlots(){
     html+='<div class="ct">+ Add Plot (Multiple)</div>';
     html+='<div class="g2" style="margin-bottom:10px">';
     html+='<div class="fld"><label>Plot No *</label><input id="plNo" placeholder="A-101"/></div>';
-    html+='<div class="fld"><label>Plot Size Gaj *</label><input id="plSz" type="number" placeholder="150"/></div>';
-    html+='<div class="fld"><label>Saleable Gaj</label><input id="plSal" type="number" placeholder="100 or 200"/></div>';
+    html+='<div class="fld"><label>Plot Size (Sq.Yd) *</label><input id="plSz" type="number" placeholder="150"/></div>';
+    html+='<div class="fld"><label>Saleable (Sq.Yd)</label><input id="plSal" type="number" placeholder="100 or 200"/></div>';
     html+='<div class="fld"><label>Facing</label><input id="plFc" placeholder="East/North/Corner"/></div>';
     html+='<div class="fld"><label>Location</label><input id="plLc" placeholder="Park Facing"/></div>';
     html+='</div>';
@@ -3010,7 +3010,7 @@ function pPlots(){
     if(plotQueue.length>0){
       html+='<div style="background:var(--grb);border:1px solid var(--gr);border-radius:8px;padding:10px 12px;margin-bottom:8px">';
       html+='<div style="font-size:12px;font-weight:700;color:var(--gr);margin-bottom:8px">📋 Queue: '+plotQueue.length+' plots (All will be added on save)</div>';
-      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:rgba(0,0,0,.05)"><th style="padding:5px 8px;text-align:left">Plot No</th><th style="padding:5px 8px;text-align:left">Plot Gaj</th><th style="padding:5px 8px;text-align:left">Saleable</th><th style="padding:5px 8px;text-align:left">Facing</th><th style="padding:5px 8px;text-align:left">Location</th><th style="padding:5px 8px">Remove</th></tr></thead><tbody>';
+      html+='<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr style="background:rgba(0,0,0,.05)"><th style="padding:5px 8px;text-align:left">Plot No</th><th style="padding:5px 8px;text-align:left">Plot Sq.Yd</th><th style="padding:5px 8px;text-align:left">Saleable</th><th style="padding:5px 8px;text-align:left">Facing</th><th style="padding:5px 8px;text-align:left">Location</th><th style="padding:5px 8px">Remove</th></tr></thead><tbody>';
       plotQueue.forEach(function(pl,qi){
         html+='<tr><td style="padding:5px 8px"><b>'+pl.plotNo+'</b></td><td style="padding:5px 8px">'+pl.sizeGaj+'</td><td style="padding:5px 8px;color:var(--pu);font-weight:700">'+pl.saleableGaj+'</td><td style="padding:5px 8px">'+(pl.facing||'—')+'</td><td style="padding:5px 8px">'+(pl.location||'—')+'</td><td style="padding:5px 8px;text-align:center"><button class="btn bgh bsm" style="color:var(--re)" onclick="plotQueue.splice('+qi+',1);render()">✕</button></td></tr>';
       });
@@ -3102,52 +3102,33 @@ function aList(){
     html+='<div class="empty" style="padding:28px 20px"><div style="font-size:28px;margin-bottom:8px">🔍</div><div style="font-weight:600;color:var(--tx);margin-bottom:4px">"'+esc(aFilter)+'" — koi associate nahi mila</div><div style="font-size:12px;color:var(--t3);margin-bottom:12px">Search clear karke dobara try karo</div><button class="btn bgh bsm" onclick="aFilter=\'\';aPage=1;render()">✕ Clear Search</button></div>';
   } else {
 
-    // 2-Column Card Grid
-    html+='<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:10px;margin-bottom:12px">';
-    pageData.forEach(function(a){
+    // Original table format
+    html+='<div class="tw"><table><thead><tr>'
+      +'<th>#</th><th>Level</th><th>Name</th><th>Father/Husband</th><th>Phone</th>'
+      +'<th>RERA No.</th><th>Upliner</th><th>Joining</th>'
+      +'</tr></thead><tbody id="aListBody">';
+
+    pageData.forEach(function(a,i){
       var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
-      var cs=slabOf(a.totalGaj);
       var level=0,cur=a;
       while(cur&&cur.parentId){level++;var tmp=D.associates.find(function(x){return x.id===cur.parentId;});cur=tmp;}
+      var rowNum=(aPage-1)*PER_PAGE+i+1;
       var waNum=a.phone?a.phone.replace(/\D/g,''):'';
       if(waNum.length===10)waNum='91'+waNum;
-      var tl=getTopLeader(a.id);
-      var isLeft=a.name.includes('(Left)');
-      html+='<div style="background:#fff;border:1px solid var(--bd);border-radius:12px;padding:14px 16px;'
-        +(isLeft?'opacity:.7;':'')
-        +'box-shadow:var(--shadow);cursor:pointer;transition:box-shadow .15s" '
-        +'data-aid="'+a.id+'" onclick="showAssocDetail(this.dataset.aid)" '
-        +'>'  
-        // Top row: name + level badge
-        +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">'
-        +'<div style="flex:1;min-width:0">'
-        +'<div style="font-size:14px;font-weight:700;color:var(--bl);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(a.name)+'</div>'
-        +(tl&&tl.id!==a.id?'<div style="font-size:11px;color:var(--t3);margin-top:1px">👑 '+esc(tl.name)+'</div>':'<div style="font-size:11px;color:var(--am);margin-top:1px">⭐ Top Level</div>')
-        +'</div>'
-        +'<div style="display:flex;gap:4px;align-items:center;flex-shrink:0;margin-left:8px">'
-        +'<span style="background:var(--blb);color:var(--bl);font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px">L'+(level+1)+'</span>'
-        +'<span style="background:'+cs.rate>=1000?'var(--grb)':cs.rate>=700?'var(--blb)':'var(--bg3)'
-        +';color:'+cs.rate>=1000?'var(--gr)':cs.rate>=700?'var(--bl)':'var(--t2)'
-        +';font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px">'+cs.des+'</span>'
-        +'</div></div>'
-        // Middle: stats row
-        +'<div style="display:flex;gap:10px;margin-bottom:8px;padding:8px 10px;background:var(--bg3);border-radius:8px">'
-        +'<div style="text-align:center;flex:1"><div style="font-size:16px;font-weight:700;color:var(--pu)">'+fmtG(a.totalGaj)+'</div><div style="font-size:10px;color:var(--t3)">Total Gaj</div></div>'
-        +'<div style="width:1px;background:var(--bd)"></div>'
-        +'<div style="text-align:center;flex:1"><div style="font-size:16px;font-weight:700;color:var(--bl)">'+fmtG(a.salesGaj||0)+'</div><div style="font-size:10px;color:var(--t3)">Sales Gaj</div></div>'
-        +'<div style="width:1px;background:var(--bd)"></div>'
-        +'<div style="text-align:center;flex:1"><div style="font-size:16px;font-weight:700;color:var(--gr)">'+(function(){return D.sales.filter(function(s){return s.sellerId===a.id;}).length;})()+'</div><div style="font-size:10px;color:var(--t3)">Sales</div></div>'
-        +'</div>'
-        // Bottom: phone + upliner + actions
-        +'<div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:6px">'
-        +'<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">'
-        +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" onclick="event.stopPropagation()" style="display:flex;align-items:center;gap:3px;color:var(--gr);text-decoration:none;font-size:12px;font-weight:600;background:var(--grb);padding:3px 8px;border-radius:6px">📱 '+esc(a.phone)+'</a>':'')
-        +(par?'<span style="font-size:11px;color:var(--t2)">↑ '+esc(par.name)+'</span>':'')
-        +'</div>'
-        +'</div>'
-        +'</div>';
+      html+='<tr>'
+        +'<td style="color:var(--t3)">'+rowNum+'</td>'
+        +'<td><span class="badge bbl2">L'+(level+1)+'</span></td>'
+        +'<td><b data-aid="'+a.id+'" onclick="showAssocDetail(this.dataset.aid)" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
+          +(function(){var tl=getTopLeader(a.id);return tl&&tl.id!==a.id?'<span style="font-size:11px;color:var(--t2);margin-left:5px">👑 '+esc(tl.name)+'</span>':'';}())
+          +'</td>'
+        +'<td style="font-size:12px">'+(a.fatherName||'—')+'</td>'
+        +'<td>'+(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" style="color:var(--gr);text-decoration:none;font-size:13px">📱 '+esc(a.phone)+'</a>':'—')+'</td>'
+        +'<td style="color:var(--bl);font-size:12px">'+(a.rera||'—')+'</td>'
+        +'<td style="font-size:12px;color:var(--t2)">'+(par?esc(par.name):'— Top Level —')+'</td>'
+        +'<td style="font-size:12px">'+(a.joiningDate||'—')+'</td>'
+        +'</tr>';
     });
-    html+='</div>';
+    html+='</tbody></table></div>';
 
     // Pagination
     html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;flex-wrap:wrap;gap:8px">'
@@ -3214,10 +3195,10 @@ window.editAssoc=function(id){
     opts+='<option value="'+x.id+'"'+(a.parentId===x.id?' selected':'')+'>'+x.name+'</option>';
   });
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b style="font-size:15px">✏️ '+a.name+'</b><button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
-    +'<div class="info ibl" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><span>Slab: <b>₹'+cs.rate+'/gaj</b></span><span class="badge bbl2">'+cs.des+'</span></div>'
-    +'<div style="margin-top:4px">Total Gaj: <b>'+fmtG(a.totalGaj)+'</b></div>'
+    +'<div class="info ibl" style="margin-bottom:12px"><div style="display:flex;justify-content:space-between"><span>Slab: <b>₹'+cs.rate+'/Sq.Yd</b></span><span class="badge bbl2">'+cs.des+'</span></div>'
+    +'<div style="margin-top:4px">Total Sq.Yd: <b>'+fmtG(a.totalGaj)+'</b></div>'
     +'<div class="sbar"><div class="sfil" style="width:'+pct+'%"></div></div>'
-    +(ns?'<div style="font-size:11px;margin-top:3px">'+(ns.min-a.totalGaj)+' gaj more → ₹'+ns.rate+'/gaj ('+ns.des+')</div>':'<div style="font-size:11px;color:var(--gr)">🏆 Max Level!</div>')+'</div>'
+    +(ns?'<div style="font-size:11px;margin-top:3px">'+(ns.min-a.totalGaj)+' Sq.Yd more → ₹'+ns.rate+'/Sq.Yd ('+ns.des+')</div>':'<div style="font-size:11px;color:var(--gr)">🏆 Max Level!</div>')+'</div>'
     +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">👤 Personal Information</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Full Name *</label><input id="eNm" value="'+a.name+'"/></div>'
@@ -3275,13 +3256,13 @@ window.editAssoc=function(id){
     +'</div>'
         +'<button class="btn bbl" style="margin-bottom:14px" onclick="saveAInfo(\''+id+'\')">💾 Save Info</button>'
     +'<div class="divl"></div>'
-    +'<b style="font-size:13px;display:block;margin-bottom:8px">📦 Update Gaj</b>'
+    +'<b style="font-size:13px;display:block;margin-bottom:8px">📦 Update Sq.Yd</b>'
     +'<div class="info iam" style="margin-bottom:10px">'
-    +'<div style="font-size:12px;font-weight:700;margin-bottom:6px">Add Gaj (add to existing)</div>'
+    +'<div style="font-size:12px;font-weight:700;margin-bottom:6px">Add Sq.Yd (add to existing)</div>'
     +'<div class="fld" style="margin-bottom:6px"><label style="font-size:11px">Reason / Note *</label><input id="eAGReason" placeholder="e.g. Tour bonus, Manual correction..." style="font-size:12px"/></div>'
     +'<div style="display:flex;gap:8px"><input id="eAG" type="number" min="0" placeholder="e.g. 200" oninput="prvG(\''+id+'\')"/>'
     +'<button class="btn bgh bsm" onclick="doAG(\''+id+'\')">+ Add</button></div>'
-    +'<div style="font-size:11px;margin-top:4px;color:var(--t2)">Current <b>'+fmtG(a.totalGaj)+'</b> gaj + input = Total &nbsp;|&nbsp; Sales Gaj (for Tour & Tab benefits): <b>'+(a.salesGaj||0)+'</b></div>'
+    +'<div style="font-size:11px;margin-top:4px;color:var(--t2)">Current <b>'+fmtG(a.totalGaj)+'</b> Sq.Yd + input = Total &nbsp;|&nbsp; Sales Sq.Yd (for Tour & Tab benefits): <b>'+(a.salesGaj||0)+'</b></div>'
     +'<div style="font-size:11px;color:var(--am);margin-top:3px">⚠️ Manual add updates slab/rate — Tour & Tab benefits only from sales entries</div>'
     +'</div>'
     +'<div id="gPrv" style="display:none;padding:8px 12px;border-radius:8px;font-size:13px"></div>'
@@ -3317,7 +3298,7 @@ window.prvG=function(id){
     pv.style.background='var(--reb)';
     pv.style.border='1px solid var(--re)';
     pv.style.color='var(--re)';
-    pv.innerHTML='⛔ Gaj negative nahi ho sakta! Current: <b>'+fmtG(a.totalGaj)+'</b>, Input: <b>'+inp+'</b>, Result: <b>'+v+'</b>';
+    pv.innerHTML='⛔ Sq.Yd negative nahi ho sakta! Current: <b>'+fmtG(a.totalGaj)+'</b>, Input: <b>'+inp+'</b>, Result: <b>'+v+'</b>';
     return;
   }
   if(isNaN(v)){pv.style.display='none';return;}
@@ -3327,7 +3308,7 @@ window.prvG=function(id){
     pv.style.background='var(--amb)';
     pv.style.border='1px solid var(--am)';
     pv.style.color='var(--am)';
-    pv.innerHTML='⚠️ Result 0 gaj hoga — associate Trainee slab pe aa jaayega!';
+    pv.innerHTML='⚠️ Result 0 Sq.Yd hoga — associate Trainee slab pe aa jaayega!';
     return;
   }
   // Normal preview
@@ -3336,13 +3317,13 @@ window.prvG=function(id){
   pv.style.background=up?'var(--grb)':down?'var(--reb)':'var(--blb)';
   pv.style.border='1px solid '+(up?'var(--gr)':down?'var(--re)':'var(--bl)');
   pv.style.color=up?'var(--gr)':down?'var(--re)':'var(--bld)';
-  pv.innerHTML=a.totalGaj+' → <b>'+v+' gaj</b> | ₹'+oR+' → <b>₹'+nR+'/gaj</b>'
+  pv.innerHTML=a.totalGaj+' → <b>'+v+'Sq.Yd</b> | ₹'+oR+' → <b>₹'+nR+'/Sq.Yd</b>'
     +(up?' 🎉 Slab Upgrade!':down?' ⚠️ Slab Down hoga!':'');
 };
 window.doAG=function(id){
   var el=document.getElementById('eAG');
   var v=parseFloat(el?el.value:0)||0;
-  if(isNaN(v)||v===0){toast('Please enter a valid gaj value!',false);return;}
+  if(isNaN(v)||v===0){toast('Please enter a valid Sq.Yd value!',false);return;}
   var a=D.associates.find(function(x){return x.id===id;});
   if(a&&(a.totalGaj+v)<0){
     toast('⛔ Gaj cannot be negative! Current: '+fmtG(a.totalGaj)+', Input: '+v+', Result: '+(a.totalGaj+v),false);
@@ -3356,8 +3337,8 @@ window.doAG=function(id){
   // totalGaj badhao (slab for) — salesGaj nahi badhega (Tour/Tab for)
   D.associates[i].totalGaj=Math.round((D.associates[i].totalGaj+v)*100)/100;
   var n=rOf(D.associates[i].totalGaj);
-  logAct('Manual Gaj: '+a.name+' | '+(v>0?'+':'')+v+' gaj | '+prevGaj+' → '+D.associates[i].totalGaj+' | Reason: '+reason);
-  saveD();toast(v+' gaj added! Total: '+D.associates[i].totalGaj+(n>o?' 🎉 Slab Upgrade!':''));closeM();render();
+  logAct('Manual Gaj: '+a.name+' | '+(v>0?'+':'')+v+' Sq.Yd | '+prevGaj+' → '+D.associates[i].totalGaj+' | Reason: '+reason);
+  saveD();toast(v+' Sq.Yd added! Total: '+D.associates[i].totalGaj+(n>o?' 🎉 Slab Upgrade!':''));closeM();render();
 };
 window.saveAInfo=function(id){
   if(!can('associates_edit')){toast('Access denied!',false);return;}
@@ -3705,13 +3686,13 @@ window.editPlot=function(projId,plotId){
   var hasSale=D.sales.some(function(s){return s.plotId===plotId;});
   var canDelete=pl.status==='available'&&!hasSale;
   // If sale exists - plot no, size, saleable gaj are LOCKED
-  var lockNote=hasSale?'<div class="info iam" style="margin-bottom:10px;font-size:12px">🔒 <b>Sale entry hai</b> — Plot No, Plot Gaj more Saleable Gaj change nahi ho sakte. Pehle sale entry delete karo.</div>':'';
+  var lockNote=hasSale?'<div class="info iam" style="margin-bottom:10px;font-size:12px">🔒 <b>Sale entry hai</b> — Plot No, Plot Sq.Yd more Saleable (Sq.Yd) change nahi ho sakte. Pehle sale entry delete karo.</div>':'';
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b>✏️ Plot — '+pl.plotNo+'</b><button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +lockNote
     +'<div class="g2" style="margin-bottom:10px">'
     +'<div class="fld"><label>Plot No '+(hasSale?'🔒':''+'*')+'</label><input id="epNo" value="'+pl.plotNo+'"'+(hasSale?' disabled style="background:var(--bg3);color:var(--t3)"':'')+'/></div>'
-    +'<div class="fld"><label>Plot Size Gaj '+(hasSale?'🔒':'')+'</label><input id="epSz" type="number" value="'+pl.sizeGaj+'"'+(hasSale?' disabled style="background:var(--bg3);color:var(--t3)"':'')+'/></div>'
-    +'<div class="fld"><label>Saleable Gaj '+(hasSale?'🔒':'')+'</label><input id="epSal" type="number" value="'+(pl.saleableGaj!=null?pl.saleableGaj:pl.sizeGaj)+'"'+(hasSale?' disabled style="background:var(--bg3);color:var(--t3)"':'')+'/></div>'
+    +'<div class="fld"><label>Plot Size (Sq.Yd) '+(hasSale?'🔒':'')+'</label><input id="epSz" type="number" value="'+pl.sizeGaj+'"'+(hasSale?' disabled style="background:var(--bg3);color:var(--t3)"':'')+'/></div>'
+    +'<div class="fld"><label>Saleable (Sq.Yd) '+(hasSale?'🔒':'')+'</label><input id="epSal" type="number" value="'+(pl.saleableGaj!=null?pl.saleableGaj:pl.sizeGaj)+'"'+(hasSale?' disabled style="background:var(--bg3);color:var(--t3)"':'')+'/></div>'
     +'<div class="fld"><label>Facing</label><input id="epFc" value="'+(pl.facing||'')+'"/></div>'
     +'<div class="fld"><label>Location</label><input id="epLc" value="'+(pl.location||'')+'"/></div>'
     +'<div class="fld"><label>Status '+(hasSale?'🔒':'')+'</label>'
@@ -3868,7 +3849,7 @@ function sS1(){
     +'<div class="fld"><label>Project *</label><select id="sProj" onchange="sD.projId=this.value;sD.plotId=\'\';render()"><option value="">— Select —</option>'+projOpts+'</select></div>'
     +'<div class="fld"><label>Plot * ('+avail.length+' available/booked)</label><select id="sPlot" onchange="sD.plotId=this.value;render()"'+(proj?'':' disabled')+'><option value="">— Select —</option>'+plotOpts+'</select></div>'
     +'</div>'
-    +(proj&&selPl?'<div class="info igr">✅ <b>Plot '+selPl.plotNo+'</b> · Plot: '+selPl.sizeGaj+' gaj · <b style="color:var(--pu)">Saleable: '+sGaj+' gaj</b>'+(getProjBonus(proj)>0?' · <b>+'+getProjBonus(proj)+'% Bonus</b>':'')+'</div>':'')
+    +(proj&&selPl?'<div class="info igr">✅ <b>Plot '+selPl.plotNo+'</b> · Plot: '+selPl.sizeGaj+'Sq.Yd · <b style="color:var(--pu)">Saleable: '+sGaj+'Sq.Yd</b>'+(getProjBonus(proj)>0?' · <b>+'+getProjBonus(proj)+'% Bonus</b>':'')+'</div>':'')
     +'<button class="btn bbl" id="sN1"'+(sD.projId&&sD.plotId?'':' disabled')+'>Next →</button></div>';
 }
 
@@ -3969,7 +3950,7 @@ function sS3(){
     +'<div class="info ibl" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">'
     +'<span>🏗️ <b>'+(proj?proj.name:'')+'</b></span>'
     +'<span>Plot: <b>'+(plot?plot.plotNo:'')+'</b></span>'
-    +'<span>Saleable: <b style="color:var(--pu)">'+sGaj+' gaj</b></span>'
+    +'<span>Saleable: <b style="color:var(--pu)">'+sGaj+'Sq.Yd</b></span>'
     +'<span>Seller: <b>'+sCh[0].name+'</b></span>'
     +(sD.partyName?'<span>Buyer: <b>'+sD.partyName+'</b></span>':'')
     +(c0.rPct>0?'<span class="badge bpu">+'+c0.rPct+'% Commission Bonus</span>':'')
@@ -3989,7 +3970,7 @@ function sS3(){
   sCh.forEach(function(c,i){
     html+='<tr style="'+(i===0?'background:var(--grb)':'')+'"><td><b>'+(isLeft(c.name)?'<span style="color:var(--re)">'+esc(c.name)+'</span>'+leftBadge(c.name):esc(c.name))+'</b>'+(i===0?' 🌟':'')
       +'<div style="font-size:11px;color:var(--t2)">'+dOf(c.curG)+(c.up?' → <b style="color:var(--gr)">'+dOf(c.newG)+' ⬆</b>':'')+'</div></td>'
-      +'<td>₹'+c.myR+'/gaj</td><td>₹'+c.diff+'/gaj</td><td>₹'+fmt(c.base)+'</td>'
+      +'<td>₹'+c.myR+'/Sq.Yd</td><td>₹'+c.diff+'/Sq.Yd</td><td>₹'+fmt(c.base)+'</td>'
       +'<td style="color:var(--pu)">'+(c.rB>0?'+₹'+fmt(c.rB):'—')+'</td>'
       +'<td style="color:'+(c.cA>0?'var(--gr)':c.cA<0?'var(--am)':'var(--t3)')+'">'+( c.cA>0?'+₹'+fmt(c.cA):c.cA<0?'-₹'+fmt(Math.abs(c.cA)):'—')+'</td>'
       +'<td style="font-weight:700;color:var(--bl)">₹'+fmt(c.total)+'</td></tr>';
@@ -3997,8 +3978,8 @@ function sS3(){
   // Defence rows bhi isi table mein add karo
   sDf.forEach(function(c){
     html+='<tr style="background:var(--pub)"><td><b>'+(isLeft(c.name)?'<span style="color:var(--re)">'+esc(c.name)+'</span>'+leftBadge(c.name):esc(c.name))+'</b>'
-      +'<div style="font-size:11px;color:var(--t2)">'+c.des+' · '+c.totalGaj+' gaj</div></td>'
-      +'<td style="font-size:11px"><span class="badge bpu">D'+c.depth+'</span> ₹'+c.rate+'/gaj</td>'
+      +'<div style="font-size:11px;color:var(--t2)">'+c.des+' · '+c.totalGaj+' Sq.Yd</div></td>'
+      +'<td style="font-size:11px"><span class="badge bpu">D'+c.depth+'</span> ₹'+c.rate+'/Sq.Yd</td>'
       +'<td>—</td>'
       +'<td>₹'+fmt(c.baseAmt||c.amount)+'</td>'
       +'<td style="color:var(--pu)">—</td>'
@@ -4064,9 +4045,9 @@ function pgSalesRec(){
     +'<div style="font-size:26px;font-weight:800;color:var(--bld);letter-spacing:-1px;line-height:1.1;margin-top:3px">'+filtered.length+'</div>'
     +'<div style="font-size:11px;color:#93c5fd;margin-top:2px">'+(srProjF||srPlotF?'filtered':'all time')+'</div></div>'
     +'<div style="background:var(--pub);border:1px solid #ddd6fe;border-radius:10px;padding:12px 14px">'
-    +'<div style="font-size:11px;font-weight:600;color:var(--pu);text-transform:uppercase;letter-spacing:.4px">📐 Total Gaj</div>'
+    +'<div style="font-size:11px;font-weight:600;color:var(--pu);text-transform:uppercase;letter-spacing:.4px">📐 Total Sq.Yd</div>'
     +'<div style="font-size:26px;font-weight:800;color:var(--pu);letter-spacing:-1px;line-height:1.1;margin-top:3px">'+fmtL(filtGaj)+'</div>'
-    +'<div style="font-size:11px;color:#a78bfa;margin-top:2px">sq. yards sold</div></div>'
+    +'<div style="font-size:11px;color:#a78bfa;margin-top:2px">Sq.Yd sold</div></div>'
     +'<div style="background:var(--grb);border:1px solid #bbf7d0;border-radius:10px;padding:12px 14px">'
     +'<div style="font-size:11px;font-weight:600;color:var(--gr);text-transform:uppercase;letter-spacing:.4px">💰 Chain Brokerage</div>'
     +'<div style="font-size:22px;font-weight:800;color:var(--gr);letter-spacing:-1px;line-height:1.1;margin-top:3px">₹'+fmtL(filtCT)+'</div>'
@@ -4080,7 +4061,7 @@ function pgSalesRec(){
   // Table
   html+='<div class="tw"><table><thead><tr>'
     +'<th>#</th><th>Project</th><th>Plot No</th><th>Buyer</th><th>Seller</th>'
-    +'<th>Saleable Gaj</th><th>Booking Date</th><th>Close Date</th>'
+    +'<th>Saleable (Sq.Yd)</th><th>Booking Date</th><th>Close Date</th>'
     +'<th>Total ₹</th><th>Edit/Del</th>'
     +'</tr></thead><tbody id="srTableBody">';
 
@@ -4143,7 +4124,7 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
   var chainRows='';
   if(s.commissions&&s.commissions.length>0){
     s.commissions.forEach(function(c,i){
-      chainRows+='<tr style="background:'+(i===0?'var(--grb)':i%2===0?'#fff':'var(--bg3)')+'"><td style="padding:5px 9px"><b>'+c.name+'</b>'+(i===0?' 🌟':'')+'</td><td style="padding:5px 9px">₹'+c.diff+'/gaj</td><td style="padding:5px 9px">₹'+fmt(c.base)+'</td><td style="padding:5px 9px;font-weight:700;color:var(--bl)">₹'+fmt(c.total)+'</td></tr>';
+      chainRows+='<tr style="background:'+(i===0?'var(--grb)':i%2===0?'#fff':'var(--bg3)')+'"><td style="padding:5px 9px"><b>'+c.name+'</b>'+(i===0?' 🌟':'')+'</td><td style="padding:5px 9px">₹'+c.diff+'/Sq.Yd</td><td style="padding:5px 9px">₹'+fmt(c.base)+'</td><td style="padding:5px 9px;font-weight:700;color:var(--bl)">₹'+fmt(c.total)+'</td></tr>';
     });
   }
 
@@ -4151,7 +4132,7 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
   var defRows='';
   if(s.defCommissions&&s.defCommissions.length>0){
     s.defCommissions.forEach(function(c){
-      defRows+='<tr style="background:var(--pub)"><td style="padding:5px 9px"><b>'+c.name+'</b></td><td style="padding:5px 9px">D'+c.depth+' · ₹'+c.rate+'/gaj</td><td style="padding:5px 9px"></td><td style="padding:5px 9px;font-weight:700;color:var(--pu)">₹'+fmt(c.amount)+'</td></tr>';
+      defRows+='<tr style="background:var(--pub)"><td style="padding:5px 9px"><b>'+c.name+'</b></td><td style="padding:5px 9px">D'+c.depth+' · ₹'+c.rate+'/Sq.Yd</td><td style="padding:5px 9px"></td><td style="padding:5px 9px;font-weight:700;color:var(--pu)">₹'+fmt(c.amount)+'</td></tr>';
     });
   }
 
@@ -4166,8 +4147,8 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     +'<div class="info ibl" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">'
     +'<span>🏗️ <b>'+s.projName+'</b></span>'
     +'<span>Plot: <span class="badge bbl2">'+s.plotNo+'</span></span>'
-    +'<span>Saleable: <b style="color:var(--pu)">'+fmtG(s.plotGaj)+' gaj</b></span>'
-    +(s.rateAtSale?'<span>Rate: <b>₹'+fmt(s.rateAtSale)+'/gaj</b></span>':'')
+    +'<span>Saleable: <b style="color:var(--pu)">'+fmtG(s.plotGaj)+'Sq.Yd</b></span>'
+    +(s.rateAtSale?'<span>Rate: <b>₹'+fmt(s.rateAtSale)+'/Sq.Yd</b></span>':'')
     +(d!==null?'<span class="badge '+(cp>0?'bgn':cp<0?'bam':'bbl2')+'">'+d+' din · '+(cp>0?'+10%':cp<0?'-10%':'Normal')+'</span>':'')
     +'</div>'
 
@@ -4196,10 +4177,10 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Project</label><input value="'+s.projName+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
     +'<div class="fld"><label>Plot No</label><input value="'+s.plotNo+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
-    +'<div class="fld"><label>Plot Size Gaj</label><input value="'+(s.plotSizeGaj||s.plotGaj)+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
-    +'<div class="fld"><label>Saleable Gaj</label><input value="'+fmtG(s.plotGaj)+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
+    +'<div class="fld"><label>Plot Size (Sq.Yd)</label><input value="'+(s.plotSizeGaj||s.plotGaj)+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
+    +'<div class="fld"><label>Saleable (Sq.Yd)</label><input value="'+fmtG(s.plotGaj)+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
     +'<div class="fld"><label>Seller Associate</label><input value="'+s.sellerName+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
-    +'<div class="fld"><label>Rate at Sale</label><input value="'+(s.rateAtSale?'₹'+fmt(s.rateAtSale)+'/gaj':'—')+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
+    +'<div class="fld"><label>Rate at Sale</label><input value="'+(s.rateAtSale?'₹'+fmt(s.rateAtSale)+'/Sq.Yd':'—')+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
     +'</div>'
     +'<div class="info iam" style="font-size:12px;margin-bottom:12px">🔒 Project, Plot, Seller more Rate change nahi ho sakte — ye sale ke time record hua tha.</div>'
 
@@ -4432,7 +4413,7 @@ window.saveRefund=function(btn){
 window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dataset.sid:saleId;
   if(!can('sales_delete')){toast('You do not have permission to delete sales!',false);return;}
   var s=D.sales.find(function(x){return x.id===saleId;});if(!s)return;
-  if(!confirm('Sale will be deleted:\n\nProject: '+s.projName+'\nPlot: '+s.plotNo+'\nSeller: '+s.sellerName+'\n\nPlot wapas Available ho jaayega more associate ka gaj bhi wapas hoga. Confirm?'))return;
+  if(!confirm('Sale will be deleted:\n\nProject: '+s.projName+'\nPlot: '+s.plotNo+'\nSeller: '+s.sellerName+'\n\nPlot wapas Available ho jaayega more associate ka Sq.Yd bhi wapas hoga. Confirm?'))return;
   // Restore plot status
   for(var pi=0;pi<D.projects.length;pi++){
     var pli=D.projects[pi].plots?D.projects[pi].plots.findIndex(function(pl){return pl.id===s.plotId;}):- 1;
@@ -4519,7 +4500,7 @@ function pgRpt(){
   // Staff ko: Associate Info (r1), Project/Plot (r3), Brokerage (r4) - view only
   var isAdmin=SESSION&&SESSION.role==='admin';
   var tabs=isAdmin
-    ?[['r1','Associate Info'],['r2','Sales & Gaj'],['r3','Project/Plot'],['r4','💰 Brokerage'],['r5','📅 Monthly'],['r6','🧾 Statement']]
+    ?[['r1','Associate Info'],['r2','Sales & Sq.Yd'],['r3','Project/Plot'],['r4','💰 Brokerage'],['r5','📅 Monthly'],['r6','🧾 Statement']]
     :[['r1','1️⃣ Associate Info'],['r3','3️⃣ Project/Plot'],['r4','💰 Brokerage']];
   // Staff ka rTab sirf r1/r3/r4 ho sakta hai
   if(!isAdmin&&rTab!=='r1'&&rTab!=='r3'&&rTab!=='r4')rTab='r1';
@@ -4693,7 +4674,7 @@ function rpt1(){
   }).length;
   html+='<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:10px">'
     +'<div class="stat" style="flex:1;min-width:100px"><div class="sl">Associates in Leg</div><div class="sv" style="color:var(--bl)">'+legData.length+'</div></div>'
-    +'<div class="stat" style="flex:1;min-width:100px"><div class="sl">Total Gaj</div><div class="sv" style="color:var(--gr)">'+legGaj+'</div></div>'
+    +'<div class="stat" style="flex:1;min-width:100px"><div class="sl">Total Sq.Yd</div><div class="sv" style="color:var(--gr)">'+legGaj+'</div></div>'
     +'<div class="stat" style="flex:1;min-width:100px"><div class="sl">Total Sales</div><div class="sv" style="color:var(--am)">'+legSales+'</div></div>'
     +(r1FocusId?'<div class="stat" style="flex:1;min-width:100px;border:2px solid var(--am)"><div class="sl">Upline</div><div class="sv" style="color:var(--am)">'+ancestorIds.length+'</div></div>':'')
     +(r1FocusId?'<div class="stat" style="flex:1;min-width:100px;border:2px solid var(--gr)"><div class="sl">Downline</div><div class="sv" style="color:var(--gr)">'+descendantIds.length+'</div></div>':'')
@@ -4898,7 +4879,7 @@ function rpt2(){
     // Summary stats
     +'<div class="g4" style="margin-top:10px">'
     +'<div class="stat" style="padding:8px 12px"><div class="sl">Total Sales</div><div class="sv">'+filtered.length+'</div></div>'
-    +'<div class="stat" style="padding:8px 12px"><div class="sl">Total Gaj</div><div class="sv" style="color:var(--pu)">'+fmtG(totGaj)+'</div></div>'
+    +'<div class="stat" style="padding:8px 12px"><div class="sl">Total Sq.Yd</div><div class="sv" style="color:var(--pu)">'+fmtG(totGaj)+'</div></div>'
     +'<div class="stat" style="padding:8px 12px"><div class="sl">Total Brokerage</div><div class="sv" style="font-size:15px;color:var(--gr)">₹'+fmtL(totChain+totDef)+'</div></div>'
     +'</div></div>';
 
@@ -4932,7 +4913,7 @@ function rpt2(){
     html+='<div style="background:'+bg+';border-radius:10px;padding:10px 12px;border:.5px solid '+clr+'30">'
       +'<div style="font-size:11px;font-weight:600;color:'+clr+';margin-bottom:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+esc(p.name)+'</div>'
       +'<div style="font-size:18px;font-weight:700;color:'+clr+'">'+fmtG(p.gaj)+'</div>'
-      +'<div style="font-size:10px;color:var(--t2);margin-top:1px">gaj · '+p.sales+' sales</div>'
+      +'<div style="font-size:10px;color:var(--t2);margin-top:1px">Sq.Yd · '+p.sales+' sales</div>'
       +'<div style="font-size:11px;color:var(--gr);font-weight:600;margin-top:4px">₹'+fmtL(p.brok)+'</div>'
       +'</div>';
   });
@@ -4940,7 +4921,7 @@ function rpt2(){
 
   // Bar Chart
   html+='<div style="margin-top:4px">';
-  html+='<div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Gaj comparison</div>';
+  html+='<div style="font-size:11px;font-weight:600;color:var(--t2);margin-bottom:8px;text-transform:uppercase;letter-spacing:.4px">Sq.Yd Comparison</div>';
   projArr.forEach(function(p,i){
     var pct=Math.round((p.gaj/maxGaj)*100);
     var clr=pColors[i%pColors.length];
@@ -4972,8 +4953,8 @@ function rpt2(){
     +'<th>#</th>'
     +'<th>Project Name</th>'
     +'<th>Plot No</th>'
-    +'<th>Plot Size (Gaj)</th>'
-    +'<th>Saleable Gaj</th>'
+    +'<th>Plot Size (Sq.Yd)</th>'
+    +'<th>Saleable (Sq.Yd)</th>'
     +'<th>Party Name (Buyer)</th>'
     +'<th>Seller Name</th>'
     +'<th>Seller RERA</th>'
@@ -5008,7 +4989,7 @@ function rpt2(){
   html+='<tr style="background:var(--bg3);font-weight:700;border-top:2px solid var(--bd)">'
     +'<td colspan="3" style="padding:8px 10px">TOTAL ('+filtered.length+' Sales)</td>'
     +'<td style="padding:8px 10px"></td>'
-    +'<td style="padding:8px 10px;color:var(--pu)">'+fmtG(totGaj)+' gaj</td>'
+    +'<td style="padding:8px 10px;color:var(--pu)">'+fmtG(totGaj)+'Sq.Yd</td>'
     +'<td colspan="5"></td>'
     +'</tr>';
 
@@ -5077,7 +5058,7 @@ function rpt3(){
   html+='<div class="card" style="padding:0;overflow:hidden">'
     +'<div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
     +'<th>#</th><th>Project Name</th><th>Plot No</th>'
-    +'<th>Plot Size (Gaj)</th><th>Saleable Gaj</th>'
+    +'<th>Plot Size (Sq.Yd)</th><th>Saleable (Sq.Yd)</th>'
     +'<th>Status</th>'
     +'<th>Buyer Name</th><th>Seller Name</th><th>Seller RERA</th>'
     +'<th>Booking Date</th><th>Closing Date</th>'
@@ -5248,7 +5229,7 @@ window.showBroSales=function(assocId,assocName){
       +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)"><b>'+r.sl.projName+'</b></td>'
       +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)"><span class="badge bbl2">'+r.sl.plotNo+'</span></td>'
       +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)">'+(r.sl.partyName||'—')+'</td>'
-      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd);color:var(--pu);font-weight:700">'+r.sl.plotGaj+' gaj</td>'
+      +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd);color:var(--pu);font-weight:700">'+r.sl.plotGaj+'Sq.Yd</td>'
       +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)">'+(r.sl.closeDate||'—')+'</td>'
       +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd)"><span class="badge '+(r.type==='Chain'?'bbl2':'bpu')+'">'+r.type+'</span></td>'
       +'<td style="padding:6px 10px;border-bottom:.5px solid var(--bd);font-weight:700;color:var(--gr)">₹'+fmt(r.amt)+'</td>'
@@ -5263,7 +5244,7 @@ window.showBroSales=function(assocId,assocName){
     +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Project</th>'
     +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Plot</th>'
     +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Buyer</th>'
-    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Gaj</th>'
+    +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Sq.Yd</th>'
     +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Closing Date</th>'
     +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Type</th>'
     +'<th style="padding:7px 10px;border-bottom:.5px solid var(--bd)">Brokerage ₹</th>'
@@ -5292,7 +5273,7 @@ function rpt4Plot(){
 
   html+='<div class="card" style="padding:0"><div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
     +'<th>#</th><th>Project</th><th>Plot No</th><th>Buyer</th><th>Seller</th>'
-    +'<th>Plot Size (Gaj)</th><th>Saleable Gaj</th>'
+    +'<th>Plot Size (Sq.Yd)</th><th>Saleable (Sq.Yd)</th>'
     +'<th>Booking Date</th><th>Closing Date</th>'
     +'<th>Total Brokerage ₹</th>'
     +'</tr></thead><tbody>';
@@ -5511,7 +5492,7 @@ window.expSingleAssoc=function(assocId){
   var a=D.associates.find(function(x){return x.id===assocId;});
   if(!a){return;}
   var wb=XLSX.utils.book_new();
-  var rows=[['#','Month','Project','Plot No','Plot Size','Saleable Gaj','Seller','Buyer','Booking Date','Closing Date','Brokerage (Rs.)']];
+  var rows=[['#','Month','Project','Plot No','Plot Size','Saleable (Sq.Yd)','Seller','Buyer','Booking Date','Closing Date','Brokerage (Rs.)']];
   var ri=0;
   D.sales.forEach(function(sl){
     if(r4ProjF&&sl.projId!==r4ProjF)return;
@@ -5875,8 +5856,8 @@ function rpt4Leg(){
           +'<td style="padding:7px 10px;color:var(--t3)">'+(i+1)+'</td>'
           +'<td style="padding:7px 10px;font-weight:600">'+r.proj+'</td>'
           +'<td style="padding:7px 10px"><span class="badge bbl2">'+r.plotNo+'</span></td>'
-          +'<td style="padding:7px 10px">'+r.plotSize+' gaj</td>'
-          +'<td style="padding:7px 10px;color:var(--pu);font-weight:700">'+r.saleable+' gaj</td>'
+          +'<td style="padding:7px 10px">'+r.plotSize+'Sq.Yd</td>'
+          +'<td style="padding:7px 10px;color:var(--pu);font-weight:700">'+r.saleable+'Sq.Yd</td>'
           +'<td style="padding:7px 10px">'+r.seller+'</td>'
           +'<td style="padding:7px 10px">'+r.buyer+'</td>'
           +'<td style="padding:7px 10px">'+r.booking+'</td>'
@@ -5975,7 +5956,7 @@ function expBroPlot(){
   });
 
   // ── Sheet 1: Plot Summary ──────────────────────────
-  var rows=[['#','Project Name','Plot No','Plot Size Gaj','Saleable Gaj','Buyer','Seller Name','Booking Date','Closing Date','Brokerage (Rs.)','Payment Date']];
+  var rows=[['#','Project Name','Plot No','Plot Size (Sq.Yd)','Saleable (Sq.Yd)','Buyer','Seller Name','Booking Date','Closing Date','Brokerage (Rs.)','Payment Date']];
   filtered.forEach(function(sl,i){
     rows.push([i+1,sl.projName,sl.plotNo,sl.plotSizeGaj||sl.plotGaj,sl.plotGaj,sl.partyName||'',sl.sellerName,sl.bookingDate||'',sl.closeDate||'',(sl.chainTotal||0)+(sl.defTotal||0)]);
   });
@@ -5987,7 +5968,7 @@ function expBroPlot(){
 
   // ── Sheet 2: Plot wise leg breakdown ──────────────
   // Har plot for — kis associate ko kitna gaya
-  var rows2=[['#','Project','Plot No','Plot Size (Gaj)','Saleable (Gaj)','Buyer','Booking Date','Closing Date','Associate Name','Phone','RERA No','PAN','Commission Amount (Rs.)']];
+  var rows2=[['#','Project','Plot No','Plot Size (Sq.Yd)','Saleable (Gaj)','Buyer','Booking Date','Closing Date','Associate Name','Phone','RERA No','PAN','Commission Amount (Rs.)']];
   var ri=0;
   filtered.forEach(function(sl){
     var plotSize=sl.plotSizeGaj||sl.plotGaj;
@@ -6154,7 +6135,7 @@ function rpt5(){
   var r5SPage=r5P>r5STotalPages?1:r5P;
   var r5SPageData=mSales.slice((r5SPage-1)*R5S_PER,r5SPage*R5S_PER);
 
-  html+='<div class="card"><div class="ct">Sale-wise Detail — '+curM+' <span style="font-size:11px;font-weight:400;color:var(--t2)">(by '+(dateMode==='closing'?'Closing':'Booking')+' Date)</span></div><div class="tw"><table><thead><tr><th>#</th><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Gaj</th><th>Booking</th><th>Close</th><th>Days</th><th>Closing</th><th>Brokerage ₹</th></tr></thead><tbody>';
+  html+='<div class="card"><div class="ct">Sale-wise Detail — '+curM+' <span style="font-size:11px;font-weight:400;color:var(--t2)">(by '+(dateMode==='closing'?'Closing':'Booking')+' Date)</span></div><div class="tw"><table><thead><tr><th>#</th><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Sq.Yd</th><th>Booking</th><th>Close</th><th>Days</th><th>Closing</th><th>Brokerage ₹</th></tr></thead><tbody>';
   r5SPageData.forEach(function(s,i){
     var rowNum=(r5SPage-1)*R5S_PER+i+1;
     var d2=daysBetween(s.bookingDate,s.closeDate);var cp=closingPct(d2);
@@ -6210,15 +6191,15 @@ function rpt6(){
     +'<div style="font-size:12px;opacity:.85">'+(stFrom||'From Beginning')+' to '+(stTo||'Till Today')+' | Payment: '+payDate+'</div></div>'
     +'<div class="g4" style="margin-bottom:14px">'
     +'<div class="stat"><div class="sl">Designation</div><div class="sv" style="font-size:14px">'+dOf(a.totalGaj)+'</div></div>'
-    +'<div class="stat"><div class="sl">Current Slab</div><div class="sv" style="font-size:16px;color:var(--bl)">₹'+rOf(a.totalGaj)+'/gaj</div></div>'
-    +'<div class="stat"><div class="sl">Total Gaj</div><div class="sv">'+fmtG(a.totalGaj)+'</div></div>'
+    +'<div class="stat"><div class="sl">Current Slab</div><div class="sv" style="font-size:16px;color:var(--bl)">₹'+rOf(a.totalGaj)+'/Sq.Yd</div></div>'
+    +'<div class="stat"><div class="sl">Total Sq.Yd</div><div class="sv">'+fmtG(a.totalGaj)+'</div></div>'
     +'<div class="stat"><div class="sl">RERA No</div><div class="sv" style="font-size:13px">'+(a.rera||'—')+'</div></div>'
     +'<div class="stat"><div class="sl">Total Brokerage</div><div class="sv" style="font-size:18px;color:var(--gr)">₹'+fmtL(totalChain+totalDef)+'</div></div>'
     +'<div class="stat"><div class="sl">Payment Date</div><div class="sv" style="font-size:13px">'+payDate+'</div></div>'
     +'</div>'
     +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px"><b>Chain:</b> '+chainStr+'</div>';
   
-  html+='<div class="tw"><table><thead><tr><th>#</th><th>Project</th><th>Plot</th><th>Buyer</th><th>Role</th><th>Gaj</th><th>Booking</th><th>Close</th><th>Closing</th><th>Diff Rate</th><th>Base ₹</th><th>Commission ₹</th></tr></thead><tbody>';
+  html+='<div class="tw"><table><thead><tr><th>#</th><th>Project</th><th>Plot</th><th>Buyer</th><th>Role</th><th>Sq.Yd</th><th>Booking</th><th>Close</th><th>Closing</th><th>Diff Rate</th><th>Base ₹</th><th>Commission ₹</th></tr></thead><tbody>';
   // ── Pagination rpt6 ──
   var allStRows = chainS.map(function(sl,i){return {sl:sl,type:'chain',orig_i:i};})
     .concat(defS.map(function(sl,i){return {sl:sl,type:'def',orig_i:i};}));
@@ -6238,7 +6219,7 @@ function rpt6(){
         +'<td><span class="badge '+(pos===0?'bgn':'bbl2')+'">'+(pos===0?'🌟 Seller':'Chain L'+(pos+1))+'</span></td>'
         +'<td><b>'+sl.plotGaj+'</b></td><td>'+(sl.bookingDate||'—')+'</td><td>'+(sl.closeDate||'—')+'</td>'
         +'<td style="color:'+(cp>0?'var(--gr)':cp<0?'var(--am)':'var(--t3)')+'">'+( cp>0?'+10%':cp<0?'-10%':'Normal')+'</td>'
-        +'<td>₹'+(c?c.diff:0)+'/gaj</td><td>₹'+fmt(c?c.base:0)+'</td>'
+        +'<td>₹'+(c?c.diff:0)+'/Sq.Yd</td><td>₹'+fmt(c?c.base:0)+'</td>'
         +'<td style="font-weight:700;color:var(--bl)">₹'+fmt(c?c.total:0)+'</td></tr>';
     } else {
       var c=sl.defCommissions&&sl.defCommissions.find(function(c){return c.id===a.id;});
@@ -6248,7 +6229,7 @@ function rpt6(){
         +'<td><span class="badge bpu">🛡️ Defence D'+(c?c.depth:'')+'</span></td>'
         +'<td>'+sl.plotGaj+'</td><td>'+(sl.bookingDate||'—')+'</td><td>'+(sl.closeDate||'—')+'</td>'
         +'<td style="color:'+(cp>0?'var(--gr)':cp<0?'var(--am)':'var(--t3)')+'">'+( cp>0?'+10%':cp<0?'-10%':'Normal')+'</td>'
-        +'<td>₹'+(c?c.rate:0)+'/gaj</td><td>₹'+fmt(c?c.baseAmt||c.amount:0)+'</td>'
+        +'<td>₹'+(c?c.rate:0)+'/Sq.Yd</td><td>₹'+fmt(c?c.baseAmt||c.amount:0)+'</td>'
         +'<td style="font-weight:700;color:var(--pu)">₹'+fmt(c?c.amount:0)+'</td></tr>';
     }
   });
@@ -7038,7 +7019,7 @@ window.showCampSalesDetail=function(key){
         +'<td style="padding:8px 10px;color:var(--t3)">'+(i+1)+'</td>'
         +'<td style="padding:8px 10px"><b>'+esc(s.projName)+'</b></td>'
         +'<td style="padding:8px 10px"><span class="badge bbl2">'+esc(s.plotNo)+'</span></td>'
-        +'<td style="padding:8px 10px;font-weight:700;color:var(--pu)">'+s.gaj+' gaj</td>'
+        +'<td style="padding:8px 10px;font-weight:700;color:var(--pu)">'+s.gaj+'Sq.Yd</td>'
         +'<td style="padding:8px 10px;font-size:12px;color:var(--t2)">'+(s.partyName?esc(s.partyName):'—')+'</td>'
         +'<td style="padding:8px 10px;color:var(--bl)">'+(s.bookingDate?esc(s.bookingDate):'—')+'</td>'
         +'<td style="padding:8px 10px;color:var(--gr);font-weight:600">'+(s.closeDate?esc(s.closeDate):'—')+'</td>'
@@ -7076,17 +7057,17 @@ function pgSearch(){
   
   var html='<h2 style="font-size:15px;font-weight:700;margin-bottom:12px">🔍 Search: "'+searchQ+'"</h2>';
   if(aRes.length){
-    html+='<div class="card"><div class="ct">👥 Associates ('+aRes.length+')</div><div class="tw"><table><thead><tr><th>Name</th><th>Phone</th><th>RERA</th><th>Gaj</th><th>Slab</th><th>Designation</th></tr></thead><tbody>';
-    aRes.forEach(function(a){html+='<tr><td><b>'+esc(a.name)+'</b></td><td>'+(a.phone||'—')+'</td><td>'+(a.rera||'—')+'</td><td><b>'+fmtG(a.totalGaj)+'</b></td><td style="color:var(--bl);font-weight:700">₹'+rOf(a.totalGaj)+'/gaj</td><td>'+dOf(a.totalGaj)+'</td></tr>';});
+    html+='<div class="card"><div class="ct">👥 Associates ('+aRes.length+')</div><div class="tw"><table><thead><tr><th>Name</th><th>Phone</th><th>RERA</th><th>Sq.Yd</th><th>Slab</th><th>Designation</th></tr></thead><tbody>';
+    aRes.forEach(function(a){html+='<tr><td><b>'+esc(a.name)+'</b></td><td>'+(a.phone||'—')+'</td><td>'+(a.rera||'—')+'</td><td><b>'+fmtG(a.totalGaj)+'</b></td><td style="color:var(--bl);font-weight:700">₹'+rOf(a.totalGaj)+'/Sq.Yd</td><td>'+dOf(a.totalGaj)+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
   if(pRes.length){
-    html+='<div class="card"><div class="ct">🗺️ Plots ('+pRes.length+')</div><div class="tw"><table><thead><tr><th>Project</th><th>Plot No</th><th>Gaj</th><th>Saleable</th><th>Facing</th><th>Status</th></tr></thead><tbody>';
+    html+='<div class="card"><div class="ct">🗺️ Plots ('+pRes.length+')</div><div class="tw"><table><thead><tr><th>Project</th><th>Plot No</th><th>Sq.Yd</th><th>Saleable</th><th>Facing</th><th>Status</th></tr></thead><tbody>';
     pRes.forEach(function(pl){html+='<tr><td><b>'+pl.projName+'</b></td><td>'+pl.plotNo+'</td><td>'+pl.sizeGaj+'</td><td style="color:var(--pu);font-weight:700">'+(pl.saleableGaj!=null?pl.saleableGaj:pl.sizeGaj)+'</td><td>'+(pl.facing||'—')+'</td><td>'+statusBadge(pl.status)+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
   if(sRes.length){
-    html+='<div class="card"><div class="ct">💰 Sales ('+sRes.length+')</div><div class="tw"><table><thead><tr><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Gaj</th><th>Date</th><th>Total ₹</th></tr></thead><tbody>';
+    html+='<div class="card"><div class="ct">💰 Sales ('+sRes.length+')</div><div class="tw"><table><thead><tr><th>Project</th><th>Plot</th><th>Buyer</th><th>Seller</th><th>Sq.Yd</th><th>Date</th><th>Total ₹</th></tr></thead><tbody>';
     sRes.forEach(function(s){html+='<tr><td><b>'+s.projName+'</b></td><td>'+s.plotNo+'</td><td>'+(s.partyName||'—')+'</td><td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td><td>'+fmtG(s.plotGaj)+'</td><td>'+(s.bookingDate||'—')+'</td><td style="color:var(--gr);font-weight:700">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</td></tr>';});
     html+='</tbody></table></div></div>';
   }
@@ -7100,14 +7081,14 @@ function pgSearch(){
 function pgPol(){
   var html='<h2 style="font-size:15px;font-weight:700;margin-bottom:12px">📋 TrueStars Policy</h2>'
     +'<div class="card"><div class="ct">📊 12-Level Slab Table</div><div class="tw"><table><thead><tr><th>Level</th><th>Gaj Range</th><th>Rate/Gaj</th><th>Designation</th></tr></thead><tbody>';
-  SLABS.forEach(function(s){html+='<tr><td><span class="badge bbl2">L'+s.l+'</span></td><td>'+s.min+(s.max===Infinity?'+':'–'+s.max)+' gaj</td><td style="font-weight:700;color:var(--gr)">₹'+s.rate+'/gaj</td><td>'+s.des+'</td></tr>';});
+  SLABS.forEach(function(s){html+='<tr><td><span class="badge bbl2">L'+s.l+'</span></td><td>'+s.min+(s.max===Infinity?'+':'–'+s.max)+'Sq.Yd</td><td style="font-weight:700;color:var(--gr)">₹'+s.rate+'/Sq.Yd</td><td>'+s.des+'</td></tr>';});
   html+='</tbody></table></div></div>'
     +'<div class="info ipu" style="margin-bottom:10px">Jo associate 10,000+ gaj sell kar chuka hai, use neeche wale ki har sale pe chain commission ke UPAR alag se milta hai. Closing bonus bhi apply hota hai. Jise actual chain comm mila (diff&gt;0) — use Defence NAHI milega.</div>'
     +'<div class="tw"><table><thead><tr><th>Depth (Eligible)</th><th>Rate</th></tr></thead><tbody>'
-    +'<tr><td>Depth 1 — 1st eligible senior</td><td style="color:var(--pu);font-weight:700">₹100/gaj</td></tr>'
-    +'<tr><td>Depth 2</td><td style="color:var(--pu);font-weight:700">₹75/gaj</td></tr>'
-    +'<tr><td>Depth 3</td><td style="color:var(--pu);font-weight:700">₹50/gaj</td></tr>'
-    +'<tr><td>Depth 4–15</td><td style="color:var(--pu);font-weight:700">₹35/gaj</td></tr>'
+    +'<tr><td>Depth 1 — 1st eligible senior</td><td style="color:var(--pu);font-weight:700">₹100/Sq.Yd</td></tr>'
+    +'<tr><td>Depth 2</td><td style="color:var(--pu);font-weight:700">₹75/Sq.Yd</td></tr>'
+    +'<tr><td>Depth 3</td><td style="color:var(--pu);font-weight:700">₹50/Sq.Yd</td></tr>'
+    +'<tr><td>Depth 4–15</td><td style="color:var(--pu);font-weight:700">₹35/Sq.Yd</td></tr>'
     +'</tbody></table></div></div>'
     +'<div class="card"><div class="ct">⚡ Commission Bonus</div><div class="tw"><table><thead><tr><th>Bonus %</th><th>Effect (₹1,000 base pe)</th></tr></thead><tbody>'
     +'<tr><td>0%</td><td>₹1,000</td></tr>'
@@ -7123,7 +7104,7 @@ function pgPol(){
     +'<tr><td>⚠️ 61+ din</td><td style="color:var(--am);font-weight:700">-10% Penalty</td><td style="color:var(--am)">₹1L → ₹90K</td></tr>'
     +'</tbody></table></div></div>'
     +'<div class="card"><div class="ct">🎁 Travel Benefits</div><div class="tw"><table><thead><tr><th>Milestone</th><th>Benefit</th></tr></thead><tbody>';
-  BENS.forEach(function(b){html+='<tr><td><b>'+fmt(b.g)+' gaj</b></td><td style="color:var(--pu);font-weight:600">✈️ '+b.l+'</td></tr>';});
+  BENS.forEach(function(b){html+='<tr><td><b>'+fmt(b.g)+'Sq.Yd</b></td><td style="color:var(--pu);font-weight:600">✈️ '+b.l+'</td></tr>';});
   html+='</tbody></table></div></div>';
   return html;
 }
@@ -7294,7 +7275,7 @@ function bindAll(){
 
         var r0=rows[0];
         var colNo=findCol(r0,['plot_no','plot no','plot number','plotno','plot','no','number','sr no']);
-        var colSz=findCol(r0,['size_gaj','size gaj','plot size','size','gaj','area','sqyd','sq yd']);
+        var colSz=findCol(r0,['size_gaj','size gaj','plot size','size','Sq.Yd','area','sqyd','sq yd']);
         var colSal=findCol(r0,['saleable_gaj','saleable gaj','saleable','sale gaj','commission gaj','comm gaj']);
         var colFc=findCol(r0,['facing','face','direction']);
         var colLc=findCol(r0,['location','loc','area','block']);
@@ -7531,7 +7512,7 @@ function expR1(){
   // ── Sheet 1: Active Associates Full Detail ──
   var activeTree=tree.filter(function(a){return !a.name.includes('(Left)');});
   var leftTree=tree.filter(function(a){return a.name.includes('(Left)');});
-  var s1=[['#','Level','Name','Father/Husband','Phone','Joining Date','Address','RERA No','Aadhaar','PAN','Code','Location','Email','Banking Name','Bank Name','Account No','IFSC','Upliner','Total Gaj','Slab Rate','Designation','Defence']];
+  var s1=[['#','Level','Name','Father/Husband','Phone','Joining Date','Address','RERA No','Aadhaar','PAN','Code','Location','Email','Banking Name','Bank Name','Account No','IFSC','Upliner','Total Sq.Yd','Slab Rate','Designation','Defence']];
   activeTree.forEach(function(a,i){
     var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
     s1.push([i+1,'L'+(a._l+1),a.name,a.fatherName||'',a.phone||'',a.joiningDate||'',a.address||'',a.rera||'',a.aadhaar||'',a.pan||'',a.code||'',a.location||'',a.email||'',a.bankingName||'',a.bankName||'',a.accNo||'',a.ifsc||'',par?par.name:'Top Level',a.totalGaj,rOf(a.totalGaj),dOf(a.totalGaj),a.totalGaj>=10000?'Yes':'No']);
@@ -7542,7 +7523,7 @@ function expR1(){
 
   // ── Sheet: Left Associates ──
   if(leftTree.length>0){
-    var sL=[['#','Name','Phone','RERA No','PAN','Upliner','Joining Date','Total Gaj']];
+    var sL=[['#','Name','Phone','RERA No','PAN','Upliner','Joining Date','Total Sq.Yd']];
     leftTree.forEach(function(a,i){
       var par=a.parentId?D.associates.find(function(p){return p.id===a.parentId;}):null;
       sL.push([i+1,a.name,a.phone||'',a.rera||'',a.pan||'',par?par.name:'Top Level',a.joiningDate||'',a.totalGaj]);
@@ -7563,7 +7544,7 @@ function expR1(){
   // Header row:
   var hdr=[
     'Associate Name','Phone','RERA No','Code','Location',
-    'Total Gaj','Slab','Designation',
+    'Total Sq.Yd','Slab','Designation',
     'Personal Sale Gaj','Team Sale Gaj','Other Sale Gaj','Total Sale Gaj'
   ];
   for(var d=1;d<=maxDepth;d++) hdr.push('A-'+String(d).padStart(2,'0'));
@@ -7623,7 +7604,7 @@ function expR2(){
   var wb=XLSX.utils.book_new();
 
   // ── Sheet 1: Sale Detail (existing columns) ──
-  var s1=[['#','Project Name','Plot No','Plot Size Gaj','Saleable Gaj','Party Name (Buyer)','Seller Name','Seller RERA','Booking Date','Closing Date']];
+  var s1=[['#','Project Name','Plot No','Plot Size (Sq.Yd)','Saleable (Sq.Yd)','Party Name (Buyer)','Seller Name','Seller RERA','Booking Date','Closing Date']];
   D.sales.forEach(function(sl,i){
     var sellerA=D.associates.find(function(a){return a.id===sl.sellerId;});
     s1.push([i+1,sl.projName,sl.plotNo,sl.plotSizeGaj||sl.plotGaj,sl.plotGaj,sl.partyName||'',sl.sellerName,sellerA?sellerA.rera||'':'',sl.bookingDate||'',sl.closeDate||'']);
@@ -7641,7 +7622,7 @@ function expR2(){
   });
 
   // Headers
-  var hdr=['#','Project Name','Plot No','Plot Size Gaj','Saleable Gaj','Party Name (Buyer)','Seller Name','Seller RERA','Booking Date','Closing Date'];
+  var hdr=['#','Project Name','Plot No','Plot Size (Sq.Yd)','Saleable (Sq.Yd)','Party Name (Buyer)','Seller Name','Seller RERA','Booking Date','Closing Date'];
   for(var d=1;d<=maxDepth;d++) hdr.push('A-'+String(d).padStart(2,'0'));
   var s2=[hdr];
 
@@ -8286,9 +8267,9 @@ window.showAssocDetail=function(id){
 
   // Gaj progress
   html+='<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;gap:16px;align-items:center">'
-    +'<div><div style="font-size:22px;font-weight:700;color:var(--bl)">'+fmtG(a.totalGaj)+'</div><div style="font-size:11px;color:var(--t2)">Total Gaj</div></div>'
+    +'<div><div style="font-size:22px;font-weight:700;color:var(--bl)">'+fmtG(a.totalGaj)+'</div><div style="font-size:11px;color:var(--t2)">Total Sq.Yd</div></div>'
     +'<div style="flex:1">'
-    +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:3px"><span>₹'+cs.rate+'/gaj</span><span>'+(ns?(ns.min-a.totalGaj)+' more for next':'Max slab!')+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:3px"><span>₹'+cs.rate+'/Sq.Yd</span><span>'+(ns?(ns.min-a.totalGaj)+' more for next':'Max slab!')+'</span></div>'
     +'<div class="sbar"><div class="sfil" style="width:'+pct+'%"></div></div>'
     +'</div>'
     +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;border:none;text-decoration:none;white-space:nowrap">📱 WhatsApp</a>':'')
@@ -8371,7 +8352,7 @@ function rpt1LeftFullPage(){
   // Table
   h+='<div class="card" style="padding:0;overflow:hidden">'
     +'<div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
-    +'<th>#</th><th>Name</th><th>Phone</th><th>RERA No.</th><th>Upliner</th><th>Joining</th><th>Total Gaj</th><th>Sales</th><th>Profile</th>'
+    +'<th>#</th><th>Name</th><th>Phone</th><th>RERA No.</th><th>Upliner</th><th>Joining</th><th>Total Sq.Yd</th><th>Sales</th><th>Profile</th>'
     +'</tr></thead><tbody>';
 
   leftList.slice().sort(function(a,b){return a.name.localeCompare(b.name);}).forEach(function(a,i){
@@ -8472,19 +8453,19 @@ function rpt1Profile(id){
     +'<div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap">'
     +'<span class="badge bbl2">L'+(level+1)+'</span>'
     +'<span class="badge bgn">'+cs.des+'</span>'
-    +'<span class="badge bbl2">₹'+fmt(cs.rate)+'/gaj</span>'
+    +'<span class="badge bbl2">₹'+fmt(cs.rate)+'/Sq.Yd</span>'
     +(a.rera?'<span class="badge" style="background:var(--pub);color:var(--pu)">'+esc(a.rera)+'</span>':'')
     +'</div>'
     +'</div>'
     +'<div style="text-align:right">'
     +'<div style="font-size:28px;font-weight:700;color:var(--bl)">'+fmtG(a.totalGaj)+'</div>'
-    +'<div style="font-size:11px;color:var(--t2)">Total Gaj</div>'
+    +'<div style="font-size:11px;color:var(--t2)">Total Sq.Yd</div>'
     +'</div>'
     +'</div>'
     +'<div style="margin-top:10px">'
     +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:4px">'
-    +'<span>'+cs.des+' · ₹'+fmt(cs.rate)+'/gaj</span>'
-    +'<span>'+(ns?(ns.min-a.totalGaj)+' gaj → '+ns.des:'🏆 Max Level!')+'</span>'
+    +'<span>'+cs.des+' · ₹'+fmt(cs.rate)+'/Sq.Yd</span>'
+    +'<span>'+(ns?(ns.min-a.totalGaj)+'Sq.Yd → '+ns.des:'🏆 Max Level!')+'</span>'
     +'</div>'
     +'<div class="sbar"><div class="sfil" style="width:'+pct+'%"></div></div>'
     +'</div>'
@@ -8524,7 +8505,7 @@ function rpt1Profile(id){
     +'<div class="stat"><div class="sl">Personal Gaj</div><div class="sv" style="color:var(--bl)">'+personalGaj+'</div></div>'
     +'<div class="stat"><div class="sl">Team Gaj</div><div class="sv" style="color:var(--gr)">'+teamGaj+'</div></div>'
     +'<div class="stat"><div class="sl">Other Gaj</div><div class="sv" style="color:var(--am)">'+otherGaj+'</div></div>'
-    +'<div class="stat"><div class="sl">Total Gaj</div><div class="sv" style="color:var(--pu)">'+fmtG(a.totalGaj)+'</div></div>'
+    +'<div class="stat"><div class="sl">Total Sq.Yd</div><div class="sv" style="color:var(--pu)">'+fmtG(a.totalGaj)+'</div></div>'
     +'</div>'
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">'
     +'<div class="stat"><div class="sl">Personal Sales</div><div class="sv" style="font-size:16px;color:var(--bl)">'+mySales.length+'</div></div>'
@@ -8593,7 +8574,7 @@ function rpt1Profile(id){
       h+='<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:.5px solid var(--bd);cursor:pointer" data-did="'+d.id+'" onclick="r1ProfileId=this.dataset.did;r1DownPage=0;render()">'
         +'<span class="badge bbl2" style="font-size:10px">'+esc(dOf(d.totalGaj).substring(0,12))+'</span>'
         +'<span style="flex:1;color:var(--bl);font-weight:600">'+esc(d.name)+'</span>'
-        +'<span style="font-size:11px;color:var(--t2)">'+d.totalGaj+' gaj · '+dSales+' sales</span>'
+        +'<span style="font-size:11px;color:var(--t2)">'+d.totalGaj+'Sq.Yd · '+dSales+' sales</span>'
         +'</div>';
     });
   }
@@ -8601,7 +8582,7 @@ function rpt1Profile(id){
 
   // Benefits
   h+='<div class="card" style="margin:0">'
-    +'<div class="ct" style="margin-bottom:10px">🎁 Benefits Progress <span style="font-size:11px;font-weight:400;color:var(--t2)">(Sales Gaj: '+salesGajForBen+')</span></div>';
+    +'<div class="ct" style="margin-bottom:10px">🎁 Benefits Progress <span style="font-size:11px;font-weight:400;color:var(--t2)">(Sales Sq.Yd: '+salesGajForBen+')</span></div>';
   BENS.forEach(function(ben){
     var done=salesGajForBen>=ben.g;
     var isNext=!done&&nBen(salesGajForBen)&&nBen(salesGajForBen).g===ben.g;
@@ -8627,7 +8608,7 @@ function rpt1Profile(id){
     h+='<div class="empty" style="padding:16px">Koi personal sale nahi</div>';
   } else {
     h+='<div class="tw" style="border:none;border-radius:0;margin:-14px -18px 0"><table><thead><tr>'
-      +'<th>#</th><th>Project</th><th>Plot</th><th>Saleable Gaj</th>'
+      +'<th>#</th><th>Project</th><th>Plot</th><th>Saleable (Sq.Yd)</th>'
       +'</tr></thead><tbody>';
     mySales.forEach(function(s,i){
       h+='<tr>'
@@ -8650,7 +8631,7 @@ function rpt1Profile(id){
     h+='<div class="card" style="margin-bottom:10px">'
       +'<div class="ct" style="margin-bottom:10px">👥 Team Sales Commission ('+teamSales.length+' records)</div>'
       +'<div class="tw" style="border:none;border-radius:0;margin:-14px -18px 0"><table><thead><tr>'
-      +'<th>#</th><th>Project</th><th>Plot</th><th>Saleable Gaj</th><th>Seller</th>'
+      +'<th>#</th><th>Project</th><th>Plot</th><th>Saleable (Sq.Yd)</th><th>Seller</th>'
       +'</tr></thead><tbody>';
     teamSales.forEach(function(s,i){
       h+='<tr>'
@@ -8692,9 +8673,9 @@ window.showAssocView=function(id){
     +'</div>';
 
   html+='<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:12px;display:flex;gap:16px;align-items:center">'
-    +'<div><div style="font-size:22px;font-weight:700;color:var(--bl)">'+fmtG(a.totalGaj)+'</div><div style="font-size:11px;color:var(--t2)">Total Gaj</div></div>'
+    +'<div><div style="font-size:22px;font-weight:700;color:var(--bl)">'+fmtG(a.totalGaj)+'</div><div style="font-size:11px;color:var(--t2)">Total Sq.Yd</div></div>'
     +'<div style="flex:1">'
-    +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:3px"><span>₹'+cs.rate+'/gaj</span><span>'+(ns?(ns.min-a.totalGaj)+' more for next':'Max slab!')+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--t2);margin-bottom:3px"><span>₹'+cs.rate+'/Sq.Yd</span><span>'+(ns?(ns.min-a.totalGaj)+' more for next':'Max slab!')+'</span></div>'
     +'<div class="sbar"><div class="sfil" style="width:'+pct+'%"></div></div>'
     +'</div>'
     +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;border:none;text-decoration:none;white-space:nowrap">📱 WhatsApp</a>':'')
