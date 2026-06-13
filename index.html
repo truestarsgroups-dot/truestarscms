@@ -751,7 +751,6 @@ var r4PayStatus=''; // '' | pending | paid | partial
 var r4PayAssoc=''; // selected associate for detail view
 var r4PayPendingOnly=false; // detail page: sirf pending plots dikhao
 var r4PayExpandedPlot=''; // detail page: expanded payment history plot
-var r4ShowLedger=false; // ledger view toggle
 var r1SalesShow=15; // profile: personal sales load more
 var r1TeamShow=15; // profile: team sales load more
 var r4SecF='';     // leg tab: sector/location filter
@@ -772,7 +771,7 @@ var r2P=1; var r3P=1; var r4AP=1; var r4PP=1; var r5P=1; var r6P=1; // report pa
 var srPage=1;
 
 function goSalesRec(){sw('salesrec');}
-function goBackPayList(){r4PayAssoc='';r4PayPendingOnly=false;r4PayExpandedPlot='';r4ShowLedger=false;render();}
+function goBackPayList(){r4PayAssoc='';r4PayPendingOnly=false;r4PayExpandedPlot='';render();}
 function sw(t){
   if(TAB===t&&t!=='newsale')return; // same tab click ignore
   TAB=t;searchQ='';
@@ -784,7 +783,7 @@ function sw(t){
   if(t==='associates'){aView='list';aPage=1;aFilter='';}
   if(t==='salesrec'){srProjF='';srPlotF='';srPage=1;}
   if(t==='reports'){
-    r4PayAssoc='';r4PayPendingOnly=false;r4PayExpandedPlot='';r4ShowLedger=false;
+    r4PayAssoc='';r4PayPendingOnly=false;r4PayExpandedPlot='';
     r1SalesShow=15;r1TeamShow=15;
     r4Tab='assoc';r4PaySearch='';r4PayStatus='';
     r1ProfileId='';r1LegId='';r1FocusId='';r1LeftPage=false;
@@ -1429,7 +1428,7 @@ function rpt4PayDetail(assocId){
     +'<span style="font-size:14px;font-weight:700;color:var(--bl)">'+esc(a.name)+'</span>'
     +'<div style="margin-left:auto;display:flex;gap:6px;flex-wrap:wrap">'
     +'<button class="btn bsm" style="background:var(--amb);color:var(--am);border:1px solid var(--am);white-space:nowrap" data-aid="'+assocId+'" onclick="openAddAdvanceModal(this.dataset.aid)">💵 Add Advance</button>'
-    +'<button class="btn bsm" style="background:var(--bg3);color:var(--t2);border:1px solid var(--bd)" onclick="r4ShowLedger=!r4ShowLedger;render()">'+( r4ShowLedger?'← Payment View':'📒 Ledger')+'</button>'
+    +'<button class="btn bsm" style="background:var(--bg3);color:var(--t2);border:1px solid var(--bd)" data-aid="'+assocId+'" onclick="openLedgerWindow(this.dataset.aid)">📒 Ledger</button>'
     +(pendingCount>0?'<button class="btn bsm" style="background:var(--gr);color:#fff;border:none;white-space:nowrap" data-aid="'+assocId+'" onclick="payAllPending(this.dataset.aid)">⚡ Pay All ('+pendingCount+')</button>':'')
     +'<button class="btn bsm" style="background:'+(r4PayPendingOnly?'var(--am)':'var(--bg2)')+';color:'+(r4PayPendingOnly?'#fff':'var(--t2)')+';border:1px solid '+(r4PayPendingOnly?'var(--am)':'var(--bd)')+'" onclick="r4PayPendingOnly=!r4PayPendingOnly;render()">'+(r4PayPendingOnly?'🟡 Pending Only':'⬜ All Plots')+'</button>'
     +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;text-decoration:none;padding:5px 10px">📱 WA</a>':'')
@@ -1534,101 +1533,134 @@ function rpt4PayDetail(assocId){
     html+='</tbody></table></div></div>';
   });
 
-  // ── ASSOCIATE LEDGER — separate view ──────────────────
-  if(r4ShowLedger){
-    // Build ledger
-    var ledger=[];
-    D.sales.forEach(function(s){
-      var cm=(s.commissions||[]).find(function(c){return c.id===assocId;});
-      var df=(s.defCommissions||[]).find(function(c){return c.id===assocId;});
-      var commAmt=(cm?cm.total:0)+(df?df.amount:0);
-      if(commAmt>0){
-        ledger.push({date:s.closeDate||s.bookingDate||s.createdAt||'',type:'commission',
-          label:'Commission — '+esc(s.projName)+' Plot '+esc(String(s.plotNo)),amount:commAmt,dir:1});
-      }
-    });
-    (D.advances||[]).filter(function(adv){return adv.assocId===assocId;}).forEach(function(adv){
-      if(adv.status==='pending'||adv.status==='used'){
-        ledger.push({date:adv.advDate||adv.createdAt||'',type:'advance',
-          label:'Advance — '+(adv.reason||'General'),amount:adv.amount,dir:-1});
-      }
-      if(adv.status==='used'&&adv.usedInSale){
-        ledger.push({date:adv.usedAt||adv.createdAt||'',type:'advance_adj',
-          label:'Advance Adjust — commission se',amount:adv.amount,dir:1});
-      }
-      if(adv.status==='refunded'){
-        ledger.push({date:adv.refundedAt||adv.createdAt||'',type:'refund',
-          label:'Refund — '+(adv.reason||'Advance wapas'),amount:adv.amount,dir:1});
-      }
-    });
-    (D.payments||[]).filter(function(p){return p.assocId===assocId;}).forEach(function(p){
-      var paidAmt=p.paid||p.amount||0;
-      if(paidAmt>0){
-        ledger.push({date:p.payDate||p.createdAt||'',type:'payment',
-          label:'Payment — '+(p.projName||'')+(p.plotNo?' Plot '+p.plotNo:p.month?' ('+p.month+')':'')+(p.mode?' · '+p.mode:'')+(p.utr?' · '+p.utr:''),
-          amount:paidAmt,dir:-1});
-      }
-    });
-    ledger.sort(function(a,b){return (a.date||'').substr(0,10).localeCompare((b.date||'').substr(0,10));});
-
-    var typeColors={commission:{bg:'var(--grb)',color:'var(--gr)',icon:'💰'},
-      advance:{bg:'var(--blb)',color:'var(--bl)',icon:'💵'},
-      advance_adj:{bg:'var(--pub)',color:'var(--pu)',icon:'🔄'},
-      refund:{bg:'var(--amb)',color:'var(--am)',icon:'↩️'},
-      payment:{bg:'var(--reb)',color:'var(--re)',icon:'✅'}};
-
-    var runBal=0;
-    html+='<div class="card" style="padding:0;overflow:hidden">'
-      +'<div style="padding:10px 14px;background:var(--bg3);border-bottom:1px solid var(--bd);display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px">'
-      +'<div style="font-size:13px;font-weight:700">📒 Ledger — '+esc(a.name)+'</div>'
-      +'<div style="display:flex;gap:8px">'
-      +'<button class="btn bgh bsm" onclick="window.print()">🖨️ Print</button>'
-      +'<button class="btn bgh bsm" data-aid="'+assocId+'" onclick="expAssocLedger(this.dataset.aid)">📥 Export Excel</button>'
-      +'</div>'
-      +'</div>';
-
-    if(ledger.length===0){
-      html+='<div class="empty" style="padding:24px">Koi transaction nahi</div>';
-    } else {
-      html+='<div class="tw" style="border:none;border-radius:0"><table style="table-layout:fixed;width:100%">'
-        +'<thead><tr>'
-        +'<th style="width:95px">Date</th>'
-        +'<th style="width:auto">Description</th>'
-        +'<th style="width:110px;text-align:right">Credit (+)</th>'
-        +'<th style="width:110px;text-align:right">Debit (-)</th>'
-        +'<th style="width:120px;text-align:right">Balance</th>'
-        +'</tr></thead><tbody>';
-      ledger.forEach(function(entry){
-        runBal+=entry.dir*entry.amount;
-        var tc=typeColors[entry.type]||{bg:'var(--bg3)',color:'var(--t2)',icon:'•'};
-        var isCredit=entry.dir>0;
-        var balColor=runBal>0?'var(--gr)':runBal<0?'var(--re)':'var(--t2)';
-        html+='<tr>'
-          +'<td style="font-size:11px;color:var(--t2);white-space:nowrap">'+(entry.date?entry.date.substr(0,10):'—')+'</td>'
-          +'<td style="overflow:hidden"><span style="background:'+tc.bg+';color:'+tc.color+';font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;white-space:nowrap;margin-right:6px">'+tc.icon+' '+entry.type.replace('_',' ').toUpperCase()+'</span>'
-          +'<span style="font-size:12px;color:var(--t2)">'+entry.label+'</span></td>'
-          +(isCredit
-            ?'<td style="text-align:right;color:var(--gr);font-weight:600;font-size:13px;white-space:nowrap">+₹'+fmt(entry.amount)+'</td><td style="text-align:right;color:var(--t3)">—</td>'
-            :'<td style="text-align:right;color:var(--t3)">—</td><td style="text-align:right;color:var(--re);font-weight:600;font-size:13px;white-space:nowrap">-₹'+fmt(entry.amount)+'</td>')
-          +'<td style="text-align:right;font-weight:700;font-size:13px;white-space:nowrap;color:'+balColor+'">₹'+fmt(Math.abs(Math.round(runBal)))+(runBal>0?' CR':runBal<0?' DR':'')+'</td>'
-          +'</tr>';
-      });
-      var finalColor=runBal>0?'var(--gr)':runBal<0?'var(--re)':'var(--t2)';
-      var finalLabel=runBal>0?'Company ko dena hai':runBal<0?'Associate ko lena hai':'✅ Settled';
-      html+='<tr style="background:var(--bg3);border-top:2px solid var(--bd)">'
-        +'<td colspan="4" style="padding:8px 10px;font-weight:700;font-size:13px;color:'+finalColor+'">'+finalLabel+'</td>'
-        +'<td style="text-align:right;padding:8px 10px;font-weight:800;font-size:15px;color:'+finalColor+'">₹'+fmt(Math.abs(Math.round(runBal)))+(runBal>0?' CR':runBal<0?' DR':'')+'</td>'
-        +'</tr>';
-      html+='</tbody></table></div>';
-    }
-    html+='</div>';
-    return html;
-  }
 
     return html;
 }
 // ── PLOT-WISE PAYMENT MODAL ─────────────────────────────
 
+
+window.openLedgerWindow=function(assocId){
+  var a=D.associates.find(function(x){return x.id===assocId;});
+  if(!a){toast('Associate nahi mila',false);return;}
+
+  // Build ledger data
+  var ledger=[];
+  D.sales.forEach(function(s){
+    var cm=(s.commissions||[]).find(function(c){return c.id===assocId;});
+    var df=(s.defCommissions||[]).find(function(c){return c.id===assocId;});
+    var comm=(cm?cm.total:0)+(df?df.amount:0);
+    if(comm>0)ledger.push({date:s.closeDate||s.bookingDate||'',type:'COMMISSION',
+      label:'Commission — '+s.projName+' Plot '+s.plotNo,amount:comm,dir:1});
+  });
+  (D.advances||[]).filter(function(adv){return adv.assocId===assocId;}).forEach(function(adv){
+    if(adv.status==='pending'||adv.status==='used')
+      ledger.push({date:adv.advDate||adv.createdAt||'',type:'ADVANCE',
+        label:'Advance — '+(adv.reason||'General'),amount:adv.amount,dir:-1});
+    if(adv.status==='used'&&adv.usedInSale)
+      ledger.push({date:adv.usedAt||adv.createdAt||'',type:'ADV ADJUST',
+        label:'Advance Adjust — commission se',amount:adv.amount,dir:1});
+    if(adv.status==='refunded')
+      ledger.push({date:adv.refundedAt||adv.createdAt||'',type:'REFUND',
+        label:'Refund — '+(adv.reason||'Advance wapas'),amount:adv.amount,dir:1});
+  });
+  (D.payments||[]).filter(function(p){return p.assocId===assocId;}).forEach(function(p){
+    var amt=p.paid||p.amount||0;
+    if(amt>0)ledger.push({date:p.payDate||'',type:'PAYMENT',
+      label:'Payment — '+(p.projName||'')+(p.plotNo?' Plot '+p.plotNo:'')+(p.mode?' ('+p.mode+')':'')+(p.utr?' · '+p.utr:''),
+      amount:amt,dir:-1});
+  });
+  ledger.sort(function(a,b){return (a.date||'').substr(0,10).localeCompare((b.date||'').substr(0,10));});
+
+  // Build HTML for new window
+  var runBal=0;
+  var rows='';
+  var typeColors={
+    'COMMISSION':'#16a34a','ADVANCE':'#2563eb','ADV ADJUST':'#7c3aed',
+    'REFUND':'#d97706','PAYMENT':'#dc2626'
+  };
+  ledger.forEach(function(e,i){
+    runBal+=e.dir*e.amount;
+    var cr=e.dir>0?'₹'+Number(e.amount).toLocaleString('en-IN'):'—';
+    var dr=e.dir<0?'₹'+Number(e.amount).toLocaleString('en-IN'):'—';
+    var balStr='₹'+Math.abs(Math.round(runBal)).toLocaleString('en-IN')+(runBal>0?' CR':runBal<0?' DR':'');
+    var balColor=runBal>0?'#16a34a':runBal<0?'#dc2626':'#666';
+    var tc=typeColors[e.type]||'#666';
+    rows+='<tr style="background:'+(i%2===0?'#fff':'#f9fafb')+'">'
+      +'<td>'+(e.date?e.date.substr(0,10):'—')+'</td>'
+      +'<td><span style="background:'+tc+'18;color:'+tc+';font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px">'+e.type+'</span></td>'
+      +'<td>'+e.label+'</td>'
+      +'<td style="text-align:right;color:#16a34a;font-weight:600">'+cr+'</td>'
+      +'<td style="text-align:right;color:#dc2626;font-weight:600">'+dr+'</td>'
+      +'<td style="text-align:right;font-weight:700;color:'+balColor+'">'+balStr+'</td>'
+      +'</tr>';
+  });
+  var finalBal=Math.abs(Math.round(runBal));
+  var finalLabel=runBal>0?'Company ko Associate ko dena hai':runBal<0?'Associate ko Company ko dena hai':'✅ Settled — Koi balance nahi';
+  var finalColor=runBal>0?'#16a34a':runBal<0?'#dc2626':'#666';
+  var today=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
+
+  var html='<!DOCTYPE html><html><head><meta charset="UTF-8">'
+    +'<title>Ledger — '+a.name+'</title>'
+    +'<style>'
+    +'*{box-sizing:border-box;margin:0;padding:0}'
+    +'body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#fff;color:#111;font-size:13px;padding:24px}'
+    +'.header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px;padding-bottom:16px;border-bottom:2px solid #1d4ed8}'
+    +'.logo{font-size:18px;font-weight:800;color:#1d4ed8}' 
+    +'.logo span{display:block;font-size:11px;font-weight:400;color:#666;margin-top:2px}'
+    +'.assoc-info{text-align:right}'
+    +'.assoc-name{font-size:20px;font-weight:800;color:#111}'
+    +'.assoc-sub{font-size:12px;color:#666;margin-top:3px}'
+    +'.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}'
+    +'.sum-box{background:#f8fafc;border:1px solid #e2e8f0;border-radius:8px;padding:12px;text-align:center}'
+    +'.sum-label{font-size:10px;font-weight:700;color:#666;text-transform:uppercase;letter-spacing:.4px}'
+    +'.sum-val{font-size:20px;font-weight:800;margin-top:4px}'
+    +'table{width:100%;border-collapse:collapse;font-size:12px}'
+    +'th{background:#1d4ed8;color:#fff;padding:8px 10px;text-align:left;font-size:11px;font-weight:600;text-transform:uppercase;letter-spacing:.3px}'
+    +'th:last-child,th:nth-child(4),th:nth-child(5){text-align:right}'
+    +'td{padding:7px 10px;border-bottom:1px solid #f1f5f9;vertical-align:middle}'
+    +'.total-row{background:#1d4ed8!important;color:#fff!important;font-weight:700}'
+    +'.total-row td{color:#fff!important;border:none;font-size:13px;padding:10px}'
+    +'.print-btn{position:fixed;top:16px;right:16px;background:#1d4ed8;color:#fff;border:none;padding:10px 20px;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;z-index:999}'
+    +'@media print{.print-btn{display:none}body{padding:12px}}'
+    +'</style></head><body>'
+    +'<button class="print-btn" onclick="window.print()">🖨️ Print / Save PDF</button>'
+    +'<div class="header">'
+    +'<div class="logo">TrueStars Real Estate<span>Commission Management System</span></div>'
+    +'<div class="assoc-info">'
+    +'<div class="assoc-name">'+a.name+'</div>'
+    +'<div class="assoc-sub">Associate Ledger Statement · '+today+'</div>'
+    +(a.phone?'<div class="assoc-sub">📱 '+a.phone+'</div>':'')
+    +(a.accNo?'<div class="assoc-sub">A/C: '+a.accNo+(a.ifsc?' · IFSC: '+a.ifsc:'')+'</div>':'')
+    +'</div></div>';
+
+  // Summary boxes
+  var totalCredit=ledger.filter(function(e){return e.dir>0;}).reduce(function(t,e){return t+e.amount;},0);
+  var totalDebit=ledger.filter(function(e){return e.dir<0;}).reduce(function(t,e){return t+e.amount;},0);
+  html+='<div class="summary">'
+    +'<div class="sum-box"><div class="sum-label">Total Commission (CR)</div><div class="sum-val" style="color:#16a34a">₹'+Math.round(totalCredit).toLocaleString("en-IN")+'</div></div>'
+    +'<div class="sum-box"><div class="sum-label">Total Paid (DR)</div><div class="sum-val" style="color:#dc2626">₹'+Math.abs(Math.round(totalDebit)).toLocaleString("en-IN")+'</div></div>'
+    +'<div class="sum-box"><div class="sum-label">Balance</div><div class="sum-val" style="color:'+finalColor+'">₹'+finalBal.toLocaleString("en-IN")+(runBal>0?" CR":runBal<0?" DR":"")+'</div></div>'
+    +'</div>';
+
+  html+='<table><thead><tr>'
+    +'<th style="width:90px">Date</th>'
+    +'<th style="width:110px">Type</th>'
+    +'<th>Description</th>'
+    +'<th style="width:120px;text-align:right">Credit (+)</th>'
+    +'<th style="width:120px;text-align:right">Debit (-)</th>'
+    +'<th style="width:130px;text-align:right">Balance</th>'
+    +'</tr></thead><tbody>'+rows+'</tbody>'
+    +'<tfoot><tr class="total-row">'
+    +'<td colspan="5">'+finalLabel+'</td>'
+    +'<td style="text-align:right;font-size:15px">₹'+finalBal.toLocaleString("en-IN")+(runBal>0?" CR":runBal<0?" DR":"")+'</td>'
+    +'</tr></tfoot></table>'
+    +'<div style="margin-top:20px;font-size:11px;color:#999;text-align:center;border-top:1px solid #e2e8f0;padding-top:12px">Generated on '+today+' · TrueStars Commission Management System</div>'
+    +'</body></html>';
+
+  var win=window.open('','_blank','width=900,height=700,scrollbars=yes');
+  if(win){win.document.write(html);win.document.close();}
+  else{toast('Popup blocked! Browser mein popup allow karo.',false);}
+};
 
 window.expAssocLedger=function(assocId){
   var a=D.associates.find(function(x){return x.id===assocId;});
@@ -8786,14 +8818,14 @@ function rpt1Profile(id){
     +'</div></div>'
     +'<div class="tw" style="border:none;border-radius:0">'
     +'<table style="table-layout:fixed;width:100%"><thead><tr>'
-    +'<th style="width:36px">#</th>'
-    +'<th style="width:auto">Project</th>'
-    +'<th style="width:60px">Plot</th>'
-    +'<th style="width:90px">Saleable</th>'
-    +'<th style="width:130px">Seller</th>'
-    +'<th style="width:90px">Close Date</th>'
-    +'<th style="width:100px">Commission</th>'
-    +'<th style="width:60px">Type</th>'
+    +'<th style="width:32px">#</th>'
+    +'<th style="width:160px">Project</th>'
+    +'<th style="width:55px">Plot</th>'
+    +'<th style="width:75px">Saleable</th>'
+    +'<th style="width:120px">Seller</th>'
+    +'<th style="width:85px">Close Date</th>'
+    +'<th style="width:95px">Commission</th>'
+    +'<th style="width:55px">Type</th>'
     +'</tr></thead><tbody>';
 
   if(allSalesForProfile.length===0){
