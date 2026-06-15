@@ -84,6 +84,7 @@ body{font-family:'Inter',system-ui,-apple-system,sans-serif;background:var(--bg)
 .fld{display:flex;flex-direction:column;gap:4px}
 .fld label{font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px}
 input,select{font-size:13px;padding:8px 11px;border:1.5px solid var(--bd);border-radius:var(--radius-sm);background:#fff;color:var(--tx);width:100%;transition:var(--transition)}
+input[type='date']{width:auto;min-width:150px;cursor:pointer}
 input:focus,select:focus{outline:none;border-color:var(--bl);box-shadow:0 0 0 3px rgba(26,111,196,.1)}
 input:hover:not(:focus):not(:disabled),select:hover:not(:focus):not(:disabled){border-color:#94a3b8}
 input:disabled,select:disabled{background:var(--bg3);color:var(--t3);cursor:not-allowed}
@@ -295,14 +296,14 @@ tbody tr[style*="cursor:pointer"]:hover td{background:var(--blb);cursor:pointer}
         <button type="button" id="pwdToggle" onclick="var i=document.getElementById('loginPwd');i.type=i.type==='password'?'text':'password';document.getElementById('pwdToggle').textContent=i.type==='password'?'Show':'Hide'" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:12px;color:#999;font-weight:500">Show</button>
       </div>
     </div>
-    <div id="loginErr" style="display:none;background:#fdecea;color:#c0392b;border:1px solid #f5c6cb;border-radius:7px;padding:8px 12px;font-size:12px;margin-bottom:12px;text-align:center">❌ Galat User ID ya Password!</div>
+    <div id="loginErr" style="display:none;background:#fdecea;color:#c0392b;border:1px solid #f5c6cb;border-radius:7px;padding:8px 12px;font-size:12px;margin-bottom:12px;text-align:center">❌ Invalid User ID or Password!</div>
     <button id="loginBtn" onclick="doLoginBtn()" style="width:100%;background:linear-gradient(135deg,#3b82f6,#2563eb);color:#fff;border:none;border-radius:8px;padding:12px;font-size:15px;font-weight:700;cursor:pointer;letter-spacing:.3px;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:8px;box-shadow:0 4px 12px rgba(37,99,235,.3)">Login →</button>
     <div style="text-align:center;font-size:11px;color:#bbb;margin-top:16px">TrueStars Real Estate · Commission Management</div>
   </div>
 </div>
 <div class="nav" id="nav"></div>
 <div id="offlineBanner" style="display:none;background:#dc2626;color:#fff;padding:8px 16px;font-size:13px;font-weight:600;align-items:center;justify-content:center;gap:8px;position:sticky;top:57px;z-index:40;box-shadow:0 2px 6px rgba(220,38,38,.3)">
-  📴 Internet nahi hai — Data save nahi hoga. Connect karke try karo.
+  📴 No internet — Data won't be saved. Please connect and try again.
 </div>
 <div class="main" id="main"></div>
 <div id="bottomNav"></div>
@@ -334,7 +335,7 @@ function logAct(action){
   ACTLOG.unshift(entry);
   if(ACTLOG.length>200)ACTLOG=ACTLOG.slice(0,200);
   saveLog(); // localStorage backup
-  // Firebase mein bhi save karo (async, non-blocking)
+  // Also save to Firebase (async, non-blocking)
   if(_fbReady&&_fbDB){
     _fbDB.collection('_actlog').add(entry).catch(function(){});
   }
@@ -377,12 +378,12 @@ function doLogin(uid,pwd){
   var auth=getAuth();
   if(uid.toLowerCase()==='admin'&&auth.admin.pwd===hashPwd(pwd)){
     SESSION={id:'admin',name:'Admin',role:'admin',perms:null,loginTime:Date.now()};
-    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
+    logAct('Logged in');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
   }
   var s=(auth.staff||[]).find(function(x){return x.id.toLowerCase()===uid.toLowerCase();});
   if(s&&s.pwd===hashPwd(pwd)){
     SESSION={id:s.id,name:s.name,role:'staff',perms:s.perms||{},loginTime:Date.now()};
-    logAct('Login kiya');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
+    logAct('Logged in');hideLoginScreen();TAB='dashboard';resetSessionTimer();render();return true;
   }
   return false;
 }
@@ -390,7 +391,7 @@ function doLogin(uid,pwd){
 function doLogout(){
   if(_sessionTimer)clearTimeout(_sessionTimer);
   _sessionTimer=null;
-  if(SESSION)logAct('Logout kiya');
+  if(SESSION)logAct('Logged out');
   SESSION=null;
   document.getElementById('nav').innerHTML='';
   document.getElementById('main').innerHTML='';
@@ -421,11 +422,11 @@ function doLoginBtn(){
   var err=document.getElementById('loginErr');
   uid=uid.trim();
   if(!uid||!pwd){
-    if(err){err.style.display='block';err.textContent='❌ User ID aur Password dono daalo!';}
+    if(err){err.style.display='block';err.textContent='❌ Please enter User ID and Password!';}
     return;
   }
   setLoginLoading(true);
-  // ── Brute force protection — Firebase mein store hoga ──
+  // ── Brute force protection — stored in Firebase ──
   var BF_KEY='bf_'+uid.toLowerCase().replace(/[^a-z0-9]/g,'_');
   var now=Date.now();
 
@@ -435,9 +436,9 @@ function doLoginBtn(){
     var data={fails:fails,lockedUntil:lockedUntil,updatedAt:now};
     // Firebase save
     if(_fbReady&&_fbDB)_fbDB.collection('_security').doc(BF_KEY).set(data).catch(function(){});
-    // localStorage fallback bhi
+    // localStorage fallback
     try{localStorage.setItem(BF_KEY,JSON.stringify(data));}catch(e){}
-    var msg=fails>=5?'🔒 5 galat attempts! Account 5 minute ke liye lock hai.':'❌ Galat User ID ya Password! ('+(5-fails)+' attempts baaki)';
+    var msg=fails>=5?'🔒 Too many failed attempts! Account locked for 5 minutes.':'❌ Invalid User ID or Password! ('+(5-fails)+' attempts remaining)';
     if(err){err.style.display='block';err.textContent=msg;}
     setLoginLoading(false);
     var pwdEl=document.getElementById('loginPwd');
@@ -453,14 +454,14 @@ function doLoginBtn(){
   function _bfCheck(bfData){
     if(bfData&&bfData.lockedUntil&&now<bfData.lockedUntil){
       var secsLeft=Math.ceil((bfData.lockedUntil-now)/1000);
-      if(err){err.style.display='block';err.textContent='🔒 Bahut zyada galat attempts! '+secsLeft+' seconds mein dobara try karo.';}
+      if(err){err.style.display='block';err.textContent='🔒 Account locked! Please try again in '+secsLeft+' seconds.';}
       return;
     }
     if(!doLogin(uid,pwd)){_bfFail(bfData);}
     else{_bfSuccess();}
   }
 
-  // Firebase se check karo pehle (primary), localStorage fallback
+  // Check Firebase first (primary), localStorage fallback
   if(_fbReady&&_fbDB){
     _fbDB.collection('_security').doc(BF_KEY).get()
       .then(function(doc){_bfCheck(doc.exists?doc.data():null);})
@@ -501,7 +502,7 @@ var RINC=[{min:25000,max:34999,pct:10},{min:35000,max:49999,pct:25},{min:50000,m
 var D={projects:[],associates:[],sales:[],offers:[],deleted:{associates:[],sales:[],projects:[]},transfers:[],payments:[],advances:[],config:{}};
 
 function loadD(){
-  // Data sirf Firebase se — localStorage use nahi
+  // Data only from Firebase — no localStorage
   // D already initialized with empty arrays at top
   D.deleted=D.deleted||{associates:[],sales:[],projects:[]};
   D.transfers=D.transfers||[];
@@ -566,7 +567,7 @@ function resetIdleTimer(){
   if(!SESSION)return;
   _idleTimer=setTimeout(function(){
     if(SESSION){
-      toast('⏰ '+IDLE_MINUTES+' minute inactive — Auto logout ho gaya!',false);
+      toast('⏰ Inactive for '+IDLE_MINUTES+' minutes — Auto logged out!',false);
       setTimeout(doLogout,2000);
     }
   },IDLE_MINUTES*60*1000);
@@ -630,7 +631,7 @@ function daysBetween(d1,d2){
   return Math.floor((new Date(d2)-new Date(d1))/864e5);
 }
 // ── Date Mode helpers ────────────────────────────────
-// dateMode: 'booking' ya 'closing' — filter ke liye kaunsi date use ho
+// dateMode: 'booking' or 'closing' — which date to use for filtering
 function getFilterDate(sale){
   return dateMode==='closing'?(sale.closeDate||sale.bookingDate||''):(sale.bookingDate||'');
 }
@@ -681,8 +682,8 @@ function calcChain(sGaj,ch,projRate,bk,cl,bonusOverride){
 
 function calcDef(ch,sGaj,bk,cl){
   if(!ch||!ch.length)return [];
-  // Defence commission mein sirf base rate milega
-  // Rate increment (rInc) aur closing day bonus/penalty NAHI lagega
+  // Defence commission: only base rate applies
+  // No rate increment (rInc) or closing day bonus/penalty
   var wComm=new Set();
   ch.forEach(function(a,i){
     var myR=rOf((a.totalGaj||0)+sGaj);
@@ -699,7 +700,7 @@ function calcDef(ch,sGaj,bk,cl){
     if(liveG<10000)continue;
     dep++;
     var rate=DR[dep]||35;
-    var baseAmt=rate*sGaj; // Sirf base rate × gaj — koi extra bonus nahi
+    var baseAmt=rate*sGaj; // base rate × gaj only — no extra bonus
     var finalAmt=Math.max(0,baseAmt);
     dc.push({id:s.id,name:s.name,depth:dep,rate:rate,baseAmt:baseAmt,cAdj:0,cPct:0,amount:finalAmt,totalGaj:liveG,des:dOf(liveG)});
   }
@@ -730,6 +731,35 @@ document.addEventListener('click',function(e){if(e.target.id==='modal')closeM();
 
 // ─── STATE ────────────────────────────────────────────
 var TAB='dashboard';
+var _history=[]; // navigation history stack
+function pushHistory(){
+  _history.push({
+    TAB:TAB,rTab:rTab,r1ProfileId:r1ProfileId,r1LeftPage:r1LeftPage,
+    r1LegId:r1LegId,r1FocusId:r1FocusId,
+    aView:aView,aPage:aPage,aFilter:aFilter,
+    pView:pView,pId:pId,
+    r4PayAssoc:r4PayAssoc,r4PayPendingOnly:r4PayPendingOnly,
+    r4PayExpandedPlot:r4PayExpandedPlot,r4Tab:r4Tab,
+    r4PaySearch:r4PaySearch,r4PayStatus:r4PayStatus,
+    ofView:ofView,ofId:ofId,
+    srProjF:srProjF,srPlotF:srPlotF,srPage:srPage
+  });
+  if(_history.length>20)_history.shift(); // max 20 steps
+}
+function goBack(){
+  if(_history.length===0){sw('dashboard');return;}
+  var prev=_history.pop();
+  TAB=prev.TAB;rTab=prev.rTab;r1ProfileId=prev.r1ProfileId;r1LeftPage=prev.r1LeftPage;
+  r1LegId=prev.r1LegId;r1FocusId=prev.r1FocusId;
+  aView=prev.aView;aPage=prev.aPage;aFilter=prev.aFilter;
+  pView=prev.pView;pId=prev.pId;
+  r4PayAssoc=prev.r4PayAssoc;r4PayPendingOnly=prev.r4PayPendingOnly;
+  r4PayExpandedPlot=prev.r4PayExpandedPlot;r4Tab=prev.r4Tab;
+  r4PaySearch=prev.r4PaySearch;r4PayStatus=prev.r4PayStatus;
+  ofView=prev.ofView;ofId=prev.ofId;
+  srProjF=prev.srProjF;srPlotF=prev.srPlotF;srPage=prev.srPage;
+  render();
+}
 var pView='list',pId=null,pmMode='list',plotQueue=[];
 var aView='list';
 var aFilter='';  // search filter for associate list
@@ -749,7 +779,7 @@ var r4Tab='assoc'; // assoc | plot | leg | pay
 var r4PaySearch='';
 var r4PayStatus=''; // '' | pending | paid | partial
 var r4PayAssoc=''; // selected associate for detail view
-var r4PayPendingOnly=false; // detail page: sirf pending plots dikhao
+var r4PayPendingOnly=false; // detail page: show only pending plots
 var r4PayExpandedPlot=''; // detail page: expanded payment history plot
 var r1SalesShow=15; // profile: personal sales load more
 var r1TeamShow=15; // profile: team sales load more
@@ -771,12 +801,14 @@ var r2P=1; var r3P=1; var r4AP=1; var r4PP=1; var r5P=1; var r6P=1; // report pa
 var srPage=1;
 
 function goSalesRec(){sw('salesrec');}
-function goBackPayList(){r4PayAssoc='';r4PayPendingOnly=false;r4PayExpandedPlot='';render();}
+function goBackPayList(){goBack();}
 function sw(t){
   if(TAB===t&&t!=='newsale')return; // same tab click ignore
+  pushHistory();
   TAB=t;searchQ='';
   // Pagination reset
   r1P=1;r2P=1;r3P=1;r4AP=1;r4PP=1;r5P=1;r6P=1;
+  ofView='list';ofId=null;
   // Tab-specific resets
   if(t==='newsale'){sStep=1;sD={};sCh=[];sDf=[];}
   if(t==='projects'){pView='list';plotQueue=[];}
@@ -788,6 +820,14 @@ function sw(t){
     r4Tab='assoc';r4PaySearch='';r4PayStatus='';
     r1ProfileId='';r1LegId='';r1FocusId='';r1LeftPage=false;
     r3F='';r3SF='';
+  }
+  if(t==='brokerage'){
+    r4PayAssoc='';r4PayPendingOnly=false;r4PayExpandedPlot='';
+    r4Tab='assoc';r4PaySearch='';r4PayStatus='';rTab='r4';
+  }
+  if(t==='payment'){
+    r4PayAssoc='';r4PayPendingOnly=false;r4PayExpandedPlot='';
+    r4Tab='pay';r4PaySearch='';r4PayStatus='';rTab='r4';
   }
   if(t==='offers'){ofView='list';ofId=null;}
   render();
@@ -1084,7 +1124,7 @@ window.editBonusEntry=function(projId,bi){
   var isCurrent=bi===p.bonusHistory.length-1;
   var salesAffected=D.sales.filter(function(s){
     if(s.projId!==projId)return false;
-    // Sales jo is bonus entry ke baad ki hain
+    // Sales after this bonus entry date
     var nextDate=p.bonusHistory[bi+1]?p.bonusHistory[bi+1].date:'9999';
     return s.bookingDate&&s.bookingDate>=bh.date&&s.bookingDate<nextDate;
   });
@@ -1092,7 +1132,7 @@ window.editBonusEntry=function(projId,bi){
     +'<b style="font-size:15px">✏️ Bonus Entry Edit</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>';
   if(salesAffected.length>0){
-    html+='<div class="info iam" style="margin-bottom:12px">⚠️ <b>'+salesAffected.length+' sales</b> is bonus period mein hain — edit karne se unka commission NAHI badlega (jo sale save ho gayi hai woh fixed rehti hai). Sirf nayi sales pe effect hoga.</div>';
+    html+='<div class="info iam" style="margin-bottom:12px">⚠️ <b>'+salesAffected.length+' sales</b> are in this bonus period — editing will NOT change their commission (saved sales stay fixed). Only new sales will be affected.</div>';
   }
   html+='<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Bonus % *</label>'
@@ -1108,7 +1148,7 @@ window.editBonusEntry=function(projId,bi){
     +'<div class="fld" style="grid-column:1/-1"><label>Note</label>'
     +'<input id="ebNote" value="'+(bh.note||'')+'"/></div>'
     +'</div>'
-    +(isCurrent?'<div class="info ibl" style="margin-bottom:10px;font-size:12px">ℹ️ Yeh <b>current active bonus</b> hai — edit karne se project ka active bonus bhi update hoga.</div>':'')
+    +(isCurrent?'<div class="info ibl" style="margin-bottom:10px;font-size:12px">ℹ️ This is the <b>current active bonus</b> — editing will also update the project active bonus.</div>':'')
     +'<div style="display:flex;gap:8px">'
     +'<button class="btn bbl" id="btnSaveEB">💾 Save Changes</button>'
     +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
@@ -1120,7 +1160,7 @@ window.editBonusEntry=function(projId,bi){
     var newNote=((document.getElementById('ebNote')||{}).value||'').trim();
     var pi=D.projects.findIndex(function(x){return x.id===projId;});if(pi<0)return;
     D.projects[pi].bonusHistory[bi]={pct:newPct,date:newDate,note:newNote};
-    // Agar current entry hai to bonusPct bhi update karo
+    // If current entry, also update bonusPct
     if(bi===D.projects[pi].bonusHistory.length-1){
       D.projects[pi].bonusPct=newPct;
     }
@@ -1142,21 +1182,21 @@ window.deleteBonusEntry=function(projId,bi){
     var nextDate=p.bonusHistory[bi+1]?p.bonusHistory[bi+1].date:'9999';
     return s.bookingDate&&s.bookingDate>=bh.date&&s.bookingDate<nextDate;
   });
-  var warnMsg=label+' ('+bh.date+') delete karna chahte ho?';
+  var warnMsg='Delete '+label+' ('+bh.date+')?';
   if(salesAffected.length>0){
-    warnMsg+='\n\n⚠️ '+salesAffected.length+' sales is period mein hain — unka commission nahi badlega.';
+    warnMsg+='\n\n⚠️ '+salesAffected.length+' sales are in this period — their commission will not change.';
   }
   if(isCurrent){
-    warnMsg+='\n\n⚠️ Yeh CURRENT bonus hai! Delete hone ke baad pichla bonus active ho jaayega.';
+    warnMsg+='\n\n⚠️ This is the CURRENT bonus! After deletion, the previous bonus will become active.';
   }
   if(!confirm(warnMsg))return;
   var pi=D.projects.findIndex(function(x){return x.id===projId;});if(pi<0)return;
   D.projects[pi].bonusHistory.splice(bi,1);
-  // Agar current tha to naya last entry current ban jaayegi
+  // If it was current, the new last entry becomes current
   if(isCurrent&&D.projects[pi].bonusHistory.length>0){
     var lastEntry=D.projects[pi].bonusHistory[D.projects[pi].bonusHistory.length-1];
     D.projects[pi].bonusPct=lastEntry.pct;
-    toast('✅ Bonus entry delete! Ab current bonus: '+(lastEntry.pct>0?'+'+lastEntry.pct+'%':'No Bonus'));
+    toast('✅ Bonus entry deleted! Current bonus now: '+(lastEntry.pct>0?'+'+lastEntry.pct+'%':'No Bonus'));
   } else {
     toast('✅ Bonus entry deleted!');
   }
@@ -1194,7 +1234,7 @@ function rpt4Pay(){
     paidMap[p.assocId]+=(p.paid||p.amount||0);
   });
 
-  // Orphan payments — jinke sale nahi hain unhe bhi show karo
+  // Orphan payments — show even those without a sale
   D.payments.forEach(function(p){
     if(!p.assocId)return;
     if(!assocPay[p.assocId]){
@@ -1261,7 +1301,7 @@ function rpt4Pay(){
     +'</div>';
 
   if(!rows.length){
-    return html+'<div class="empty">Koi commission data nahi mila</div>';
+    return html+'<div class="empty">No commission data found</div>';
   }
 
   // Table
@@ -1283,15 +1323,15 @@ function rpt4Pay(){
 
     html+='<tr style="background:'+(a.overpaid>0?'#fff8f0':'')+'">'
       +'<td style="color:var(--t3)">'+(i+1)+'</td>'
-      +'<td><b data-aid="'+a.id+'" onclick="r4PayAssoc=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
+      +'<td><b data-aid="'+a.id+'" onclick="pushHistory();r4PayAssoc=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
       +'<div style="font-size:10px;color:var(--t3)">Last pay: '+lastDate+'</div></td>'
       +'<td style="font-weight:700">₹'+fmt(a.total)+'</td>'
       +'<td style="color:var(--gr);font-weight:700">₹'+fmt(a.paid)+'</td>'
       +'<td style="font-weight:700;color:'+(a.overpaid>0?'#c45c00':'var(--am)')+'">'+( a.overpaid>0?'⚠️ +₹'+fmt(a.overpaid)+' Overpaid':'₹'+fmt(a.pending))+'</td>'
       +'<td>'+statusBadge+'</td>'
       +'<td>'
-      +'<button class="btn bbl bsm" data-aid="'+a.id+'" onclick="r4PayAssoc=this.dataset.aid;render()" style="margin-right:4px">📋 Detail</button>'
-      +(a.status==='pending'||a.status==='partial'?'<button class="btn bsm" data-aid="'+a.id+'" onclick="openMarkPaidModal(this.dataset.aid)" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr)">💳 Pay</button>':a.status==='overpaid'?'<button class="btn bsm" data-aid="'+a.id+'" onclick="r4PayAssoc=this.dataset.aid;render()" style="background:#fff0e0;color:#c45c00;border:1px solid #c45c00">🔍 Review</button>':'')
+      +'<button class="btn bbl bsm" data-aid="'+a.id+'" onclick="pushHistory();r4PayAssoc=this.dataset.aid;render()" style="margin-right:4px">📋 Detail</button>'
+      +(a.status==='pending'||a.status==='partial'?'<button class="btn bsm" data-aid="'+a.id+'" onclick="openMarkPaidModal(this.dataset.aid)" style="background:var(--grb);color:var(--gr);border:1px solid var(--gr)">💳 Pay</button>':a.status==='overpaid'?'<button class="btn bsm" data-aid="'+a.id+'" onclick="pushHistory();r4PayAssoc=this.dataset.aid;render()" style="background:#fff0e0;color:#c45c00;border:1px solid #c45c00">🔍 Review</button>':'')
       +'</td>'
       +'</tr>';
   });
@@ -1314,13 +1354,13 @@ window.payAllPending=function(assocId){
     var comm=(cm?cm.total:0)+(df?df.amount:0);
     if(comm>0)pendingRows.push({s:s,comm:comm});
   });
-  if(!pendingRows.length){toast('Koi pending payment nahi hai!',false);return;}
+  if(!pendingRows.length){toast('No pending payments found!',false);return;}
   var total=pendingRows.reduce(function(t,r){return t+r.comm;},0);
   if(!D.advances)D.advances=[];
   var pendAdv=D.advances.filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
   var totalAdvBal=pendAdv.reduce(function(t,adv){return t+adv.amount;},0);
-  var advMsg=totalAdvBal>0?'\n\n° Advance Balance: ₹'+fmt(totalAdvBal)+' adjust hoga':'';
-  if(!confirm('⚠️ '+pendingRows.length+' pending payments ek saath mark karein?\n\nTotal: ₹'+fmt(total)+'\nDate: '+today+'\nMode: Online'+advMsg+'\n\nConfirm?'))return;
+  var advMsg=totalAdvBal>0?'\n\nAdvance Balance: ₹'+fmt(totalAdvBal)+' will be adjusted':'';
+  if(!confirm('⚠️ '+pendingRows.length+' pending payments to mark at once?\n\nTotal: ₹'+fmt(total)+'\nDate: '+today+'\nMode: Online'+advMsg+'\n\nConfirm?'))return;
   if(!D.payments)D.payments=[];
   var a=D.associates.find(function(x){return x.id===assocId;});
   var advRemaining=totalAdvBal;
@@ -1354,12 +1394,12 @@ window.payAllPending=function(assocId){
       }
     });
   }
-  saveD();toast('✅ '+pendingRows.length+' payments marked! Total: ₹'+fmt(total)+(totalAdvBal>advRemaining?' (Advance ₹'+fmt(totalAdvBal-advRemaining)+' adjust hua)':''));render();
+  saveD();toast('✅ '+pendingRows.length+' payments marked! Total: ₹'+fmt(total)+(totalAdvBal>advRemaining?' (Advance ₹'+fmt(totalAdvBal-advRemaining)+' adjusted)':''));render();
 };
 
 function rpt4PayDetail(assocId){
   var a=D.associates.find(function(x){return x.id===assocId;});
-  if(!a)return '<div class="empty">Associate nahi mila</div>';
+  if(!a)return '<div class="empty">Associate not found</div>';
   if(!D.payments)D.payments=[];
 
   function isSalePaid(sid){return D.payments.some(function(p){return p.assocId===assocId&&p.saleId===sid;});}
@@ -1395,7 +1435,7 @@ function rpt4PayDetail(assocId){
   }
 
   var totalComm=allSales.reduce(function(t,s){return t+saleComm(s);},0);
-  // Sirf filtered allSales ke payments count karo (filter active hone pe mismatch na ho)
+  // Count only payments of filtered sales (avoid mismatch when filter active)
   var filteredSaleIds=new Set(allSales.map(function(s){return s.id;}));
   var newPaidAmt=D.payments.filter(function(p){return p.assocId===assocId&&p.saleId&&filteredSaleIds.has(p.saleId);}).reduce(function(t,p){return t+(p.paid||p.amount||0);},0);
   var totalPaid=newPaidAmt+oldPaidAmt;
@@ -1432,7 +1472,7 @@ function rpt4PayDetail(assocId){
     +(pendingCount>0?'<button class="btn bsm" style="background:var(--gr);color:#fff;border:none;white-space:nowrap" data-aid="'+assocId+'" onclick="payAllPending(this.dataset.aid)">⚡ Pay All ('+pendingCount+')</button>':'')
     +'<button class="btn bsm" style="background:'+(r4PayPendingOnly?'var(--am)':'var(--bg2)')+';color:'+(r4PayPendingOnly?'#fff':'var(--t2)')+';border:1px solid '+(r4PayPendingOnly?'var(--am)':'var(--bd)')+'" onclick="r4PayPendingOnly=!r4PayPendingOnly;render()">'+(r4PayPendingOnly?'🟡 Pending Only':'⬜ All Plots')+'</button>'
     +(a.phone?'<a href="https://wa.me/'+waNum+'" target="_blank" class="btn bsm" style="background:#25D366;color:#fff;text-decoration:none;padding:5px 10px">📱 WA</a>':'')
-    +'<button class="btn bsm" style="background:var(--blb);color:var(--bl);border:1px solid var(--bl)" data-aid="'+assocId+'" onclick="rTab=\'r1\';r1ProfileId=this.dataset.aid;render()">👤 Profile</button>'
+    +'<button class="btn bsm" style="background:var(--blb);color:var(--bl);border:1px solid var(--bl)" data-aid="'+assocId+'" onclick="pushHistory();rTab=\'r1\';r1ProfileId=this.dataset.aid;render()">👤 Profile</button>'
     +'</div></div>';
 
   // Info bar — bank details
@@ -1443,24 +1483,7 @@ function rpt4PayDetail(assocId){
   if(a.ifsc)html+='<span style="font-size:11px;color:var(--t3)">·</span><span style="font-size:12px">IFSC: <b>'+esc(a.ifsc)+'</b><button class="btn bsm" data-copy="'+esc(a.ifsc)+'" onclick="navigator.clipboard.writeText(this.dataset.copy);toast(\'Copied!\')" style="font-size:11px;padding:1px 5px;margin-left:3px">📋</button></span>';
   html+='</div>';
 
-  // Advance balance
-  var pendingAdvances=(D.advances||[]).filter(function(adv){return adv.assocId===assocId&&adv.status==='pending';});
-  var advanceBalance=pendingAdvances.reduce(function(t,adv){return t+adv.amount;},0);
-  if(advanceBalance>0){
-    var advDetails=pendingAdvances.map(function(adv){
-      return '<div style="font-size:11px;color:var(--t2);padding:2px 0"><span style="color:var(--bl)">'+esc(adv.reason||'—')+'</span> · ₹'+fmt(adv.amount)+'<span style="color:var(--t3);margin-left:6px">'+(adv.createdAt?adv.createdAt.slice(0,10):'')+'</span></div>';
-    }).join('');
-    html+='<div style="background:var(--blb);border:1.5px solid var(--bl);border-radius:10px;padding:10px 14px;margin-bottom:12px">'
-      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">'
-      +'<div><div style="font-size:13px;font-weight:700;color:var(--bl)">💰 Advance Balance</div>'
-      +'<div style="font-size:11px;color:var(--t2);margin-top:1px">Agli payment se automatically deduct hoga</div></div>'
-      +'<div style="display:flex;align-items:center;gap:8px">'
-      +'<span style="font-size:20px;font-weight:700;color:var(--bl)">₹'+fmtL(advanceBalance)+'</span>'
-      +'<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re);white-space:nowrap" data-aid="'+assocId+'" data-amt="'+advanceBalance+'" onclick="openRefundModal(this.dataset.aid,parseFloat(this.dataset.amt))">🔄 Refund</button>'
-      +'</div></div>'
-      +'<div style="font-size:11px;border-top:1px solid var(--bl)30;padding-top:6px">'+advDetails+'</div>'
-      +'</div>';
-  }
+
 
   // Stats
   html+='<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px">'
@@ -1541,7 +1564,7 @@ function rpt4PayDetail(assocId){
 
 window.openLedgerWindow=function(assocId){
   var a=D.associates.find(function(x){return x.id===assocId;});
-  if(!a){toast('Associate nahi mila',false);return;}
+  if(!a){toast('Associate not found',false);return;}
 
   // Build ledger data
   var ledger=[];
@@ -1554,14 +1577,17 @@ window.openLedgerWindow=function(assocId){
   });
   (D.advances||[]).filter(function(adv){return adv.assocId===assocId;}).forEach(function(adv){
     if(adv.status==='pending'||adv.status==='used')
-      ledger.push({date:adv.advDate||adv.createdAt||'',type:'ADVANCE',
-        label:'Advance — '+(adv.reason||'General'),amount:adv.amount,dir:-1});
+      ledger.push({date:adv.advDate||adv.createdAt||'',type:'ADVANCE PAID',
+        label:'Advance Paid — '+(adv.reason||'General'),amount:adv.amount,dir:-1});
+    if(adv.status==='deposit_received')
+      ledger.push({date:adv.advDate||adv.createdAt||'',type:'DEPOSIT',
+        label:'Deposit Received — '+(adv.reason||'General'),amount:adv.amount,dir:1});
     if(adv.status==='used'&&adv.usedInSale)
       ledger.push({date:adv.usedAt||adv.createdAt||'',type:'ADV ADJUST',
-        label:'Advance Adjust — commission se',amount:adv.amount,dir:1});
+        label:'Advance Adjusted from commission',amount:adv.amount,dir:1});
     if(adv.status==='refunded')
       ledger.push({date:adv.refundedAt||adv.createdAt||'',type:'REFUND',
-        label:'Refund — '+(adv.reason||'Advance wapas'),amount:adv.amount,dir:1});
+        label:'Advance Returned — '+(adv.reason||''),amount:adv.amount,dir:1});
   });
   (D.payments||[]).filter(function(p){return p.assocId===assocId;}).forEach(function(p){
     var amt=p.paid||p.amount||0;
@@ -1575,8 +1601,8 @@ window.openLedgerWindow=function(assocId){
   var runBal=0;
   var rows='';
   var typeColors={
-    'COMMISSION':'#16a34a','ADVANCE':'#2563eb','ADV ADJUST':'#7c3aed',
-    'REFUND':'#d97706','PAYMENT':'#dc2626'
+    'COMMISSION':'#16a34a','ADVANCE PAID':'#2563eb','ADV ADJUST':'#7c3aed',
+    'REFUND':'#d97706','PAYMENT':'#dc2626','DEPOSIT':'#d97706'
   };
   ledger.forEach(function(e,i){
     runBal+=e.dir*e.amount;
@@ -1595,7 +1621,6 @@ window.openLedgerWindow=function(assocId){
       +'</tr>';
   });
   var finalBal=Math.abs(Math.round(runBal));
-  var finalLabel=runBal>0?'Company ko Associate ko dena hai':runBal<0?'Associate ko Company ko dena hai':'✅ Settled — Koi balance nahi';
   var finalColor=runBal>0?'#16a34a':runBal<0?'#dc2626':'#666';
   var today=new Date().toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});
 
@@ -1650,16 +1675,13 @@ window.openLedgerWindow=function(assocId){
     +'<th style="width:120px;text-align:right">Debit (-)</th>'
     +'<th style="width:130px;text-align:right">Balance</th>'
     +'</tr></thead><tbody>'+rows+'</tbody>'
-    +'<tfoot><tr class="total-row">'
-    +'<td colspan="5">'+finalLabel+'</td>'
-    +'<td style="text-align:right;font-size:15px">₹'+finalBal.toLocaleString("en-IN")+(runBal>0?" CR":runBal<0?" DR":"")+'</td>'
-    +'</tr></tfoot></table>'
+    +'<tfoot></tfoot></table>'
     +'<div style="margin-top:20px;font-size:11px;color:#999;text-align:center;border-top:1px solid #e2e8f0;padding-top:12px">Generated on '+today+' · TrueStars Commission Management System</div>'
     +'</body></html>';
 
   var win=window.open('','_blank','width=900,height=700,scrollbars=yes');
   if(win){win.document.write(html);win.document.close();}
-  else{toast('Popup blocked! Browser mein popup allow karo.',false);}
+  else{toast('Popup blocked! Please allow popups in your browser.',false);}
 };
 
 window.expAssocLedger=function(assocId){
@@ -1675,9 +1697,13 @@ window.expAssocLedger=function(assocId){
   });
   (D.advances||[]).filter(function(adv){return adv.assocId===assocId;}).forEach(function(adv){
     if(adv.status==='pending'||adv.status==='used')
-      ledger.push({date:adv.advDate||adv.createdAt||'',type:'ADVANCE',label:'Advance — '+(adv.reason||'General'),amount:adv.amount,dir:-1});
+      ledger.push({date:adv.advDate||adv.createdAt||'',type:'advance',
+        label:'Advance Paid — '+(adv.reason||'General'),amount:adv.amount,dir:-1});
+    if(adv.status==='deposit_received')
+      ledger.push({date:adv.advDate||adv.createdAt||'',type:'deposit',
+        label:'Deposit Received — '+(adv.reason||'General'),amount:adv.amount,dir:1});
     if(adv.status==='used'&&adv.usedInSale)
-      ledger.push({date:adv.usedAt||adv.createdAt||'',type:'ADV ADJUST',label:'Advance Adjust',amount:adv.amount,dir:1});
+      ledger.push({date:adv.usedAt||adv.createdAt||'',type:'ADV ADJUST',label:'Advance Adjusted',amount:adv.amount,dir:1});
     if(adv.status==='refunded')
       ledger.push({date:adv.refundedAt||adv.createdAt||'',type:'REFUND',label:'Refund — '+(adv.reason||''),amount:adv.amount,dir:1});
   });
@@ -1729,11 +1755,11 @@ window.payEditPinCheck=function(ds){
   var auth=getAuth();
   var pin=auth&&auth.payEditPin;
 
-  // Agar PIN set nahi hai toh seedha edit karo
+  // If no PIN set, edit directly
   if(!pin){openPlotPayModal(ds);return;}
 
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +'<b style="font-size:15px">🔐 PIN Verify karo</b>'
+    +'<b style="font-size:15px">🔐 Verify PIN</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;margin-bottom:14px;font-size:12px;color:var(--t2)">'
     +'Payment edit karne ke liye PIN daalo'
@@ -1789,9 +1815,9 @@ window.updateAdvPreview=function(commAmt,totalAdvBalance){
   var el=document.getElementById('advPreview');
   if(!el)return;
   el.innerHTML='<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--t2)">Commission:</span><span>₹'+fmt(commAmt)+'</span></div>'
-    +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--re)">Advance Adjust:</span><span style="color:var(--re)">- ₹'+fmt(adj)+'</span></div>'
+    +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--re)">Advance Adjusted:</span><span style="color:var(--re)">- ₹'+fmt(adj)+'</span></div>'
     +'<div style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid var(--bd);padding-top:4px"><span>Net Payment:</span><span style="color:var(--gr)">₹'+fmt(net)+'</span></div>';
-  // Amount field bhi update karo
+  // Also update amount field
   var amtEl=document.getElementById('pmAmt');
   if(amtEl)amtEl.value=net;
 };
@@ -1822,7 +1848,7 @@ window.openPlotPayModal=function(ds){
   var totalAdvBalance=pendingAdvances.reduce(function(t,adv){return t+adv.amount;},0);
   var advAdjust=!isEdit&&totalAdvBalance>0?Math.min(totalAdvBalance,commAmt):0;
   var netAfterAdv=Math.max(0,commAmt-advAdjust);
-  // Amount field mein net amount pre-fill karo (advance adjusted)
+  // Pre-fill amount field with net amount (advance adjusted)
   if(!isEdit&&advAdjust>0)prefillAmt=netAfterAdv;
 
   // Advance section HTML
@@ -1838,23 +1864,23 @@ window.openPlotPayModal=function(ds){
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
       +'<div style="font-size:13px;font-weight:700;color:var(--bl)">💰 Advance Pending: ₹'+fmt(totalAdvBalance)+'</div>'
       +'<label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;font-weight:600;color:var(--bl)">'
-      +'<input type="checkbox" id="pmAdvAdj" '+(advAdjust>0?'checked':'')+' onchange="updateAdvPreview('+commAmt+','+totalAdvBalance+')" style="width:16px;height:16px;cursor:pointer"/> Adjust karein?'
+      +'<input type="checkbox" id="pmAdvAdj" '+(advAdjust>0?'checked':'')+' onchange="updateAdvPreview('+commAmt+','+totalAdvBalance+')" style="width:16px;height:16px;cursor:pointer"/> Adjust?'
       +'</label></div>'
       +'<div style="margin-bottom:8px">'+advRows+'</div>'
       +'<div id="advPreview" style="background:#fff;border-radius:6px;padding:8px 10px;font-size:12px">'
       +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--t2)">Commission:</span><span>₹'+fmt(commAmt)+'</span></div>'
-      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--re)">Advance Adjust:</span><span style="color:var(--re)">- ₹'+fmt(advAdjust)+'</span></div>'
+      +'<div style="display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--re)">Advance Adjusted:</span><span style="color:var(--re)">- ₹'+fmt(advAdjust)+'</span></div>'
       +'<div style="display:flex;justify-content:space-between;font-weight:700;border-top:1px solid var(--bd);padding-top:4px"><span>Net Payment:</span><span style="color:var(--gr)">₹'+fmt(netAfterAdv)+'</span></div>'
       +'</div></div>';
   }
 
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +'<b style="font-size:15px">'+(isEdit?'✏️ Payment Edit':'💳 Plot Payment Mark Karo')+'</b>'
+    +'<b style="font-size:15px">'+(isEdit?'✏️ Payment Edit':'💳 Mark Plot Payment')+'</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:12px">'
     +'<div style="font-weight:700;font-size:14px;color:var(--bl)">'+esc(a.name)+'</div>'
     +'<div style="font-size:12px;color:var(--t2);margin-top:3px">🏗️ '+esc(projName)+' — Plot <b>'+esc(plotNo)+'</b></div>'
-    +(isEdit?'<div style="font-size:12px;color:var(--am);margin-top:3px">⚠️ Purani payment edit ho rahi hai</div>':'<div style="font-size:13px;color:var(--am);margin-top:4px">Commission: <b>₹'+fmt(commAmt)+'</b></div>')
+    +(isEdit?'<div style="font-size:12px;color:var(--am);margin-top:3px">⚠️ Editing an existing payment</div>':'<div style="font-size:13px;color:var(--am);margin-top:4px">Commission: <b>₹'+fmt(commAmt)+'</b></div>')
     +'</div>'
     +advSection
     +'<div class="g2" style="margin-bottom:12px">'
@@ -1869,7 +1895,7 @@ window.openPlotPayModal=function(ds){
     +'<div class="fld"><label>UTR / Ref No <span style="color:var(--t3)">(optional)</span></label>'
     +'<input id="pmUtr" value="'+prefillUtr+'" placeholder="e.g. 4521XXXXXXXX"/></div>'
     +'<div class="fld" style="grid-column:1/-1"><label>Note (optional)</label>'
-    +'<input id="pmNote" value="'+prefillNote+'" placeholder="e.g. Plot 55 ka payment..."/></div>'
+    +'<input id="pmNote" value="'+prefillNote+'" placeholder="e.g. Payment for Plot 55..."/></div>'
     +'</div>'
     +'<div style="display:flex;gap:8px;align-items:center">'
     +'<button class="btn bbl" data-aid="'+assocId+'" data-sid="'+saleId+'" data-proj="'+esc(projName)+'" data-plot="'+esc(plotNo)+'" data-editid="'+editPayId+'" data-comm="'+commAmt+'" data-advbal="'+totalAdvBalance+'" onclick="savePlotPayment(this)">💾 '+(isEdit?'Update':'Save Payment')+'</button>'
@@ -1910,13 +1936,14 @@ window.savePlotPayment=function(btn){
   var a=D.associates.find(function(x){return x.id===assocId;});
   if(!D.advances)D.advances=[];
 
-  // Duplicate payment guard — same saleId+assocId ke liye
+  // Duplicate payment guard — for same saleId+assocId
   var alreadyPaid=D.payments.find(function(p){return p.saleId===saleId&&p.assocId===assocId;});
   if(alreadyPaid){
-    if(!confirm('⚠️ Is sale ka payment pehle se exist karta hai (₹'+fmt(alreadyPaid.paid||alreadyPaid.amount||0)+' on '+alreadyPaid.payDate+'). Phir bhi save karein?'))return;
+    if(!confirm('⚠️ A payment already exists for this sale (₹'+fmt(alreadyPaid.paid||alreadyPaid.amount||0)+' on '+alreadyPaid.payDate+'). Save anyway?'))return;
   }
 
-  // Advance adjust — user ne checkbox se choose kiya?
+  // Advance adjust — user selected checkbox
+  if(!D.advances)D.advances=[];
   var commAmt2=parseFloat(btn.dataset.comm||amt);
   var totalAdvBalance2=parseFloat(btn.dataset.advbal||0);
   var advCb=document.getElementById('pmAdvAdj');
@@ -1928,7 +1955,7 @@ window.savePlotPayment=function(btn){
   if(doAdvAdj&&totalAdvance>0){
     advanceUsed=Math.min(totalAdvance,commAmt2);
     finalAmt=Math.max(0,commAmt2-advanceUsed);
-    // FIFO — advances use mark karo
+    // FIFO — mark advances as used
     var remaining=advanceUsed;
     pendingAdvances.forEach(function(adv){
       var ai=D.advances.findIndex(function(x){return x.id===adv.id;});
@@ -1951,7 +1978,7 @@ window.savePlotPayment=function(btn){
     });
   }
 
-  var commissionAmt=advanceUsed>0?commAmt2:amt; // full commission value save karo
+  var commissionAmt=advanceUsed>0?commAmt2:amt; // save full commission value
   D.payments.push({
     id:'_pay'+Date.now()+Math.random().toString(36).substr(2,5),
     assocId:assocId,
@@ -1970,7 +1997,7 @@ window.savePlotPayment=function(btn){
   logAct('Payment: '+(a?a.name:assocId)+' | '+projName+' Plot '+plotNo+' | ₹'+fmt(commissionAmt)+(advanceUsed>0?' [Adv ₹'+fmt(advanceUsed)+' adjusted]':''));
 
   if(advanceUsed>0){
-    toast('✅ Payment saved! Advance ₹'+fmt(advanceUsed)+' deduct kiya — Net pay: ₹'+fmt(finalAmt));
+    toast('✅ Payment saved! Advance ₹'+fmt(advanceUsed)+' deducted — Net pay: ₹'+fmt(finalAmt));
   }
 
   saveD(); closeM();
@@ -1978,7 +2005,7 @@ window.savePlotPayment=function(btn){
   // WhatsApp
   var waNum=a&&a.phone?a.phone.replace(/[^0-9]/g,''):'';
   if(waNum.length===10)waNum='91'+waNum;
-  var msg='Namaste '+((a&&a.name)||'')+'ji,\n\n'+projName+' Plot '+plotNo+' ka commission payment ho gaya hai.\n\nCommission: Rs.'+fmt(commissionAmt)+(advanceUsed>0?'\nAdvance Adjusted: Rs.'+fmt(advanceUsed)+'\nNet Cash: Rs.'+fmt(finalAmt):'')+' \nMode: '+mode+(utr?'\nUTR/Ref: '+utr:'')+'\nDate: '+payDate+'\n\n— TrueStars Real Estate';
+  var msg='Dear '+((a&&a.name)||'')+',\n\nYour commission payment for '+projName+' Plot '+plotNo+' has been processed.\n\nCommission: Rs.'+fmt(commissionAmt)+(advanceUsed>0?'\nAdvance Adjusted: Rs.'+fmt(advanceUsed)+'\nNet Cash: Rs.'+fmt(finalAmt):'')+' \nMode: '+mode+(utr?'\nUTR/Ref: '+utr:'')+'\nDate: '+payDate+'\n\n— TrueStars Real Estate';
   toast('✅ Payment saved!');
   if(waNum){
     setTimeout(function(){
@@ -2021,12 +2048,12 @@ window.openMarkPaidModal=function(assocId,month,pendingAmt,isEdit){
   var prefillUtr=existPay?existPay.utr||'':'';
   var prefillNote=existPay?existPay.note||'':'';
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +'<b style="font-size:15px">'+(isEdit?'✏️ Payment Edit Karo':'💳 Payment Mark Karo')+'</b>'
+    +'<b style="font-size:15px">'+(isEdit?'✏️ Edit Payment':'💳 Mark Payment')+'</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div style="background:var(--bg2);border-radius:8px;padding:10px 14px;margin-bottom:14px">'
     +'<div style="font-weight:600;font-size:14px">'+esc(a.name)+'</div>'
     +(month?'<div style="font-size:12px;color:var(--t2)">Month: <b>'+month+'</b></div>':'')
-    +(isEdit?'<div style="font-size:12px;color:var(--bl);margin-top:3px">Purani payment edit ho rahi hai</div>':'<div style="font-size:13px;color:var(--am);margin-top:4px">Pending Amount: <b>₹'+fmt(pendingAmt)+'</b></div>')
+    +(isEdit?'<div style="font-size:12px;color:var(--bl);margin-top:3px">Editing existing payment</div>':'<div style="font-size:13px;color:var(--am);margin-top:4px">Pending Amount: <b>₹'+fmt(pendingAmt)+'</b></div>')
     +'</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Payment Mode *</label><select id="pmMode">'
@@ -2051,7 +2078,7 @@ window.deletePaymentConfirm=function(payId){
   var idx=D.payments.findIndex(function(p){return p.id===payId;});
   if(idx<0)return;
   var p=D.payments[idx];
-  // Advance restore — agar advance deduct tha toh wapas pending karo
+  // Restore advance — if advance was deducted, mark back as pending
   if(p.advanceDeducted&&p.advanceDeducted>0&&p.saleId){
     if(!D.advances)D.advances=[];
     var toRestore=p.advanceDeducted;
@@ -2084,7 +2111,7 @@ window.savePayment=function(btn){
 
   if(!D.payments)D.payments=[];
 
-  // Edit mode: existing record update karo
+  // Edit mode: update existing record
   if(editId){
     var ei=D.payments.findIndex(function(p){return p.id===editId;});
     if(ei>=0){
@@ -2125,13 +2152,13 @@ window.savePayment=function(btn){
   var a=D.associates.find(function(x){return x.id===assocId;});
   var waNum=a&&a.phone?a.phone.replace(/[^0-9]/g,''):'';
   if(waNum.length===10)waNum='91'+waNum;
-  var msg='Namaste '+((a&&a.name)||'')+'ji,\\n\\nAapka'+(month?' '+month:'')+' commission payment ho gaya hai.\\n\\nAmount: Rs.'+fmt(amt)+'\\nMode: '+mode+(utr?'\\nUTR/Ref: '+utr:'')+'\\nDate: '+payDate+'\\n\\n— TrueStars Real Estate';
+  var msg='Dear '+((a&&a.name)||'')+',\\n\\nYour'+(month?' '+month:'')+' commission payment has been processed.\\n\\nAmount: Rs.'+fmt(amt)+'\\nMode: '+mode+(utr?'\\nUTR/Ref: '+utr:'')+'\\nDate: '+payDate+'\\n\\n— TrueStars Real Estate';
 
-  toast('✅ Payment saved!'+(waNum?' WhatsApp bhejo:':''));
+  toast('✅ Payment saved!');
 
   if(waNum){
     setTimeout(function(){
-      if(confirm('Send WhatsApp payment slip?'+((a&&a.name)||'')+' ko?')){
+      if(confirm('Send WhatsApp payment slip to '+((a&&a.name)||'')+'?')){
         window.open('https://wa.me/'+waNum+'?text='+encodeURIComponent(msg),'_blank');
       }
     },300);
@@ -2163,15 +2190,15 @@ window.confirmRunScanner=function(){
     +'<b style="font-size:15px">🔍 Data Integrity Scanner</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div class="info iam" style="margin-bottom:14px">'
-    +'<b>⚠️ Scan shuru karne se pehle jaano:</b>'
+    +'<b>⚠️ Before starting the scan:</b>'
     +'<ul style="margin:8px 0 0 16px;font-size:12px;line-height:1.8">'
-    +'<li>Yeh scan <b>read-only</b> hai — koi data change nahi hoga</li>'
-    +'<li>Sirf <b>problems batayega</b> — aap manually fix kar sakte ho</li>'
+    +'<li>This scan is <b>read-only</b> — no data will be changed</li>'
+    +'<li>It only <b>reports problems</b> — you can fix them manually</li>'
     +'<li><b>'+totalRecords+' records</b> scan honge (Associates + Sales + Payments)</li>'
-    +'<li>Scan complete hone mein <b>1-2 seconds</b> lagenge</li>'
+    +'<li>Scan will take <b>1-2 seconds</b></li>'
     +'</ul></div>'
     +'<div style="display:flex;gap:8px">'
-    +'<button class="btn bbl" onclick="closeM();runIntegrityScanner()">✅ Samajh gaya — Scan Karo</button>'
+    +'<button class="btn bbl" onclick="closeM();runIntegrityScanner()">✅ Understood — Run Scan</button>'
     +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
     +'</div>';
   openM(html);
@@ -2183,18 +2210,18 @@ window.runIntegrityScanner=function(){
 
   // ── CHECK 1: Associate totalGaj vs actual sales ──
   D.associates.forEach(function(a){
-    // Sales se actual gaj (commissions array se)
+    // Actual gaj from sales (commissions array)
     var actualSalesGaj=D.sales.filter(function(s){
       return s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;});
     }).reduce(function(t,s){return t+(s.plotGaj||0);},0);
-    // Defence sales gaj (separate chain mein)
+    // Defence sales gaj (separate chain)
     var defGaj=D.sales.filter(function(s){
       return s.defCommissions&&s.defCommissions.some(function(cm){return cm.id===a.id;})
         &&!(s.commissions&&s.commissions.some(function(cm){return cm.id===a.id;}));
     }).reduce(function(t,s){return t+(s.plotGaj||0);},0);
     var actualFromSales=Math.round((actualSalesGaj+defGaj)*100)/100;
 
-    // Manually added "Other Gaj" = totalGaj - salesGaj (jo system ne track kiya)
+    // Manually added "Other Gaj" = totalGaj - salesGaj (system tracked)
     var storedSalesGaj=Math.round((a.salesGaj||0)*100)/100;
     var otherGajManual=Math.max(0,Math.round(((a.totalGaj||0)-storedSalesGaj)*100)/100);
 
@@ -2228,7 +2255,7 @@ window.runIntegrityScanner=function(){
         issues.push({
           type:'orphan_parent',cat:'associate',severity:'medium',
           id:a.id,name:a.name,
-          msg:'Upliner (parentId='+a.parentId+') exist nahi karta',
+          msg:'Upliner (parentId='+a.parentId+') does not exist',
           fix:{field:'parentId',correctVal:null}
         });
       }
@@ -2244,7 +2271,7 @@ window.runIntegrityScanner=function(){
         issues.push({
           type:'circular',cat:'associate',severity:'critical',
           id:a.id,name:a.name,
-          msg:'Circular hierarchy detected! Loop mein hai.',
+          msg:'Circular hierarchy detected! Stuck in a loop.',
           fix:{field:'parentId',correctVal:null}
         });
         break;
@@ -2297,14 +2324,14 @@ window.runIntegrityScanner=function(){
       issues.push({
         type:'orphan_sale_proj',cat:'sale',severity:'high',
         id:s.id,name:s.projName+' Plot '+s.plotNo,
-        msg:'Project ('+s.projId+') exist nahi karta'
+        msg:'Project ('+s.projId+') does not exist'
       });
     }
     if(!s.sellerId||!D.associates.find(function(a){return a.id===s.sellerId;})){
       warnings.push({
         type:'orphan_seller',cat:'sale',severity:'medium',
         id:s.id,name:s.projName+' Plot '+s.plotNo,
-        msg:'Seller associate ('+s.sellerId+') exist nahi karta'
+        msg:'Seller associate ('+s.sellerId+') does not exist'
       });
     }
   });
@@ -2315,7 +2342,7 @@ window.runIntegrityScanner=function(){
       issues.push({
         type:'date_mismatch',cat:'sale',severity:'medium',
         id:s.id,name:s.projName+' Plot '+s.plotNo,
-        msg:'Closing date ('+s.closeDate+') booking date ('+s.bookingDate+') se pehle hai!'
+        msg:'Closing date ('+s.closeDate+') is before booking date ('+s.bookingDate+')!'
       });
     }
   });
@@ -2330,7 +2357,7 @@ window.runIntegrityScanner=function(){
         warnings.push({
           type:'stale_payment',cat:'payment',severity:'low',
           id:p.id,name:p.assocName+' ('+p.month+')',
-          msg:stale.length+' deleted sale ke payment records hain',
+          msg:stale.length+' payment records for deleted sales',
           fix:{removeSaleIds:stale}
         });
       }
@@ -2356,7 +2383,7 @@ window.runIntegrityScanner=function(){
         type:'duplicate_sale',cat:'sale',severity:'high',
         id:group[0].id,
         name:group[0].projName+' — Plot '+group[0].plotNo,
-        msg:group.length+' baar sold hua hai — '+names.join(' | ')
+        msg:'Sold '+group.length+' times — '+names.join(' | ')
       });
     }
   });
@@ -2373,12 +2400,12 @@ window.runIntegrityScanner=function(){
         type:'plot_status_mismatch',cat:'sale',severity:'medium',
         id:s.id,
         name:s.projName+' Plot '+s.plotNo,
-        msg:'Sale exist karta hai lekin plot ka status "'+( plot.status||'available')+'" hai — "sold" hona chahiye'
+        msg:'Sale exists but plot status is "'+( plot.status||'available')+'" — should be "sold"'
       });
     }
   });
 
-  // ── CHECK 11: Orphan payments — linked sale ya associate exist nahi karta ──
+  // ── CHECK 11: Orphan payments — linked sale or associate does not exist ──
   if(D.payments&&D.payments.length){
     D.payments.forEach(function(p){
       // Associate missing
@@ -2386,7 +2413,7 @@ window.runIntegrityScanner=function(){
         warnings.push({
           type:'orphan_payment_assoc',cat:'payment',severity:'medium',
           id:p.id,name:(p.assocName||p.assocId)+' — ₹'+fmt(p.paid||p.amount||0),
-          msg:'Payment ka associate exist nahi karta (deleted?) — ₹'+fmt(p.paid||p.amount||0)+' on '+(p.payDate||'?')
+          msg:'Payment associate does not exist (deleted?) — ₹'+fmt(p.paid||p.amount||0)+' on '+(p.payDate||'?')
         });
       }
       // Sale missing (for plot-based payments)
@@ -2394,7 +2421,7 @@ window.runIntegrityScanner=function(){
         warnings.push({
           type:'orphan_payment_sale',cat:'payment',severity:'medium',
           id:p.id,name:(p.assocName||'?')+' — '+( p.projName||'?')+' Plot '+(p.plotNo||'?'),
-          msg:'Payment ka sale record exist nahi karta (deleted?) — ₹'+fmt(p.paid||p.amount||0)+' on '+(p.payDate||'?')
+          msg:'Payment sale record does not exist (deleted?) — ₹'+fmt(p.paid||p.amount||0)+' on '+(p.payDate||'?')
         });
       }
     });
@@ -2413,7 +2440,7 @@ window.runIntegrityScanner=function(){
   if(totalIssues===0){
     el.innerHTML='<div class="info igr" style="display:flex;align-items:center;gap:10px">'
       +'<span style="font-size:24px">✅</span>'
-      +'<div><b>Sab theek hai!</b><div style="font-size:12px">'+D.associates.length+' associates, '+D.sales.length+' sales, '+(D.payments||[]).length+' payments — koi issue nahi mili.</div></div>'
+      +'<div><b>All clear!</b><div style="font-size:12px">'+D.associates.length+' associates, '+D.sales.length+' sales, '+(D.payments||[]).length+' payments — no issues found.</div></div>'
       +'</div>';
     return;
   }
@@ -2440,12 +2467,12 @@ window.runIntegrityScanner=function(){
     issues.forEach(function(issue){
       // What to do guidance
       var guide='';
-      if(issue.type==='gaj_mismatch')guide='Manual fix: Associate Edit → Add Sq.Yd se correct karo, ya Sales delete/re-enter karo';
-      else if(issue.type==='orphan_parent')guide='Manual fix: Associate Edit → Upliner sahi set karo';
-      else if(issue.type==='circular')guide='Manual fix: Associate Edit → Upliner hatao (Top Level karo)';
-      else if(issue.type==='orphan_sale_proj')guide='Manual fix: Is sale ko delete karo (Sales Record se)';
-      else if(issue.type==='duplicate_sale')guide='Manual fix: Sales Record mein jaao — duplicate entry delete karo, ek hi entry rakho';
-      else if(issue.type==='plot_status_mismatch')guide='Manual fix: Projects → Plot edit karo → status "Sold" set karo';
+      if(issue.type==='gaj_mismatch')guide='Manual fix: Associate Edit → Use Add Sq.Yd to correct, or delete and re-enter the sale';
+      else if(issue.type==='orphan_parent')guide='Manual fix: Associate Edit → Set the correct Upliner';
+      else if(issue.type==='circular')guide='Manual fix: Associate Edit → Remove Upliner (set to Top Level)';
+      else if(issue.type==='orphan_sale_proj')guide='Manual fix: Delete this sale (from Sales Record)';
+      else if(issue.type==='duplicate_sale')guide='Manual fix: Go to Sales Record — delete the duplicate, keep only one entry';
+      else if(issue.type==='plot_status_mismatch')guide='Manual fix: Projects → Edit Plot → set status to "Sold"';
       html+='<div style="background:var(--reb);border:1px solid var(--re);border-radius:8px;padding:8px 10px;margin-bottom:5px;font-size:12px">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:4px">'
         +'<b style="color:var(--re)">'+esc(issue.name)+'</b>'
@@ -2504,6 +2531,8 @@ function render(){
     ['salesrec','📋 Sales Record','salesrec'],
     ['newsale','➕ New Sale','newsale'],
     ['reports','📊 Reports','reports'],
+    ['brokerage','💰 Brokerage','reports'],
+    ['payment','💳 Payment','reports'],
     ['offers','🎯 Campaigns','offers_view'],
     ['policy','📋 Policy',null],
     ['settings','⚙️ Settings','admin_only']
@@ -2522,13 +2551,13 @@ function render(){
   document.getElementById('nav').innerHTML=navHtml;
 
   var m=document.getElementById('main');
-  var pages={dashboard:pgDash,projects:pgProj,associates:pgAssoc,salesrec:pgSalesRec,newsale:pgSale,reports:pgRpt,offers:pgOffers,policy:pgPol,search:pgSearch,settings:pgSettings};
+  var pages={dashboard:pgDash,projects:pgProj,associates:pgAssoc,salesrec:pgSalesRec,newsale:pgSale,reports:pgRpt,brokerage:pgRpt,payment:pgRpt,offers:pgOffers,policy:pgPol,search:pgSearch,settings:pgSettings};
   m.innerHTML=(pages[TAB]||pgDash)();
   m.classList.remove('page-enter');
   void m.offsetWidth;
   m.classList.add('page-enter');
 
-  // Bottom nav — mobile pe (sirf logged in pe)
+  // Bottom nav — mobile (only when logged in)
   var bn=document.getElementById('bottomNav');
   if(bn&&SESSION){
     var bnTabs=[
@@ -2536,7 +2565,7 @@ function render(){
       {t:'associates',i:'👥',l:'Associates'},
       {t:'newsale',i:'➕',l:'New Sale'},
       {t:'salesrec',i:'📋',l:'Sales'},
-      {t:'reports',i:'📊',l:'Reports'}
+      {t:'payment',i:'💳',l:'Payment'}
     ].filter(function(x){
       if(x.t==='newsale')return can('newsale');
       if(x.t==='associates')return can('associates_view');
@@ -2578,7 +2607,7 @@ function restoreData(file){
       if(typeof imported!=='object'||!Array.isArray(imported.projects)||!Array.isArray(imported.associates)||!Array.isArray(imported.sales)){
         toast('❌ Invalid backup file! projects/associates/sales missing.',false);return;
       }
-      if(!confirm('⚠️ This will restore data.\n\nProjects: '+imported.projects.length+'\nAssociates: '+imported.associates.length+'\nSales: '+imported.sales.length+'\n\nSaara current data replace ho jaayega. Confirm?'))return;
+      if(!confirm('⚠️ This will restore data.\n\nProjects: '+imported.projects.length+'\nAssociates: '+imported.associates.length+'\nSales: '+imported.sales.length+'\n\nThis will replace all current data. Confirm?'))return;
       D=imported;
       if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
       if(!D.transfers)D.transfers=[];
@@ -2618,7 +2647,7 @@ function pgSettings(){
   html+='</div>';
 
   if(staff.length===0){
-    html+='<div class="empty" style="padding:20px">Abhi koi staff nahi hai. "+ New Staff" se add karo.</div>';
+    html+='<div class="empty" style="padding:20px">No staff added yet. Use the "+ New Staff" button to add.</div>';
   } else {
     html+='<div class="tw"><table><thead><tr><th>#</th><th>Name</th><th>User ID</th><th>Permissions</th><th>Actions</th></tr></thead><tbody>';
     staff.forEach(function(s,i){
@@ -2665,7 +2694,7 @@ function pgSettings(){
   html+='<div style="background:var(--bg2);border-radius:8px;padding:10px 12px;display:flex;align-items:center;gap:8px">'
     +'<span style="font-size:20px">⏰</span>'
     +'<div><div style="font-size:12px;font-weight:700;color:var(--bl)">Auto Logout: 30 min</div>'
-    +'<div style="font-size:11px;color:var(--t2)">Idle pe logout hoga</div></div>'
+    +'<div style="font-size:11px;color:var(--t2)">Auto-logout when idle</div></div>'
     +'</div>';
   html+='</div>';
   html+='<div style="font-size:11px;font-weight:700;color:var(--t2);text-transform:uppercase;letter-spacing:.4px;margin-bottom:10px">Change Admin Password</div>';
@@ -2701,7 +2730,7 @@ function pgSettings(){
   html+='<div style="border:.5px solid var(--bd);border-radius:10px;padding:14px">'
     +'<div style="font-size:20px;margin-bottom:8px">📥</div>'
     +'<div style="font-size:13px;font-weight:700;margin-bottom:4px">Restore Backup</div>'
-    +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px">Purana backup restore karega. Data replace hoga.</div>'
+    +'<div style="font-size:12px;color:var(--t2);margin-bottom:12px">Restores an old backup. Current data will be replaced.</div>'
     +'<label class="btn bbl" style="cursor:pointer;width:100%;justify-content:center">📂 Select File<input type="file" id="restoreFile" accept=".json" style="display:none" onchange="restoreData(this.files[0]);this.value=String()"/></label>'
     +'</div>';
   html+='</div></div>';
@@ -2713,12 +2742,12 @@ function pgSettings(){
 window.openAddStaff=function(){
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b style="font-size:15px">👤 New Staff Add</b><button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div class="g2" style="margin-bottom:12px">'
-    +'<div class="fld"><label>Full Name *</label><input id="stName" placeholder="Staff ka naam"/></div>'
-    +'<div class="fld"><label>User ID *</label><input id="stId" placeholder="Login ke liye (lowercase)"/></div>'
+    +'<div class="fld"><label>Full Name *</label><input id="stName" placeholder="Staff name"/></div>'
+    +'<div class="fld"><label>User ID *</label><input id="stId" placeholder="For login (lowercase)"/></div>'
     +'<div class="fld"><label>Password *</label><input id="stPwd" type="password" placeholder="Set password"/></div>'
     +'<div class="fld"><label>Confirm Password *</label><input id="stPwd2" type="password" placeholder="Confirm password"/></div>'
     +'</div>'
-    +'<div class="info ibl" style="margin-bottom:12px;font-size:12px">Password save hone ke baad change kar sakte ho Settings se.</div>'
+    +'<div class="info ibl" style="margin-bottom:12px;font-size:12px">You can change the password later from Settings.</div>'
     +'<div style="display:flex;gap:8px"><button class="btn bgr" onclick="saveNewStaff()">💾 Save Staff</button><button class="btn bgh" onclick="closeM()">Cancel</button></div>');
 };
 
@@ -2747,7 +2776,7 @@ window.openEditPerms=function(staffId){
   if(!s)return;
   var perms=s.perms||{};
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b style="font-size:15px">🔑 Permissions — '+esc(s.name)+'</b><button class="btn bgh bsm" onclick="closeM()">✕</button></div>';
-  html+='<div class="info ibl" style="margin-bottom:12px;font-size:12px">Jo toggle ON hai wo kaam kar sakta hai staff.</div>';
+  html+='<div class="info ibl" style="margin-bottom:12px;font-size:12px">Staff can access whatever toggles are ON.</div>';
   Object.keys(PERM_LABELS).forEach(function(perm){
     var isOn=!!(perms[perm]);
     html+='<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:.5px solid var(--bd)">'
@@ -2810,7 +2839,7 @@ window.deleteStaff=function(staffId){
   var auth=getAuth();
   var s=(auth.staff||[]).find(function(x){return x.id===staffId;});
   if(!s)return;
-  if(!confirm(s.name+' ko delete karna hai?'))return;
+  if(!confirm(s.name+' — delete this?'))return;
   auth.staff=(auth.staff||[]).filter(function(x){return x.id!==staffId;});
   saveAuth(auth);
   logAct('Staff Delete: '+s.name+' ('+staffId+')');
@@ -2969,7 +2998,7 @@ function pgDash(){
     html+='<input type="month" value="'+dashEMon+'" onchange="window.dashEMon=this.value;render()" style="margin-bottom:10px;font-size:12px;padding:4px 8px;border:.5px solid var(--bd);border-radius:6px;background:var(--bg);color:var(--t1)"/>';
   }
   if(!topEarners.length){
-    html+='<div style="color:var(--t3);font-size:12px;padding:8px 0">Is period mein koi earning nahi</div>';
+    html+='<div style="color:var(--t3);font-size:12px;padding:8px 0">No earnings in this period</div>';
   } else {
     topEarners.forEach(function(a,i){
       var clr=rankColors[i]||rankColors[4];
@@ -2991,7 +3020,7 @@ function pgDash(){
 
   // Recent Sales
   if(rec.length===0){
-    html+='<div class="empty" style="padding:36px 20px"><div style="font-size:36px;margin-bottom:10px">📋</div><div style="font-size:15px;font-weight:600;color:var(--tx)">Koi sale nahi</div><div style="font-size:12px;color:var(--t3);margin-top:6px">New Sale se pehli entry karo</div></div>';
+    html+='<div class="empty" style="padding:36px 20px"><div style="font-size:36px;margin-bottom:10px">📋</div><div style="font-size:15px;font-weight:600;color:var(--tx)">No sales found</div><div style="font-size:12px;color:var(--t3);margin-top:6px">Add your first entry from New Sale</div></div>';
   } else {
     html+='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
       +'<div class="ct" style="margin:0">📈 Recent Sales</div>'
@@ -3016,13 +3045,13 @@ function pgDash(){
 }
 
 // ═══════════════════════════════════════════════════════
-function pgProj(){if(!can('projects_view'))return '<div class="empty">⛔ Projects dekhne ki permission nahi hai.</div>';if(pView==='add')return pAdd();if(pView==='edit')return pEdit();if(pView==='plots')return pPlots();return pList();}
+function pgProj(){if(!can('projects_view'))return '<div class="empty">⛔ You do not have permission to view Projects.</div>';if(pView==='add')return pAdd();if(pView==='edit')return pEdit();if(pView==='plots')return pPlots();return pList();}
 
 function pList(){
   var canPE=can('projects_edit');
-  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><h2 style="font-size:15px;font-weight:700">🏗️ Projects ('+D.projects.length+')</h2>'+(canPE?'<button class="btn bbl" onclick="pView=\'add\';render()">+ New Project</button>':'')+'</div>';
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px"><h2 style="font-size:15px;font-weight:700">🏗️ Projects ('+D.projects.length+')</h2>'+(canPE?'<button class="btn bbl" onclick="pushHistory();pView=\'add\';render()">+ New Project</button>':'')+'</div>';
   if(D.projects.length===0){
-    html+='<div class="empty" style="padding:36px 20px"><div style="font-size:36px;margin-bottom:10px">🏗️</div><div style="font-size:15px;font-weight:600;color:var(--tx)">Koi project nahi</div><div style="font-size:12px;color:var(--t3);margin-top:6px">Pehla project create karo</div></div>';
+    html+='<div class="empty" style="padding:36px 20px"><div style="font-size:36px;margin-bottom:10px">🏗️</div><div style="font-size:15px;font-weight:600;color:var(--tx)">No projects found</div><div style="font-size:12px;color:var(--t3);margin-top:6px">Create your first project</div></div>';
   } else {
     D.projects.forEach(function(p){
       var avl=p.plots?p.plots.filter(function(x){return x.status==='available';}).length:0;
@@ -3032,7 +3061,7 @@ function pList(){
       var bp=getProjBonus(p);
       html+='<div class="card">'
         +'<div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:8px">'
-        +'<div style="flex:1;cursor:pointer" onclick="pId=\''+p.id+'\';pView=\'plots\';pmMode=\'list\';render()">'
+        +'<div style="flex:1;cursor:pointer" onclick="pushHistory();pId=\''+p.id+'\';pView=\'plots\';pmMode=\'list\';render()">'
         +'<div style="font-size:15px;font-weight:700">'+esc(p.name)+'</div>'
         +'<div style="font-size:12px;color:var(--t2);margin-top:2px">'
         +(p.companyName?'<span style="color:var(--bld);font-weight:600">🏢 '+esc(p.companyName)+'</span> &nbsp;':'')
@@ -3048,9 +3077,9 @@ function pList(){
         +'<span class="badge bgh" style="color:var(--t2)">'+(p.plots?p.plots.length:0)+' Total</span>'
         +'</div></div>'
         +'<div style="display:flex;gap:6px;flex-shrink:0;align-items:flex-start">'
-        +'<button class="btn bgh bsm" onclick="pId=\''+p.id+'\';pView=\'edit\';render()">✏️ Edit</button>'
+        +'<button class="btn bgh bsm" onclick="pushHistory();pId=\''+p.id+'\';pView=\'edit\';render()">✏️ Edit</button>'
         +(hasSales
-          ?'<span title="Sale entries hain — delete nahi hoga" style="font-size:11px;color:var(--t3);cursor:not-allowed;padding:4px 8px">🔒</span>'
+          ?'<span title="Has sale entries — cannot be deleted" style="font-size:11px;color:var(--t3);cursor:not-allowed;padding:4px 8px">🔒</span>'
           :'<button class="btn bsm" style="background:var(--reb);color:var(--re);border:1px solid var(--re)" onclick="deleteProject(\''+p.id+'\')">🗑️</button>'
         )
         +'</div></div></div>';
@@ -3064,7 +3093,7 @@ function pEdit(){
   var p=D.projects.find(function(x){return x.id===pId;});
   if(!p)return pList();
   var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px">'
-    +'<button class="btn bgh bsm" onclick="pView=\'list\';render()">← Back</button>'
+    +'<button class="btn bgh bsm" onclick="goBack()">← Back</button>'
     +'<h2>Edit Project — '+esc(p.name)+'</h2></div>';
   html+='<div class="card">';
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">🏗️ Project Details</div>';
@@ -3076,7 +3105,7 @@ function pEdit(){
   html+='<div class="fld"><label>Current Bonus</label>'
     +'<div style="padding:8px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg2);font-size:13px;display:flex;align-items:center;gap:8px">'
     +(getProjBonus(p)>0?'<span style="color:var(--pu);font-weight:700">+'+getProjBonus(p)+'% Active</span>':'<span style="color:var(--t3)">No Bonus</span>')
-    +'<span style="font-size:11px;color:var(--t3);margin-left:auto">Bonus change karne ke liye Bonus Change button use karo</span>'
+    +'<span style="font-size:11px;color:var(--t3);margin-left:auto">Use the Bonus Change button to change the bonus</span>'
     +'</div></div>';
   html+='<div class="fld" style="grid-column:1/-1"><label>Description</label><input id="epDs" value="'+esc(p.description||'')+'"/></div>';
   html+='</div>';
@@ -3087,14 +3116,14 @@ function pEdit(){
   html+='<div class="fld"><label>Account No.</label><input id="epAc" value="'+esc(p.accNo||'')+'"/></div>';
   html+='<div class="fld"><label>IFSC Code</label><input id="epIfs" value="'+esc(p.ifsc||'')+'"/></div>';
   html+='</div>';
-  html+='<div style="display:flex;gap:8px"><button class="btn bbl" id="btnUP">💾 Update Project</button><button class="btn bgh" onclick="pView=\'list\';render()">Cancel</button></div>';
+  html+='<div style="display:flex;gap:8px"><button class="btn bbl" id="btnUP">💾 Update Project</button><button class="btn bgh" onclick="goBack()">Cancel</button></div>';
   html+='</div>';
   return html;
 }
 
 function pAdd(){
   if(!can('projects_edit')){pView='list';render();return '';}
-  var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><button class="btn bgh bsm" onclick="pView=\'list\';render()">← Back</button><h2>New Project</h2></div>';
+  var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px"><button class="btn bgh bsm" onclick="goBack()">← Back</button><h2>New Project</h2></div>';
   html+='<div class="card">';
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">🏗️ Project Details</div>';
   html+='<div class="g2" style="margin-bottom:12px">';
@@ -3130,7 +3159,7 @@ function pPlots(){
   var bkd=plots.filter(function(x){return x.status==='booked';}).length;
   var sld=plots.filter(function(x){return x.status==='sold';}).length;
   var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;flex-wrap:wrap">'
-    +'<button class="btn bgh bsm" onclick="pView=\'list\';render()">← Projects</button>'
+    +'<button class="btn bgh bsm" onclick="goBack()">← Projects</button>'
     +'<div>'
     +'<b style="font-size:15px">'+esc(p.name)+'</b>'
     +(p.companyName?'<span style="font-size:11px;color:var(--bld);margin-left:8px;font-weight:600">🏢 '+esc(p.companyName)+'</span>':'')
@@ -3212,7 +3241,7 @@ function pPlots(){
 // ═══════════════════════════════════════════════════════
 // ASSOCIATES
 // ═══════════════════════════════════════════════════════
-function pgAssoc(){if(!can('associates_view'))return '<div class="empty">⛔ Associates dekhne ki permission nahi hai.</div>';if(aView==='add')return aAdd();return aList();}
+function pgAssoc(){if(!can('associates_view'))return '<div class="empty">⛔ You do not have permission to view Associates.</div>';if(aView==='add')return aAdd();return aList();}
 
 function aList(){
   var PER_PAGE=10;
@@ -3269,9 +3298,9 @@ function aList(){
   html+='</div>';
 
   if(D.associates.length===0){
-    html+='<div class="empty" style="padding:36px 20px"><div style="font-size:36px;margin-bottom:10px">👥</div><div style="font-size:15px;font-weight:600;color:var(--tx)">Koi associate nahi</div><div style="font-size:12px;color:var(--t3);margin-top:6px">Pehla associate add karo</div></div>';
+    html+='<div class="empty" style="padding:36px 20px"><div style="font-size:36px;margin-bottom:10px">👥</div><div style="font-size:15px;font-weight:600;color:var(--tx)">No associates found</div><div style="font-size:12px;color:var(--t3);margin-top:6px">Add your first associate</div></div>';
   } else if(filtered.length===0){
-    html+='<div class="empty" style="padding:28px 20px"><div style="font-size:28px;margin-bottom:8px">🔍</div><div style="font-weight:600;color:var(--tx);margin-bottom:4px">"'+esc(aFilter)+'" — koi associate nahi mila</div><div style="font-size:12px;color:var(--t3);margin-bottom:12px">Search clear karke dobara try karo</div><button class="btn bgh bsm" onclick="aFilter=\'\';aPage=1;render()">✕ Clear Search</button></div>';
+    html+='<div class="empty" style="padding:28px 20px"><div style="font-size:28px;margin-bottom:8px">🔍</div><div style="font-weight:600;color:var(--tx);margin-bottom:4px">"'+esc(aFilter)+'" — no associate found</div><div style="font-size:12px;color:var(--t3);margin-bottom:12px">Clear the search and try again</div><button class="btn bgh bsm" onclick="aFilter=\'\';aPage=1;render()">✕ Clear Search</button></div>';
   } else {
 
     // Original table format
@@ -3310,7 +3339,7 @@ function aList(){
       +'<div style="position:relative">'
       +'<button class="btn bbl bsm" onclick="toggleAPag()" style="min-width:110px">Page '+aPage+' / '+totalPages+' ▾</button>'
       +'<div id="aPagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:.5px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
-      +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
+      +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Go to page</div>'
       +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px" id="aPagGrid"></div>'
       +'</div></div>'
       +'<button class="btn bgh bsm" onclick="if(aPage<'+totalPages+'){aPage++;render()}" '+(aPage>=totalPages?'disabled':'')+'>Next →</button>'
@@ -3328,7 +3357,7 @@ function aAdd(){
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:6px;border-bottom:.5px solid var(--bd)">👤 Personal Information</div>';
   html+='<div class="g2" style="margin-bottom:14px">';
   html+='<div class="fld"><label>Full Name *</label><input id="aNm" placeholder="Pura naam"/></div>';
-  html+='<div class="fld"><label>Father / Husband Name *</label><input id="aFh" placeholder="Pita / pati ka naam"/></div>';
+  html+='<div class="fld"><label>Father / Husband Name *</label><input id="aFh" placeholder="Father / Husband name"/></div>';
   html+='<div class="fld"><label>Phone No. *</label><input id="aPh" placeholder="10 digit mobile number"/></div>';
   html+='<div class="fld"><label>PAN No. *</label><input id="aPan" placeholder="ABCDE1234F"/></div>';
   html+='</div>';
@@ -3405,9 +3434,9 @@ window.editAssoc=function(id){
       if(hasSalesForUpline){
         return '<div class="fld" style="grid-column:1/-1"><label>Upliner</label>'
           +'<div class="info" style="background:var(--reb);color:var(--re);border:1px solid #f5c6cb;border-radius:8px;padding:10px 12px;margin-top:2px">'
-          +'<b>🔒 Upliner change nahi kar sakte</b><br>'
-          +'<span style="font-size:12px">Is associate ki sales entries exist hain. Upliner sirf <b>Transfer</b> button se change hogi.<br>'
-          +'Agar galat upliner hai toh: 1️⃣ Sales delete karo → 2️⃣ Upliner update karo → 3️⃣ Sales dobara enter karo</span><br>'
+          +'<b>🔒 Cannot change Upliner</b><br>'
+          +'<span style="font-size:12px">This associate has sales entries. Upliner can only <b>Transfer</b> be changed via the button.<br>'
+          +'Agar galat upliner hai toh: 1️⃣ Sales delete → 2️⃣ Upliner update karo → 3️⃣ Sales again enter karo</span><br>'
           +'<span style="font-size:12px;margin-top:6px;display:block">Current Upliner: <b>'+esc(curUplinerName)+'</b></span>'
           +'</div>'
           +'<input type="hidden" id="ePr" value="'+(a.parentId||'')+'"/>'
@@ -3446,11 +3475,11 @@ window.editAssoc=function(id){
       if(hasSales){
         return '<div class="info iam" style="display:flex;align-items:center;gap:8px">'
           +'<span>🔒</span>'
-          +'<span>Is associate ki <b>sale entries exist</b> — delete nahi ho sakta. Remove entries first.</span>'
+          +'<span>Is associate ki <b>sale entries exist</b> — delete is not allowed. Remove entries first.</span>'
           +'</div>';
       } else {
         return '<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;background:var(--reb);border:1px solid #f5b8b8;border-radius:8px">'
-          +(can('associates_edit')?'<span style="font-size:12px;color:var(--re)">⚠️ Koi sale entry nahi — delete kar sakte hain</span><button class="btn" style="background:var(--re);color:#fff;padding:6px 14px;font-size:12px" onclick="deleteAssoc(\''+id+'\')">🗑️ Delete</button>':'')
+          +(can('associates_edit')?'<span style="font-size:12px;color:var(--re)">⚠️ No sale entries — can be deleted</span><button class="btn" style="background:var(--re);color:#fff;padding:6px 14px;font-size:12px" onclick="deleteAssoc(\''+id+'\')">🗑️ Delete</button>':'')
           +'</div>';
       }
     }())
@@ -3470,7 +3499,7 @@ window.prvG=function(id){
     pv.style.background='var(--reb)';
     pv.style.border='1px solid var(--re)';
     pv.style.color='var(--re)';
-    pv.innerHTML='⛔ Sq.Yd negative nahi ho sakta! Current: <b>'+fmtG(a.totalGaj)+'</b>, Input: <b>'+inp+'</b>, Result: <b>'+v+'</b>';
+    pv.innerHTML='⛔ Sq.Yd cannot be negative! Current: <b>'+fmtG(a.totalGaj)+'</b>, Input: <b>'+inp+'</b>, Result: <b>'+v+'</b>';
     return;
   }
   if(isNaN(v)){pv.style.display='none';return;}
@@ -3490,7 +3519,7 @@ window.prvG=function(id){
   pv.style.border='1px solid '+(up?'var(--gr)':down?'var(--re)':'var(--bl)');
   pv.style.color=up?'var(--gr)':down?'var(--re)':'var(--bld)';
   pv.innerHTML=a.totalGaj+' → <b>'+v+'Sq.Yd</b> | ₹'+oR+' → <b>₹'+nR+'/Sq.Yd</b>'
-    +(up?' 🎉 Slab Upgrade!':down?' ⚠️ Slab Down hoga!':'');
+    +(up?' 🎉 Slab Upgrade!':down?' ⚠️ Slab will go down!':'');
 };
 window.doAG=function(id){
   var el=document.getElementById('eAG');
@@ -3506,10 +3535,10 @@ window.doAG=function(id){
   if(!reason){toast('⛔ Reason/Note is required!',false);document.getElementById('eAGReason').focus();return;}
   var o=rOf(D.associates[i].totalGaj);
   var prevGaj=D.associates[i].totalGaj;
-  // totalGaj badhao (slab for) — salesGaj nahi badhega (Tour/Tab for)
+  // increase totalGaj (for slab) — salesGaj unchanged (for Tour/Tab)
   D.associates[i].totalGaj=Math.round((D.associates[i].totalGaj+v)*100)/100;
   var n=rOf(D.associates[i].totalGaj);
-  logAct('Manual Gaj: '+a.name+' | '+(v>0?'+':'')+v+' Sq.Yd | '+prevGaj+' → '+D.associates[i].totalGaj+' | Reason: '+reason);
+  logAct('Manual Sq.Yd: '+a.name+' | '+(v>0?'+':'')+v+' Sq.Yd | '+prevGaj+' → '+D.associates[i].totalGaj+' | Reason: '+reason);
   saveD();toast(v+' Sq.Yd added! Total: '+D.associates[i].totalGaj+(n>o?' 🎉 Slab Upgrade!':''));closeM();render();
 };
 window.saveAInfo=function(id){
@@ -3526,14 +3555,14 @@ window.saveAInfo=function(id){
     return s.sellerId===id||(s.commissions&&s.commissions.some(function(c){return c.id===id;}))||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===id;}));
   });
   if(hasSalesBlock&&(newParentId!==oldParentId)){
-    toast('⛔ Upliner cannot be changed — please delete the related sales first, then update the upliner., phir sales dobara enter karo!',false);
+    toast('⛔ Upliner cannot be changed — please delete related sales first, then update the upliner.',false);
     return;
   }
   // Duplicate phone check (with confirm — allow karna user ka choice)
   var ePhone=(gv('ePh')||'').replace(/\D/g,'');
   if(ePhone){
     var dupPhone=D.associates.find(function(x){return x.id!==id&&x.phone&&x.phone.replace(/\D/g,'')===ePhone;});
-    if(dupPhone){if(!confirm('⚠️ This phone number already exists: "'+dupPhone.name+'" ke paas registered hai!\n\nFir bhi save karna hai?'))return;}
+    if(dupPhone){if(!confirm('⚠️ This phone number already exists: "'+dupPhone.name+'" is already registered for!\n\nDo you still want to save?'))return;}
   }
   // Duplicate PAN check (exclude self)
   var pan2=(gv('ePan')||'').trim().toUpperCase();
@@ -3547,10 +3576,10 @@ window.saveAInfo=function(id){
     var dupCode2=D.associates.find(function(x){return x.id!==id&&x.code&&x.code.trim()===code2;});
     if(dupCode2){toast('⚠️ This Code already exists: '+dupCode2.name,false);return;}
   }
-  // ── Validations pass — ab fields assign karo ──
-  // oldName PEHLE capture karo — update ke baad compare nahi hoga
+  // ── Validations passed — now assign fields ──
+  // capture oldName FIRST — can't compare after update
   var oldName=D.associates[i].name;
-  // (Left) tag preserve karo — editing se remove nahi hona chahiye
+  // preserve (Left) tag — editing should not remove it
   var wasLeft=oldName&&oldName.includes('(Left)');
   var cleanN=n.replace(/\(Left\)/gi,'').trim();
   var finalName=wasLeft?(cleanN+' (Left)'):cleanN;
@@ -3570,7 +3599,7 @@ window.saveAInfo=function(id){
   D.associates[i].accNo=gv('eAc');
   D.associates[i].ifsc=gv('eIfs');
   D.associates[i].parentId=newParentId;
-  // ── Name change propagation — sales, payments, advances mein bhi update karo ──
+  // ── Name change propagation — update in sales, payments, advances ──
   if(oldName!==finalName){
     var n=finalName;
     D.sales.forEach(function(s,si){
@@ -3606,7 +3635,7 @@ function getTopLeader(assocId){
   }
   if(chain.length<=1)return null;
   var root=chain[chain.length-1];
-  // Root skip karo agar: (1) sirf 1 hi root hai = company node, ya (2) name se detect ho
+  // Skip root if: (1) only 1 root = company node, or (2) name se detect ho
   var rootCount=D.associates.filter(function(x){return !x.parentId;}).length;
   var skipRoot=(rootCount===1)||isCompanyNode(root.name);
   if(skipRoot){
@@ -3663,12 +3692,12 @@ window.openTransferModal=function(){
     +'<b style="font-size:15px">🔄 Associate Left / Transfer</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div class="info iam" style="margin-bottom:14px;font-size:12px">'
-    +'Jo associate chhod ke gaya — uske <b>saare downline</b> automatically uske <b>parent ke neeche</b> shift ho jaayenge. Left date se aage ki sales mein automatically scan hoga.'
+    +'Jo associate chhod ke gaya — uske <b>saare downline</b> automatically uske <b>parent ke neeche</b> will shift. Sales after the Left date will be scanned automatically.'
     +'</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Who Left? *</label>'
     +'<select id="trLeft" onchange="updateTransferPreview()">'+aOpts+'</select></div>'
-    +'<div class="fld"><label>Left Date * <span style="font-size:10px;color:var(--t3)">(Is date se pehle wali sales valid rahegi)</span></label>'
+    +'<div class="fld"><label>Left Date * <span style="font-size:10px;color:var(--t3)">(Sales before this date remain valid)</span></label>'
     +'<input type="date" id="trLeftDate" value="'+today+'" max="'+today+'" onchange="updateTransferPreview()"/></div>'
     +'</div>'
     +'<div id="trPreview" style="display:none;margin-bottom:14px"></div>'
@@ -3703,7 +3732,7 @@ window.updateTransferPreview=function(){
   });
 
   var html='<div class="card" style="padding:12px 14px">'
-    +'<div style="font-size:12px;font-weight:700;color:var(--am);margin-bottom:10px">📋 Preview — Kya hoga:</div>'
+    +'<div style="font-size:12px;font-weight:700;color:var(--am);margin-bottom:10px">📋 Preview — What will happen:</div>'
     +'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:.5px solid var(--bd);margin-bottom:10px">'
     +'<div style="width:32px;height:32px;border-radius:50%;background:var(--re);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700">'+leftA.name.charAt(0)+'</div>'
     +'<div><div style="font-weight:700">'+esc(leftA.name)+' <span style="color:var(--re);font-size:11px">(Left)</span></div>'
@@ -3712,7 +3741,7 @@ window.updateTransferPreview=function(){
     +'<div style="font-size:12px;margin-bottom:8px">'
     +'<div>👤 <b>'+esc(leftA.name)+'</b> → <span style="color:var(--re)">"'+esc(leftA.name)+' (Left)"</span></div>'
     +'<div style="margin-top:4px">🔗 <b>'+directChildren.length+' direct children</b> (downline: '+totalDownline.length+') '
-    +(newParent?'→ <b style="color:var(--gr)">'+esc(newParent.name)+'</b> ke neeche shift honge':'→ <b style="color:var(--bl)">Top Level</b> ban jaayenge')
+    +(newParent?'→ <b style="color:var(--gr)">'+esc(newParent.name)+'</b> ke neeche shift honge':'→ <b style="color:var(--bl)">Top Level</b> will become')
     +'</div></div>';
 
   // Affected sales warning
@@ -3729,7 +3758,7 @@ window.updateTransferPreview=function(){
         +'</div>';
     });
     if(affectedSales.length>5){
-      html+='<div style="font-size:11px;color:var(--re);margin-top:4px">...aur '+(affectedSales.length-5)+' aur sales</div>';
+      html+='<div style="font-size:11px;color:var(--re);margin-top:4px">...more '+(affectedSales.length-5)+' more sales</div>';
     }
     html+='<div style="font-size:11px;color:var(--re);margin-top:8px;font-weight:600">'
       +'Transfer button dabane ke baad in sales ka automatic recalculation hoga.'
@@ -3845,12 +3874,12 @@ window.deleteAssoc=function(id){
       ||(s.defCommissions&&s.defCommissions.some(function(c){return c.id===id;}));
   });
   if(hasSales){toast('Cannot delete — sale entries exist!',false);return;}
-  if(!confirm(a.name+' delete karna hai? Settings se restore kar sakte ho.'))return;
+  if(!confirm(a.name+' — delete this? You can restore it from Settings.'))return;
   if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
   if(!D.deleted.associates)D.deleted.associates=[];
   D.deleted.associates.push(Object.assign({},a,{deletedAt:new Date().toISOString(),deletedBy:SESSION?SESSION.name:'Admin'}));
   D.associates=D.associates.filter(function(x){return x.id!==id;});
-  saveD();logAct('Associate Soft Delete: '+a.name);toast(a.name+' deleted! Settings mein restore kar sakte ho. ✓');closeM();render();
+  saveD();logAct('Associate Soft Delete: '+a.name);toast(a.name+' deleted! You can restore it from Settings. ✓');closeM();render();
 };
 window.editPlot=function(projId,plotId){
   var pi=D.projects.findIndex(function(p){return p.id===projId;});if(pi<0)return;
@@ -3858,7 +3887,7 @@ window.editPlot=function(projId,plotId){
   var hasSale=D.sales.some(function(s){return s.plotId===plotId;});
   var canDelete=pl.status==='available'&&!hasSale;
   // If sale exists - plot no, size, saleable gaj are LOCKED
-  var lockNote=hasSale?'<div class="info iam" style="margin-bottom:10px;font-size:12px">🔒 <b>Sale entry hai</b> — Plot No, Plot Sq.Yd more Saleable (Sq.Yd) change nahi ho sakte. Pehle sale entry delete karo.</div>':'';
+  var lockNote=hasSale?'<div class="info iam" style="margin-bottom:10px;font-size:12px">🔒 <b>Sale entry hai</b> — Plot No, Plot Sq.Yd and Saleable (Sq.Yd) cannot be changed. First sale entry delete.</div>':'';
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px"><b>✏️ Plot — '+pl.plotNo+'</b><button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +lockNote
     +'<div class="g2" style="margin-bottom:10px">'
@@ -3883,7 +3912,7 @@ window.editPlot=function(projId,plotId){
     +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
     +(canDelete
       ?'<button class="btn bsm" style="margin-left:auto;background:var(--reb);color:var(--re);border:1px solid var(--re)" onclick="deletePlot(\''+projId+'\',\''+plotId+'\')">🗑️ Delete</button>'
-      :'<span style="margin-left:auto;font-size:11px;color:var(--t3)">🔒 '+(hasSale?'Sale entry hai':'Status: '+pl.status)+' — delete nahi hoga</span>'
+      :'<span style="margin-left:auto;font-size:11px;color:var(--t3)">🔒 '+(hasSale?'Sale entry hai':'Status: '+pl.status)+' — cannot be deleted</span>'
     )
     +'</div>');
 };
@@ -3896,7 +3925,7 @@ window.changeBonus=function(projId){
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div class="info ibl" style="margin-bottom:12px">'
     +'<div>Current Bonus: <b style="color:var(--pu)">'+(curBonus>0?'+'+curBonus+'%':'No Bonus')+'</b></div>'
-    +'<div style="font-size:11px;margin-top:3px">'+(salesCount>0?'⚠️ '+salesCount+' purani sales hain — woh apne original bonus pe rahenge. Nayi sales is bonus pe hongi.':'Abhi koi sale nahi.')+'</div>'
+    +'<div style="font-size:11px;margin-top:3px">'+(salesCount>0?'⚠️ '+salesCount+' purani sales hain — woh apne original bonus pe rahenge. Nayi sales is bonus pe hongi.':'No sales yet.')+'</div>'
     +'</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>New Bonus % *</label>'
@@ -3920,10 +3949,10 @@ window.changeBonus=function(projId){
     var note=((document.getElementById('nBonusNote')||{}).value||'').trim();
     var pi=D.projects.findIndex(function(p){return p.id===projId;});if(pi<0)return;
     var oldBonus=D.projects[pi].bonusPct||0;
-    if(oldBonus===newBonus){toast('Bonus already '+( newBonus>0?'+'+newBonus+'%':'No Bonus')+' hai — koi change nahi.',false);return;}
+    if(oldBonus===newBonus){toast('Bonus already '+( newBonus>0?'+'+newBonus+'%':'No Bonus')+' — no change.',false);return;}
     D.projects[pi].bonusPct=newBonus;
     if(!D.projects[pi].bonusHistory)D.projects[pi].bonusHistory=[];
-    // Same date pe duplicate entry nahi — overwrite karo
+    // No duplicate entry on same date — overwrite
     var existIdx=D.projects[pi].bonusHistory.findIndex(function(h){return h.date===date;});
     var entry={pct:newBonus,date:date,note:note||(oldBonus>0?'+'+oldBonus+'% → ':''+(newBonus>0?'+'+newBonus+'%':'No Bonus'))};
     if(existIdx>=0)D.projects[pi].bonusHistory[existIdx]=entry;
@@ -3939,12 +3968,12 @@ window.deleteProject=function(projId){
   var p=D.projects[pi];
   var hasSales=D.sales.some(function(s){return s.projId===projId;});
   if(hasSales){toast('Cannot delete — this project has sale entries!',false);return;}
-  if(!confirm(p.name+' delete karna hai? Settings se restore kar sakte ho.'))return;
+  if(!confirm(p.name+' — delete this? You can restore it from Settings.'))return;
   if(!D.deleted)D.deleted={associates:[],sales:[],projects:[]};
   if(!D.deleted.projects)D.deleted.projects=[];
   D.deleted.projects.push(Object.assign({},p,{deletedAt:new Date().toISOString(),deletedBy:SESSION?SESSION.name:'Admin'}));
   D.projects.splice(pi,1);
-  saveD();logAct('Project Soft Delete: '+p.name);toast(p.name+' deleted! Settings → Deleted Items se restore kar sakte ho. ✓');render();
+  saveD();logAct('Project Soft Delete: '+p.name);toast(p.name+' deleted! You can restore it from Settings → Deleted Items. ✓');render();
 };
 window.deletePlot=function(projId,plotId){
   var pi=D.projects.findIndex(function(p){return p.id===projId;});if(pi<0)return;
@@ -3976,7 +4005,7 @@ window.savePlE=function(projId,plotId,locked){
   var v=document.getElementById('epFc');if(v)pl.facing=v.value.trim();
   v=document.getElementById('epLc');if(v)pl.location=v.value.trim();
   if(!locked){v=document.getElementById('epSt');if(v)pl.status=v.value;}
-  // ── PlotNo change propagation — sales mein bhi update karo ──
+  // ── PlotNo change propagation — update in sales too ──
   var updatedNo=D.projects[pi].plots[pli].plotNo;
   if(!locked&&updatedNo){
     D.sales.forEach(function(s,si){if(s.plotId===plotId)D.sales[si].plotNo=updatedNo;});
@@ -3989,7 +4018,7 @@ window.savePlE=function(projId,plotId,locked){
 // NEW SALE
 // ═══════════════════════════════════════════════════════
 function pgSale(){
-  if(!can('newsale'))return '<div class="empty">⛔ New Sale banane ki permission nahi hai.</div>';
+  if(!can('newsale'))return '<div class="empty">⛔ You do not have permission to create a New Sale.</div>';
   var steps=[{n:1,l:'Project & Plot'},{n:2,l:'Associate & Dates'},{n:3,l:'Commission Review'}];
   var sh='<div style="display:flex;align-items:center;gap:0;margin-bottom:18px;padding:0 4px">'+steps.map(function(s,si){
     var done=sStep>s.n, active=sStep===s.n;
@@ -4023,26 +4052,6 @@ function sS1(){
     +'</div>'
     +(proj&&selPl?'<div class="info igr">✅ <b>Plot '+selPl.plotNo+'</b> · Plot: '+selPl.sizeGaj+'Sq.Yd · <b style="color:var(--pu)">Saleable: '+sGaj+'Sq.Yd</b>'+(getProjBonus(proj)>0?' · <b>+'+getProjBonus(proj)+'% Bonus</b>':'')+'</div>':'')
     +'<button class="btn bbl" id="sN1"'+(sD.projId&&sD.plotId?'':' disabled')+'>Next →</button></div>';
-}
-
-function makeDateDropdown(idPrefix, val, onchangeFn){
-  // val = 'YYYY-MM-DD' or ''
-  var d='', m='', y='';
-  if(val&&val.length===10){d=val.substr(8,2);m=val.substr(5,2);y=val.substr(0,4);}
-  var days='<option value="">DD</option>';
-  for(var i=1;i<=31;i++)days+='<option value="'+(i<10?'0':'')+i+'"'+(d===(i<10?'0':'')+i?' selected':'')+'>'+i+'</option>';
-  var months='<option value="">MM</option>';
-  var mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  for(var i=1;i<=12;i++)months+='<option value="'+(i<10?'0':'')+i+'"'+(m===(i<10?'0':'')+i?' selected':'')+'>'+i+' - '+mNames[i-1]+'</option>';
-  var years='<option value="">YYYY</option>';
-  var cy=new Date().getFullYear();
-  for(var i=cy-2;i<=cy+2;i++)years+='<option value="'+i+'"'+(y===String(i)?' selected':'')+'>'+i+'</option>';
-  var fn='(function(){var d=document.getElementById("'+idPrefix+'_d").value,m=document.getElementById("'+idPrefix+'_m").value,y=document.getElementById("'+idPrefix+'_y").value;if(d&&m&&y){'+onchangeFn.replace(/"/g,"\'")+'(y+"-"+m+"-"+d);}else{'+onchangeFn.replace(/"/g,"\'")+('("");}})()');
-  return '<div style="display:flex;gap:6px;align-items:center">'
-    +'<select id="'+idPrefix+'_d" onchange="'+fn+'" style="flex:1;padding:8px 6px;border:1.5px solid var(--bd);border-radius:6px;font-size:13px;font-weight:600">'+days+'</select>'
-    +'<select id="'+idPrefix+'_m" onchange="'+fn+'" style="flex:2;padding:8px 6px;border:1.5px solid var(--bd);border-radius:6px;font-size:13px">'+months+'</select>'
-    +'<select id="'+idPrefix+'_y" onchange="'+fn+'" style="flex:1.5;padding:8px 6px;border:1.5px solid var(--bd);border-radius:6px;font-size:13px">'+years+'</select>'
-    +'</div>';
 }
 
 function sS2(){
@@ -4103,9 +4112,9 @@ function sS2(){
     }).join('')
     +'</div>'
     +'</div>'
-    +'<div class="fld"><label>Booking Date <span style=\"color:var(--re)\">*</span></label>'+makeDateDropdown('sBk',sD.bookingDate||'','function(v){sD.bookingDate=v;render();}')+'</div>'
-    +'<div class="fld"><label>Close Date <span style=\"color:var(--re)\">*</span>'+(sD.bookingDate?' (Booking se pehle nahi)':'')+' </label>'+makeDateDropdown('sCl',sD.closeDate||'','function(v){if(sD.bookingDate&&v&&v<sD.bookingDate){toast(\'Closing date booking se pehle nahi ho sakti!\',false);}else{sD.closeDate=v;render();}}')+'</div>'
-    +'<div class="fld"><label>Party Name (Buyer) <span style=\"color:var(--re)\">*</span></label><input id="sPty" value="'+(sD.partyName||'')+'" placeholder="Buyer ka naam (compulsory)" onchange="sD.partyName=this.value"/></div>'
+    +'<div class="fld"><label>Booking Date <span style=\"color:var(--re)\">*</span></label><input type="date" id="sBk" value="'+(sD.bookingDate||'')+'" style="width:auto;max-width:180px" onchange="sD.bookingDate=this.value;render()"/></div>'
+    +'<div class="fld"><label>Close Date <span style=\"color:var(--re)\">*</span></label><input type="date" id="sCl" value="'+(sD.closeDate||'')+'" min="'+(sD.bookingDate||'')+'" style="width:auto;max-width:180px" onchange="if(sD.bookingDate&&this.value<sD.bookingDate){this.value=\'\';toast(\'Closing date cannot be before booking date!\',false);}else{sD.closeDate=this.value;render();}"/></div>'
+    +'<div class="fld"><label>Party Name (Buyer) <span style=\"color:var(--re)\">*</span></label><input id="sPty" value="'+(sD.partyName||'')+'" placeholder="Buyer name (required)" onchange="sD.partyName=this.value"/></div>'
     +'<div class="fld"><label>Remarks</label><input id="sRmk" value="'+(sD.remarks||'')+'" onchange="sD.remarks=this.value"/></div>'
     +'</div>';
   
@@ -4159,7 +4168,7 @@ function sS3(){
       +'<td style="color:'+(c.cA>0?'var(--gr)':c.cA<0?'var(--am)':'var(--t3)')+'">'+( c.cA>0?'+₹'+fmt(c.cA):c.cA<0?'-₹'+fmt(Math.abs(c.cA)):'—')+'</td>'
       +'<td style="font-weight:700;color:var(--bl)">₹'+fmt(c.total)+'</td></tr>';
   });
-  // Defence rows bhi isi table mein add karo
+  // add Defence rows to the same table
   sDf.forEach(function(c){
     html+='<tr style="background:var(--pub)"><td><b>'+(isLeft(c.name)?'<span style="color:var(--re)">'+esc(c.name)+'</span>'+leftBadge(c.name):esc(c.name))+'</b>'
       +'<div style="font-size:11px;color:var(--t2)">'+c.des+' · '+c.totalGaj+' Sq.Yd</div></td>'
@@ -4182,7 +4191,7 @@ function sS3(){
 // SALES RECORD PAGE
 // ═══════════════════════════════════════════════════════
 function pgSalesRec(){
-  if(!can('salesrec'))return '<div class="empty">⛔ Sales Record dekhne ki permission nahi hai.</div>';
+  if(!can('salesrec'))return '<div class="empty">⛔ You do not have permission to view Sales Record.</div>';
   var PER_PAGE=15;
 
   // Build project options
@@ -4262,7 +4271,7 @@ function pgSalesRec(){
     +'<div style="position:relative">'
     +'<button class="btn bbl bsm" onclick="toggleSRPag()" style="min-width:110px">Page '+srPage+' / '+totalPages+' ▾</button>'
     +'<div id="srPagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:.5px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
-    +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
+    +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Go to page</div>'
     +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px" id="srPagGrid"></div>'
     +'</div></div>'
     +'<button id="srNextBtn" class="btn bgh bsm" onclick="if(srPage<'+totalPages+'){srPage++;renderSalesTable()}" '+(srPage>=totalPages?'disabled':'')+'>Next →</button>'
@@ -4322,8 +4331,8 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     +'<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:8px;padding-bottom:5px;border-bottom:.5px solid var(--bd)">📝 Sale Details</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Party Name (Buyer)</label><input id="esParty" value="'+esc(s.partyName||'')+'"/></div>'
-    +'<div class="fld"><label>Booking Date <span style=\"color:var(--re)\">*</span></label>'+makeDateDropdown('esBk',s.bookingDate||'','function(v){}')+'</div>'
-    +'<div class="fld"><label>Close Date <span style=\"color:var(--re)\">*</span></label>'+makeDateDropdown('esCl',s.closeDate||'','function(v){}')+'</div>'
+    +'<div class="fld"><label>Booking Date</label><input id="esBk" type="date" value="'+esc(s.bookingDate||'')+'"/></div>'
+    +'<div class="fld"><label>Close Date</label><input id="esCl" type="date" value="'+esc(s.closeDate||'')+'"/></div>'
     +'<div class="fld"><label>Remarks</label><input id="esRmk" value="'+esc(s.remarks||'')+'"/></div>'
     +'</div>'
 
@@ -4348,7 +4357,7 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     +'<div class="fld"><label>Seller Associate</label><input value="'+s.sellerName+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
     +'<div class="fld"><label>Rate at Sale</label><input value="'+(s.rateAtSale?'₹'+fmt(s.rateAtSale)+'/Sq.Yd':'—')+'" disabled style="background:var(--bg3);color:var(--t3)"/></div>'
     +'</div>'
-    +'<div class="info iam" style="font-size:12px;margin-bottom:12px">🔒 Project, Plot, Seller more Rate change nahi ho sakte — ye sale ke time record hua tha.</div>'
+    +'<div class="info iam" style="font-size:12px;margin-bottom:12px">🔒 Project, Plot, Seller and Rate cannot be changed — these were locked at the time of sale.</div>'
 
     +'<div class="divl"></div>'
     +'<div style="display:flex;gap:8px;align-items:center">'
@@ -4360,8 +4369,8 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
   openM(html);
   document.getElementById('btnSaveSaleE').addEventListener('click',function(){
     var si=D.sales.findIndex(function(x){return x.id===saleId;});if(si<0)return;
-    var newBk=(function(){var d=document.getElementById('esBk_d'),m=document.getElementById('esBk_m'),y=document.getElementById('esBk_y');return(d&&m&&y&&d.value&&m.value&&y.value)?y.value+'-'+m.value+'-'+d.value:'';})();
-    var newCl=(function(){var d=document.getElementById('esCl_d'),m=document.getElementById('esCl_m'),y=document.getElementById('esCl_y');return(d&&m&&y&&d.value&&m.value&&y.value)?y.value+'-'+m.value+'-'+d.value:'';})();
+    var newBk=document.getElementById('esBk').value;
+    var newCl=document.getElementById('esCl').value;
     if(!newBk){toast('⛔ Booking Date is required!',false);return;}
     if(!newCl){toast('⛔ Close Date is required!',false);return;}
     if(new Date(newCl)<new Date(newBk)){toast('Closing date cannot be before booking date!',false);return;}
@@ -4396,7 +4405,7 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
       D.sales[si].bonusPct=bonusPct;
 
       var diff=newChainTotal-oldChainTotal;
-      var diffMsg=diff>0?'+₹'+fmt(diff)+' zyada':diff<0?'-₹'+fmt(Math.abs(diff))+' kam':'koi change nahi';
+      var diffMsg=diff>0?'+₹'+fmt(diff)+' zyada':diff<0?'-₹'+fmt(Math.abs(diff))+' kam':'no change';
       saveD();
       logAct('Sale Edit + Recalc: '+s.projName+' Plot '+s.plotNo+' | Commission: '+diffMsg);
       toast('✅ Sale updated! Commission recalculated ('+diffMsg+')');
@@ -4429,8 +4438,20 @@ window.openAddAdvanceModal=function(assocId){
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
     +'<div style="background:var(--blb);border-radius:8px;padding:10px 14px;margin-bottom:14px">'
     +'<div style="font-weight:700;font-size:14px;color:var(--bl)">'+esc(a.name)+'</div>'
-    +'<div style="font-size:12px;color:var(--t2);margin-top:2px">Yeh amount future commission payment se automatically adjust hoga</div>'
+    +'<div style="font-size:12px;color:var(--t2);margin-top:2px">Select advance type</div>'
     +'</div>'
+    // Advance type toggle
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:14px">'
+    +'<label id="advTypeDiyaLbl" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid var(--bl);border-radius:8px;cursor:pointer;background:var(--blb)">'
+    +'<input type="radio" name="advType" id="advTypeDiya" value="advance_paid" checked onchange="document.getElementById(\'advTypeDiyaLbl\').style.borderColor=\'var(--bl)\';document.getElementById(\'advTypeDiyaLbl\').style.background=\'var(--blb)\';document.getElementById(\'advTypeHint\').textContent=\'Company paid to associate to associate — will be deducted from future commission\';document.getElementById(\'advTypeLiyaLbl\').style.borderColor=\'var(--bd)\';document.getElementById(\'advTypeLiyaLbl\').style.background=\'#fff\'"/>'
+    +'<div><div style="font-weight:700;font-size:13px;color:var(--bl)">⬇ Advance Paid</div><div style="font-size:11px;color:var(--t2)">Company paid to associate</div></div>'
+    +'</label>'
+    +'<label id="advTypeLiyaLbl" style="display:flex;align-items:center;gap:8px;padding:10px 14px;border:2px solid var(--bd);border-radius:8px;cursor:pointer;background:#fff">'
+    +'<input type="radio" name="advType" id="advTypeLiya" value="deposit_received" onchange="document.getElementById(\'advTypeLiyaLbl\').style.borderColor=\'var(--gr)\';document.getElementById(\'advTypeLiyaLbl\').style.background=\'var(--grb)\';document.getElementById(\'advTypeHint\').textContent=\'Associate paid to company to company — deposit/security\';document.getElementById(\'advTypeDiyaLbl\').style.borderColor=\'var(--bd)\';document.getElementById(\'advTypeDiyaLbl\').style.background=\'#fff\'"/>'
+    +'<div><div style="font-weight:700;font-size:13px;color:var(--gr)">⬆ Deposit Received</div><div style="font-size:11px;color:var(--t2)">Associate paid to company</div></div>'
+    +'</label>'
+    +'</div>'
+    +'<div id="advTypeHint" style="font-size:12px;color:var(--t2);margin-bottom:12px;padding:8px 12px;background:var(--bg3);border-radius:6px">Company paid to associate to associate — will be deducted from future commission</div>'
     +'<div class="g2" style="margin-bottom:12px">'
     +'<div class="fld"><label>Amount *</label>'
     +'<input type="number" id="advAmt" min="1" step="0.01" placeholder="₹ e.g. 50000"/></div>'
@@ -4446,7 +4467,7 @@ window.openAddAdvanceModal=function(assocId){
     +'<input id="advNote" placeholder="Additional details..."/></div>'
     +'</div>'
     +'<div style="display:flex;gap:8px">'
-    +'<button class="btn bbl" data-aid="'+assocId+'" onclick="saveManualAdvance(this)">💾 Save Advance</button>'
+    +'<button class="btn bbl" data-aid="'+assocId+'" onclick="saveManualAdvance(this)">💾 Save Entry</button>'
     +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
     +'</div>';
   openM(html);
@@ -4463,9 +4484,11 @@ window.saveManualAdvance=function(btn){
   var advMode=(document.getElementById('advMode')||{}).value||'Cash';
   var reason=((document.getElementById('advReason')||{}).value||'').trim();
   var note=((document.getElementById('advNote')||{}).value||'').trim();
-  if(!amt||amt<=0){toast('Amount required!',false);document.getElementById('advAmt').focus();return;}
-  if(!advDate){toast('Date required!',false);return;}
-  if(!reason){toast('Reason required!',false);document.getElementById('advReason').focus();return;}
+  if(!amt||amt<=0){toast('Amount is required!',false);document.getElementById('advAmt').focus();return;}
+  if(!advDate){toast('Date is required!',false);return;}
+  if(!reason){toast('Reason is required!',false);document.getElementById('advReason').focus();return;}
+  var advTypeEl=document.querySelector('input[name="advType"]:checked');
+  var advType=advTypeEl?advTypeEl.value:'advance_paid'; // diya=company paid, liya=associate paid
   if(!D.advances)D.advances=[];
   D.advances.push({
     id:'_adv'+Date.now()+Math.random().toString(36).substr(2,5),
@@ -4475,14 +4498,15 @@ window.saveManualAdvance=function(btn){
     note:note,
     mode:advMode,
     advDate:advDate,
-    status:'pending',
+    status:advType==='deposit_received'?'deposit_received':'pending',
+    advDir:advType, // 'advance_paid' or 'deposit_received'
     type:'manual',
     createdAt:new Date().toISOString(),
     createdBy:SESSION?SESSION.name:'Admin'
   });
   saveD();
-  logAct('Advance Added: '+a.name+' | ₹'+fmt(amt)+' | Reason: '+reason);
-  toast('✅ Advance entry saved! ₹'+fmt(amt)+' — future commission se adjust hoga');
+  logAct('Advance '+(advType==='deposit_received'?'Liya':'Diya')+': '+a.name+' | ₹'+fmt(amt)+' | Reason: '+reason);
+  toast('✅ Advance '+(advType==='deposit_received'?'Liya':'Diya')+' saved! ₹'+fmt(amt)+(advType==='advance_paid'?' — will be adjusted against future commission':''));
   closeM();render();
 };
 
@@ -4594,11 +4618,11 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
       D.associates[ai].salesGaj=Math.max(0,Math.round(((D.associates[ai].salesGaj||0)-sGaj)*100)/100);
     }
   });
-  // ── Payment reverse — is sale se linked payments handle karo ──
+  // ── Payment reverse — handle payments linked to this sale ──
   if(!D.payments)D.payments=[];
   if(!D.advances)D.advances=[];
 
-  // usedInSale advances restore karo — sale delete hone pe advance wapas pending ho
+  // restore usedInSale advances — mark pending again when sale deleted ho
   D.advances.forEach(function(adv,ai){
     if(adv.usedInSale===saleId&&adv.status==='used'){
       D.advances[ai].status='pending';
@@ -4613,7 +4637,7 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
   if(linkedPlotPays.length>0){
     var totalAdvAmt=0;
     linkedPlotPays.forEach(function(p){
-      // netPaid = actual cash paid (advance se cover hua toh 0)
+      // netPaid = actual cash paid (0 if covered by advance)
       var cashAmt=p.netPaid!=null?p.netPaid:(p.paid||p.amount||0);
       if(cashAmt<=0)return; // purely advance-covered payment — already restored above
       totalAdvAmt+=cashAmt;
@@ -4647,7 +4671,7 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
     D.payments[pi].pending=Math.max(0,(pay.pending||0)-saleAmt);
 
   });
-  // forEach ke baad zero-amount payments remove karo (forEach mein splice se index shift hota tha)
+  // remove zero-amount payments after loop (splice in forEach shifts index)
   D.payments=D.payments.filter(function(p){if(!p.saleIds)return true;return (p.amount||0)>0;});
 
   // Soft delete
@@ -4662,14 +4686,27 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
 // REPORTS
 // ═══════════════════════════════════════════════════════
 function pgRpt(){
-  if(!can('reports'))return '<div class="empty">⛔ Reports dekhne ki permission nahi hai.</div>';
-  // Staff ko: Associate Info (r1), Project/Plot (r3), Brokerage (r4) - view only
+  if(!can('reports'))return '<div class="empty">⛔ You do not have permission to view Reports.</div>';
+
+  // Brokerage tab — show rpt4 directly, no Reports tabs
+  if(TAB==='brokerage'){
+    rTab='r4';
+    if(r4Tab==='pay')r4Tab='assoc'; // payment tab not in brokerage
+    return rpt4();
+  }
+
+  // Payment tab — show rpt4 Payment Details directly
+  if(TAB==='payment'){
+    rTab='r4';
+    r4Tab='pay';
+    return rpt4();
+  }
+
   var isAdmin=SESSION&&SESSION.role==='admin';
   var tabs=isAdmin
-    ?[['r1','Associate Info'],['r2','Sales & Sq.Yd'],['r3','Project/Plot'],['r4','💰 Brokerage'],['r5','📅 Monthly'],['r6','🧾 Statement']]
-    :[['r1','1️⃣ Associate Info'],['r3','3️⃣ Project/Plot'],['r4','💰 Brokerage']];
-  // Staff ka rTab sirf r1/r3/r4 ho sakta hai
-  if(!isAdmin&&rTab!=='r1'&&rTab!=='r3'&&rTab!=='r4')rTab='r1';
+    ?[['r1','Associate Info'],['r2','Sales & Sq.Yd'],['r3','Project/Plot'],['r5','📅 Monthly'],['r6','🧾 Statement']]
+    :[['r1','Associate Info'],['r3','Project/Plot']];
+  if(!isAdmin&&rTab!=='r1'&&rTab!=='r3')rTab='r1';
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     +'<h2 style="font-size:15px;font-weight:700">📊 Reports</h2>'
     +'</div>'
@@ -4695,7 +4732,7 @@ function setR1Leg(v){r1LegId=v;r1FocusId='';r1P=1;render();}
 function setR1Focus(v){r1FocusId=v;r1P=1;render();}
 
 function rpt1(){
-  if(!D.associates.length)return '<div class="empty">Koi associate nahi</div>';
+  if(!D.associates.length)return '<div class="empty">No associates found</div>';
   var PER_PAGE=10;
 
   function buildTree(pid,lv){
@@ -4895,7 +4932,7 @@ function r1Table(pageData,page,PER_PAGE,totalPages,totalCount,clrs,bgs,focusId,a
         +'<td>'+arr
           +(isFocus?'<span style="background:var(--am);color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;margin-right:4px;font-weight:700">★ Focus</span>':'')
           +(isAncestor?'<span style="background:var(--grb);color:var(--gr);padding:1px 6px;border-radius:4px;font-size:11px;margin-right:4px">↑ Upline</span>':'')
-          +'<b data-aid="'+a.id+'" onclick="r1ProfileId=this.dataset.aid;r1DownPage=0;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
+          +'<b data-aid="'+a.id+'" onclick="pushHistory();r1ProfileId=this.dataset.aid;r1DownPage=0;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
           +(function(){var tl=getTopLeader(a.id);return tl&&tl.id!==a.id?'<span style="font-size:10px;color:var(--t2);margin-left:5px">👑 '+esc(tl.name)+'</span>':'';}())
         +'</td>'
         +'<td style="font-size:12px">'+(a.fatherName?esc(a.fatherName):'—')+'</td>'
@@ -4915,7 +4952,7 @@ function r1Table(pageData,page,PER_PAGE,totalPages,totalCount,clrs,bgs,focusId,a
     +'<div style="position:relative">'
     +'<button class="btn bbl bsm" onclick="toggleR1Pag()" style="min-width:110px">Page '+page+' / '+totalPages+' ▾</button>'
     +'<div id="r1PagDrop" style="display:none;position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);background:var(--bg);border:.5px solid var(--bd);border-radius:10px;box-shadow:0 4px 16px rgba(0,0,0,.12);padding:8px;z-index:200;min-width:200px">'
-    +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Page pe jaao</div>'
+    +'<div style="font-size:11px;color:var(--t3);padding:2px 4px 6px;border-bottom:.5px solid var(--bd);margin-bottom:6px">Go to page</div>'
     +'<div style="display:grid;grid-template-columns:repeat(5,1fr);gap:3px" id="r1PagGrid"></div>'
     +'</div></div>'
     +'<button class="btn bgh bsm" onclick="if(r1P<'+totalPages+'){r1P++;doR1Search(r1F,true)}" '+(page>=totalPages?'disabled':'')+'>Next →</button>'
@@ -4959,7 +4996,7 @@ function doR1Search(q,keepPage){
       html+='<tr>'
         +'<td style="color:var(--t3)">'+rowNum+'</td>'
         +'<td><span class="badge" style="background:'+bgs[li]+';color:'+clrs[li]+'">L'+(a._l+1)+'</span></td>'
-        +'<td>'+arr+'<b data-aid="'+a.id+'" onclick="r1ProfileId=this.dataset.aid;r1DownPage=0;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
+        +'<td>'+arr+'<b data-aid="'+a.id+'" onclick="pushHistory();r1ProfileId=this.dataset.aid;r1DownPage=0;render()" style="cursor:pointer;color:var(--bl)">'+esc(a.name)+'</b>'
           +(function(){var tl=getTopLeader(a.id);return tl&&tl.id!==a.id?'<span style="font-size:10px;color:var(--t2);margin-left:5px">👑 '+esc(tl.name)+'</span>':'';}())
           +'</td>'
         +'<td style="font-size:12px">'+(a.fatherName?esc(a.fatherName):'—')+'</td>'
@@ -5144,7 +5181,7 @@ function rpt2(){
       +'<td>'+(s.plotSizeGaj||s.plotGaj)+'</td>'
       +'<td style="color:var(--pu);font-weight:700">'+fmtG(s.plotGaj)+'</td>'
       +'<td>'+(s.partyName||'—')+'</td>'
-      +'<td>'+(sellerA?'<b data-aid="'+sellerA.id+'" onclick="rTab=\'r1\';r1ProfileId=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</b>':'<b>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</b>')+'</td>'
+      +'<td>'+(sellerA?'<b data-aid="'+sellerA.id+'" onclick="pushHistory();rTab=\'r1\';r1ProfileId=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</b>':'<b>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</b>')+'</td>'
       +'<td style="color:var(--bl);font-size:12px">'+sellerRera+'</td>'
       +'<td style="white-space:nowrap;font-size:12px">'+(s.bookingDate||'—')+'</td>'
       +'<td style="white-space:nowrap;font-size:12px">'+(s.closeDate||'—')+'</td>'
@@ -5269,7 +5306,7 @@ function rpt3(){
 }
 
 function rpt4(){
-  if(!D.sales.length)return '<div class="empty">No sales yet — brokerage data nahi hai</div>';
+  if(!D.sales.length)return '<div class="empty">No sales yet — no brokerage data</div>';
 
   // Common filters
   var monthSet={};
@@ -5284,14 +5321,18 @@ function rpt4(){
 
   var html='';
 
-  // ── Sub-tabs ──
-  html+='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
-  [['assoc','👥 Associate Wise'],['plot','🗺️ Plot Wise'],['leg','📋 Associate Sales'],['pay','💳 Payment Details']].forEach(function(t){
-    var active=r4Tab===t[0];
-    html+='<button onclick="r4Tab=\''+t[0]+'\';r4PayAssoc=\'\';r4MonF=\'\';r4ProjF=\'\';r4AssocF=\'\';r4SecF=\'\';r4LegAssocF=\'\';render()" class="btn '+(active?'bbl':'bgh')+' " style="font-size:13px">'+t[1]+'</button>';
-  });
-  html+='<button class="btn bbl bsm" onclick="r4Tab===\'assoc\'?expBrokerage():r4Tab===\'plot\'?expBroPlot():r4Tab===\'leg\'?expBroLeg():expPayReport()" style="margin-left:auto">📥 Excel Export</button>';
-  html+='</div>';
+  // ── Sub-tabs — not shown on Payment tab ──
+  if(TAB!=='payment'){
+    html+='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
+    [['assoc','👥 Associate Wise'],['plot','🗺️ Plot Wise'],['leg','📋 Associate Sales']].forEach(function(t){
+      var active=r4Tab===t[0];
+      html+='<button onclick="r4Tab=\''+t[0]+'\';r4PayAssoc=\'\';r4MonF=\'\';r4ProjF=\'\';r4AssocF=\'\';r4SecF=\'\';r4LegAssocF=\'\';render()" class="btn '+(active?'bbl':'bgh')+' " style="font-size:13px">'+t[1]+'</button>';
+    });
+    html+='<button class="btn bbl bsm" onclick="r4Tab===\'assoc\'?expBrokerage():r4Tab===\'plot\'?expBroPlot():r4Tab===\'leg\'?expBroLeg():expPayReport()" style="margin-left:auto">📥 Excel Export</button>';
+    html+='</div>';
+  } else {
+    html+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn bbl bsm" onclick="expPayReport()">📥 Excel Export</button></div>';
+  }
 
   // ── Filters ──
   html+='<div class="card" style="margin-bottom:10px;padding:10px 14px">'
@@ -5336,7 +5377,7 @@ function rpt4Assoc(){
   var list=Object.values(assocMap).filter(function(a){return (a.chain+a.def)>0;}).sort(function(a,b){return (b.chain+b.def)-(a.chain+a.def);});
   var totChain=list.reduce(function(s,a){return s+a.chain;},0);
   var totDef=list.reduce(function(s,a){return s+a.def;},0);
-  if(!list.length)return '<div class="empty">Filter mein koi brokerage data nahi</div>';
+  if(!list.length)return '<div class="empty">No brokerage data for this filter</div>';
 
   var html='<div class="g4" style="margin-bottom:10px">'
     +'<div class="stat" style="padding:8px 12px"><div class="sl">Associates</div><div class="sv">'+list.length+'</div></div>'
@@ -5362,7 +5403,7 @@ function rpt4Assoc(){
     var aObj=D.associates.find(function(x){return x.id===a.id;});
     var rowNum=(r4AP-1)*R4A_PER+i+1;
     html+='<tr style="background:'+(i%2===0?'var(--bg)':'var(--bg3)')+'"><td style="color:var(--t3)">'+rowNum+'</td>'
-      +'<td><b data-aid="'+a.id+'" onclick="rTab=\'r1\';r1ProfileId=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+a.name+'</b></td>'
+      +'<td><b data-aid="'+a.id+'" onclick="pushHistory();rTab=\'r1\';r1ProfileId=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+a.name+'</b></td>'
       +'<td>'+(aObj?aObj.phone||'—':'—')+'</td>'
       +'<td style="color:var(--bl);font-size:12px">'+(aObj?aObj.rera||'—':'—')+'</td>'
       +'<td style="font-size:11px">'+(aObj?dOf(aObj.totalGaj):'—')+'</td>'
@@ -5438,11 +5479,17 @@ function rpt4Plot(){
     +'<div class="stat" style="padding:8px 12px"><div class="sl">Total Brokerage</div><div class="sv" style="font-size:15px;color:var(--gr)">₹'+fmtL(totChain+totDef)+'</div></div>'
     +'</div>';
 
-  html+='<div class="card" style="padding:0"><div class="tw" style="border:none;border-radius:0"><table><thead><tr>'
-    +'<th>#</th><th>Project</th><th>Plot No</th><th>Buyer</th><th>Seller</th>'
-    +'<th>Plot Size (Sq.Yd)</th><th>Saleable (Sq.Yd)</th>'
-    +'<th>Booking Date</th><th>Closing Date</th>'
-    +'<th>Total Brokerage ₹</th>'
+  html+='<div class="card" style="padding:0"><div class="tw" style="border:none;border-radius:0"><table style="table-layout:fixed;width:100%"><thead><tr>'
+    +'<th style="width:36px">#</th>'
+    +'<th style="width:130px">Project</th>'
+    +'<th style="width:75px">Plot No</th>'
+    +'<th style="width:130px">Buyer</th>'
+    +'<th style="width:120px">Seller</th>'
+    +'<th style="width:80px">Plot Size</th>'
+    +'<th style="width:80px">Saleable</th>'
+    +'<th style="width:90px">Booking</th>'
+    +'<th style="width:90px">Closing</th>'
+    +'<th style="width:110px">Brokerage ₹</th>'
     +'</tr></thead><tbody>';
   // Store filtered sales for invoice
   window._broPlotSales=filtered;
@@ -5467,10 +5514,10 @@ function rpt4Plot(){
       +'<td style="color:var(--gr);font-weight:700">₹'+fmt((sl.chainTotal||0)+(sl.defTotal||0))+'</td>'
       +'</tr>';
   });
-  html+='<tr style="background:var(--bg3);font-weight:700;border-top:2px solid var(--bd)"><td colspan="9" style="padding:8px 10px">TOTAL</td>'
-    +'<td style="padding:8px 10px;color:var(--bl)">₹'+fmt(totChain)+'</td>'
-    +'<td style="padding:8px 10px;color:var(--pu)">₹'+fmt(totDef)+'</td>'
-    +'<td style="padding:8px 10px;color:var(--gr);font-size:15px">₹'+fmt(totChain+totDef)+'</td><td></td></tr>'
+  html+='<tr style="background:var(--bg3);font-weight:700;border-top:2px solid var(--bd)">'
+    +'<td colspan="9" style="padding:8px 10px;white-space:nowrap">TOTAL ('+filtered.length+' sales)</td>'
+    +'<td style="padding:8px 10px;color:var(--gr);font-size:14px;white-space:nowrap">₹'+fmt(totChain+totDef)+'</td>'
+    +'</tr>'
     +'</tbody></table></div>'
     +pagBar(r4PP,r4PTotalPages,'r4PP--;','r4PP++;',filtered.length+' sales · '+((r4PP-1)*R4P_PER+1)+'-'+Math.min(r4PP*R4P_PER,filtered.length)+' showing')
     +'</div>';
@@ -5738,7 +5785,7 @@ window.openAssocInvoice=function(assocId){
   openM('<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     +'<b style="font-size:15px">Invoice — '+a.name+'</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">X</button></div>'
-    +'<div class="info ibl" style="margin-bottom:12px;font-size:12px">📅 Month list <b>'+(dateMode==='closing'?'Closing Date':'Booking Date')+'</b> se generate ho rahi hai</div>'
+    +'<div class="info ibl" style="margin-bottom:12px;font-size:12px">📅 Month list <b>'+(dateMode==='closing'?'Closing Date':'Booking Date')+'</b> generated from</div>'
     +'<div class="g2" style="margin-bottom:14px">'
     +'<div class="fld"><label>Month *</label>'
     +'<select id="aiMon" onchange="_updateInvProj()">'+mOpts+'</select></div>'
@@ -6284,7 +6331,7 @@ function rpt5(){
     var aObj=D.associates.find(function(x){return x.id===a.id;});
     var rowNum=(r5P-1)*R5_PER+i+1;
     html+='<tr><td style="color:var(--t3)">'+rowNum+'</td>'
-      +'<td><b data-aid="'+a.id+'" onclick="rTab=\'r1\';r1ProfileId=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+a.name+'</b></td>'
+      +'<td><b data-aid="'+a.id+'" onclick="pushHistory();rTab=\'r1\';r1ProfileId=this.dataset.aid;render()" style="cursor:pointer;color:var(--bl)">'+a.name+'</b></td>'
       +'<td>'+(aObj&&aObj.phone?aObj.phone:'—')+'</td>'
       +'<td style="text-align:center">'+a.sales+'</td>'
       +'<td style="color:var(--gr);font-weight:700;font-size:15px">₹'+fmt(a.total)+'</td></tr>';
@@ -6642,9 +6689,9 @@ function ofList(){
 function ofAllAchievers(){
   if(!D.offers||D.offers.length===0){
     return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">'
-      +'<button class="btn bgh bsm" onclick="ofView=\'list\';render()">← Back</button>'
+      +'<button class="btn bgh bsm" onclick="goBack()">← Back</button>'
       +'<h2 style="font-size:15px;font-weight:700">🏆 All Achievers</h2></div>'
-      +'<div class="empty">Koi campaign nahi hai</div>';
+      +'<div class="empty">No campaigns found</div>';
   }
 
   // Collect all achievers across all campaigns
@@ -6706,7 +6753,7 @@ function ofAllAchievers(){
   var assocList=Object.values(assocMap).sort(function(a,b){return a.assocName.localeCompare(b.assocName);});
 
   var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">'
-    +'<button class="btn bgh bsm" onclick="ofView=\'list\';render()">← Back</button>'
+    +'<button class="btn bgh bsm" onclick="goBack()">← Back</button>'
     +'<h2 style="font-size:15px;font-weight:700;flex:1">🏆 All Achievers</h2>'
     +'</div>';
 
@@ -6727,7 +6774,7 @@ function ofAllAchievers(){
     +'</div>';
 
   if(assocList.length===0){
-    html+='<div class="empty">Koi achiever nahi mila</div>';
+    html+='<div class="empty">Koi achiever not found</div>';
     return html;
   }
 
@@ -6790,7 +6837,7 @@ function ofDetail(){
   var daysLeft=Math.ceil((end-today)/(1000*60*60*24));
 
   var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px;flex-wrap:wrap">';
-  html+='<button class="btn bgh bsm" onclick="ofView=\'list\';render()">← Back</button>';
+  html+='<button class="btn bgh bsm" onclick="goBack()">← Back</button>';
   html+='<h2 style="font-size:15px;font-weight:700;flex:1">🎯 '+esc(offer.name)+'</h2>';
   if(isAdmin){
     html+='<button class="btn bgh bsm" data-oid="'+offer.id+'" onclick="editOffer(this.dataset.oid)">✏️ Edit</button>';
@@ -6928,7 +6975,7 @@ function ofForm(editData){
   var isEdit=!!editData;
   var o=editData||{name:'',startDate:'',endDate:'',condType:'combined',projects:[],levels:[{plots:'',gaj:'',reward:'',qualifyCount:1}]};
   var html='<div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">';
-  html+='<button class="btn bgh bsm" onclick="ofView=\'list\';render()">← Back</button>';
+  html+='<button class="btn bgh bsm" onclick="goBack()">← Back</button>';
   html+='<h2 style="font-size:15px;font-weight:700">'+(isEdit?'✏️ Edit':'➕ New')+' Campaign</h2>';
   html+='</div>';
 
@@ -6980,7 +7027,7 @@ function ofForm(editData){
 
   html+='<div style="display:flex;gap:8px;margin-top:16px">';
   html+='<button class="btn bgr" id="btnOfSave" onclick="saveOffer('+(isEdit?'\''+o.id+'\'':'')+')">💾 '+(isEdit?'Update':'Save')+' Campaign</button>';
-  html+='<button class="btn bgh" onclick="ofView=\'list\';render()">Cancel</button>';
+  html+='<button class="btn bgh" onclick="goBack()">Cancel</button>';
   html+='</div>';
   html+='</div>';
   return html;
@@ -7215,7 +7262,7 @@ window.deleteOffer=function(oid){
 
 function pgSearch(){
   var q=searchQ.trim().toLowerCase();
-  if(!q)return '<div class="empty">Kuch type karein search karne ke liye</div>';
+  if(!q)return '<div class="empty">Type something to search</div>';
   if(q.length<2)return '<div class="empty">Kam se kam 2 characters type karein</div>';
   var aRes=D.associates.filter(function(a){return a.name.toLowerCase().includes(q)||(a.phone||'').includes(q)||(a.rera||'').toLowerCase().includes(q)||(a.code||'').toLowerCase().includes(q);});
   var pRes=[];
@@ -7288,7 +7335,7 @@ function bindAll(){
     var n=((document.getElementById('epNm')||{}).value||'').trim();
     if(!n){toast('Project name is required!',false);return;}
     var p=D.projects[pi];
-    // oldPName PEHLE capture karo — update ke baad compare nahi hoga
+    // Capture oldPName BEFORE updating — can't compare after update
     var oldPName=p.name;
     p.name=n;
     p.companyName=gv('epCo');
@@ -7299,11 +7346,11 @@ function bindAll(){
     p.bankName=gv('epBnk');
     p.accNo=gv('epAc');
     p.ifsc=gv('epIfs');
-    // Bonus edit form se nahi badlega — sirf 'Bonus Change' button se change hoga
-    // ── Project name change propagation — sales mein bhi update karo ──
+    // Bonus won't change from edit form — only via 'Bonus Change' button
+    // ── Project name change propagation — update in sales too ──
     if(oldPName!==n){
       D.sales.forEach(function(s,si){if(s.projId===pId)D.sales[si].projName=n;});
-      // payments mein projName saleId se match karke update karo (projId field nahi hota)
+      // update projName in payments by matching saleId (no projId field)
       var affectedSaleIds=new Set(D.sales.filter(function(s){return s.projId===pId;}).map(function(s){return s.id;}));
       if(D.payments)D.payments.forEach(function(pay,pi2){if(pay.saleId&&affectedSaleIds.has(pay.saleId))D.payments[pi2].projName=n;});
     }
@@ -7316,7 +7363,7 @@ function bindAll(){
     var n=(document.getElementById('pNm')||{}).value||'';n=n.trim();
     if(!n){toast('Project Name is required!',false);document.getElementById('pNm').focus();return;}
     var dupProj=D.projects.find(function(p){return p.name.trim().toLowerCase()===n.toLowerCase();});
-    if(dupProj){toast('⚠️ "'+n+'" naam ka project pehle se exist karta hai!',false);return;}
+    if(dupProj){toast('⚠️ "'+n+'" project name already exists!',false);return;}
     if(!gv('pCo')){toast('Company Name is required!',false);document.getElementById('pCo').focus();return;}
     if(!gv('pRera')){toast('RERA No. is required!',false);document.getElementById('pRera').focus();return;}
     if(!gv('pLd')){toast('Launch Date is required!',false);document.getElementById('pLd').focus();return;}
@@ -7519,13 +7566,13 @@ function bindAll(){
     if(!gv('aPh')){toast('Phone No. is required!',false);document.getElementById('aPh').focus();return;}
     var phoneVal=gv('aPh').replace(/\D/g,'');
     var dupPhone=D.associates.find(function(x){return x.phone&&x.phone.replace(/\D/g,'')===phoneVal;});
-    if(dupPhone){if(!confirm('⚠️ This phone number already exists: "'+dupPhone.name+'" ke paas registered hai!\n\nFir bhi save karna hai?'))return;}
+    if(dupPhone){if(!confirm('⚠️ This phone number already exists: "'+dupPhone.name+'" is already registered for!\n\nDo you still want to save?'))return;}
     if(!gv('aPan')){toast('PAN No. is required!',false);document.getElementById('aPan').focus();return;}
     if(!gv('aBnm')){toast('Banking Name is required!',false);document.getElementById('aBnm').focus();return;}
     if(!gv('aBnk')){toast('Bank Name is required!',false);document.getElementById('aBnk').focus();return;}
     if(!gv('aAc')){toast('Account No. is required!',false);document.getElementById('aAc').focus();return;}
     if(!gv('aIfs')){toast('IFSC Code is required!',false);document.getElementById('aIfs').focus();return;}
-    // Duplicate checks PEHLE karo — unshift ke baad nahi (bug fix)
+    // Run duplicate checks FIRST — not after unshift (bug fix)
     var pan=(gv('aPan')||'').trim().toUpperCase();
     if(pan.length>0){
       var dupPan=D.associates.find(function(x){return x.pan&&x.pan.trim().toUpperCase()===pan;});
@@ -7579,22 +7626,25 @@ function bindAll(){
   
   el=document.getElementById('sConf');
   if(el)el.addEventListener('click',function(){
+    if(el.disabled)return; // double-click protection
+    el.disabled=true;
+    el.textContent='Saving...';
     var proj=D.projects.find(function(p){return p.id===sD.projId;});
     var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
-    if(!proj||!plot)return;
-    // ── sCh fresh recalculate — stale commission se bachao ──
+    if(!proj||!plot){el.disabled=false;el.textContent='✅ Confirm & Save Sale';return;}
+    // ── Fresh recalculate sCh — avoid stale commission ──
     var _ch=getChain(sD.assocId);
     var _sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
     sD.bonusPct=getProjBonus(proj,sD.bookingDate);
     sCh=calcChain(_sGaj,_ch,0,sD.bookingDate,sD.closeDate,sD.bonusPct);
     sDf=calcDef(_ch,_sGaj,sD.bookingDate,sD.closeDate);
-    if(!sCh.length){toast('⛔ Commission calculate nahi ho saka — associate/dates check karo!',false);return;}
+    if(!sCh.length){toast('⛔ Commission could not be calculated — please check associate and dates!',false);return;}
     // ── Duplicate sale check ──
     var dupSale=D.sales.find(function(s){
       return s.plotId===sD.plotId;
     });
     if(dupSale){
-      toast('⛔ '+proj.name+' Plot '+plot.plotNo+' ki sale pehle se exist karta hai (Seller: '+( dupSale.sellerName||'?')+', Date: '+(dupSale.bookingDate||'?')+')! Duplicate entry nahi ho sakti.',false);
+      toast('⛔ '+proj.name+' Plot '+plot.plotNo+' ki sale already exists (Seller: '+( dupSale.sellerName||'?')+', Date: '+(dupSale.bookingDate||'?')+')! Duplicate entry not allowed.',false);
       return;
     }
     var pi=D.projects.findIndex(function(p){return p.id===proj.id;});
@@ -7952,11 +8002,11 @@ window.openRestoreBackup=function(){
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
     +'<b style="font-size:15px">🔄 Backup se Restore</b>'
     +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>'
-    +'<div class="info iam" style="margin-bottom:14px;font-size:12px">⚠️ <b>Warning:</b> Yeh current saara data replace kar dega. Pehle ek fresh backup download karo.</div>'
-    +'<div class="fld" style="margin-bottom:14px"><label>JSON Backup File select karo *</label>'
+    +'<div class="info iam" style="margin-bottom:14px;font-size:12px">⚠️ <b>Warning:</b> This will replace all current data. Download a fresh backup firstro.</div>'
+    +'<div class="fld" style="margin-bottom:14px"><label>Select JSON Backup File *</label>'
     +'<input type="file" id="bkFile" accept=".json" style="font-size:13px"/></div>'
     +'<div style="display:flex;gap:8px">'
-    +'<button class="btn bbl" onclick="confirmRestoreBackup()">✅ Restore Karo</button>'
+    +'<button class="btn bbl" onclick="confirmRestoreBackup()">✅ Restore</button>'
     +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
     +'</div>';
   openM(html);
@@ -7995,8 +8045,8 @@ function fbSave(ts){
   if(!_fbReady||!_fbDB)return;
   ts=ts||Date.now();
   fbStatus('sync');
-  // Direct overwrite — D ka data as-is Firebase pe save karo
-  // Merge nahi — delete kiya hua wapas nahi aana chahiye
+  // Direct overwrite — save D data as-is to Firebase
+  // No merge — deleted items should not come back
   var clean=JSON.parse(JSON.stringify({
     projects:D.projects||[],
     associates:D.associates||[],
@@ -8022,7 +8072,7 @@ function fbLoadIfEmpty(){
     .then(function(doc){
       if(!doc)return;
       if(!doc.exists){
-        // Firebase mein kuch nahi — local data push karo
+        // Nothing in Firebase — push local data
         if(D.projects.length||D.associates.length||D.sales.length){
           fbSave();
         } else {
@@ -8036,7 +8086,7 @@ function fbLoadIfEmpty(){
       var remoteTs=r.ts||0;
 
       // SAFETY: New file load pe hamesha Firebase ka data lo
-      // Kabhi bhi page load pe local data Firebase ko overwrite mat karo
+      // Never overwrite Firebase with local data on page load
       // Sirf jab user explicitly kuch save kare (saveD) tab Firebase update ho
       if(r.projects)D.projects=r.projects;
       if(r.associates)D.associates=r.associates;
@@ -8071,7 +8121,7 @@ function fbInit(){
       if(!doc.exists)return;
       var r=doc.data();
       if(!r||!r.ts)return;
-      // Sirf tab update karo jab remote data newer ho
+      // Only update when remote data is newer
       if(r.ts<=window._localTs)return;
       window._localTs=r.ts;
       if(r.projects)D.projects=r.projects;
@@ -8085,24 +8135,24 @@ function fbInit(){
       if(r.config)D.config=r.config;else if(!D.config)D.config={};
       // Firebase only — no localStorage
       fbStatus('ok');
-      // Smart refresh — agar user koi form fill kar raha ho to interrupt mat karo
+      // Smart refresh — don't interrupt if user is filling a form
       if(SESSION){
         var safeTabs=['dashboard','reports','salesrec','associates','search','settings','projects'];
         var isInForm=(sStep>1)||(aView==='add')||(pView==='add'||pView==='edit');
         if(isInForm){
-          // Sirf notification dikhao — page refresh mat karo
+          // Only show notification — don't refresh page
           var notif=document.getElementById('remoteUpdateNotif');
           if(!notif){
             var n=document.createElement('div');
             n.id='remoteUpdateNotif';
             n.style.cssText='position:fixed;bottom:70px;right:16px;background:var(--blb);color:var(--bl);border:1px solid var(--bl);border-radius:10px;padding:10px 14px;font-size:12px;font-weight:500;z-index:999;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.12)';
-            n.innerHTML='🔄 Dusre admin ne kuch update kiya — <b>Refresh karo</b>';
+            n.innerHTML='🔄 Dusre admin ne kuch update kiya — <b>Refresh</b>';
             n.onclick=function(){document.getElementById('remoteUpdateNotif').remove();render();};
             document.body.appendChild(n);
             setTimeout(function(){var el=document.getElementById('remoteUpdateNotif');if(el)el.remove();},10000);
           }
         } else {
-          // Safe page — seedha refresh karo
+          // Safe page — refresh directly
           render();
           toast('🔄 Data updated by another admin',true);
         }
@@ -8328,7 +8378,7 @@ window.importAssocExcel=function(input){
       });
 
       if(added===0){
-        var msg='Koi associate import nahi hua!';
+        var msg='No associates were imported!';
         if(errors.length)msg+=' Errors: '+errors.slice(0,3).join(' | ');
         toast(msg,false);
         return;
@@ -8346,7 +8396,7 @@ window.importAssocExcel=function(input){
 
       if(errors.length){
         prevHtml+='<div style="background:var(--reb);border:1px solid var(--re);border-radius:8px;padding:10px;font-size:12px;color:var(--re);margin-bottom:12px">'
-          +'<b>Skipped rows:</b><br>'+errors.slice(0,5).join('<br>')+(errors.length>5?'<br>...aur '+(errors.length-5)+' aur':'')
+          +'<b>Skipped rows:</b><br>'+errors.slice(0,5).join('<br>')+(errors.length>5?'<br>...more '+(errors.length-5)+' more':'')
           +'</div>';
       }
 
@@ -8362,13 +8412,13 @@ window.importAssocExcel=function(input){
           +'<td style="font-size:11px">'+esc(a.bankName)+'</td>'
           +'</tr>';
       });
-      if(newAssocs.length>10)prevHtml+='<tr><td colspan="5" style="text-align:center;color:var(--t2);font-size:12px">...aur '+(newAssocs.length-10)+' aur</td></tr>';
+      if(newAssocs.length>10)prevHtml+='<tr><td colspan="5" style="text-align:center;color:var(--t2);font-size:12px">...more '+(newAssocs.length-10)+' more</td></tr>';
       prevHtml+='</tbody></table></div>';
 
-      prevHtml+='<div class="info ibl" style="margin-top:12px;font-size:12px">⚠️ Upliner (Senior) baad mein manually set karna hoga — Associate list mein Transfer button se.</div>';
+      prevHtml+='<div class="info ibl" style="margin-top:12px;font-size:12px">⚠️ Upliner (Senior) must be set manually later — in the Associate list Transfer button se.</div>';
 
       prevHtml+='<div style="display:flex;gap:8px;margin-top:14px">'
-        +'<button class="btn bgr" id="btnConfirmImport">✅ Import Karo ('+added+')</button>'
+        +'<button class="btn bgr" id="btnConfirmImport">✅ Import ('+added+')</button>'
         +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
         +'</div>';
 
@@ -8413,6 +8463,7 @@ window.printAssocCard=function(id){
 };
 
 window.showAssocDetail=function(id){
+  pushHistory();
   var a=D.associates.find(function(x){return x.id===id;});
   if(!a)return; // works for Left associates too — they are still in D.associates
   var par=a.parentId?D.associates.find(function(x){return x.id===a.parentId;}):null;
@@ -8496,14 +8547,14 @@ function rpt1LeftFullPage(){
   var h='';
   // Breadcrumb
   h+='<div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;flex-wrap:wrap">'
-    +'<button class="btn bgh bsm" onclick="r1LeftPage=false;render()">← Back</button>'
+    +'<button class="btn bgh bsm" onclick="goBack()">← Back</button>'
     +'<span style="font-size:12px;color:var(--t2)">Reports / Associate Info</span>'
     +'<span style="font-size:12px;color:var(--t3)">/</span>'
     +'<span style="font-size:13px;font-weight:700;color:var(--re)">🚪 Left Associates</span>'
     +'</div>';
 
   if(!leftList.length){
-    h+='<div class="empty">Koi Left associate nahi hai</div>';
+    h+='<div class="empty">No left associates found</div>';
     return h;
   }
 
@@ -8747,7 +8798,7 @@ function rpt1Profile(id){
       :'')
     +'</div>';
   if(directDown.length===0){
-    h+='<div style="color:var(--t3);font-size:12px;padding:8px 0">Koi direct downline nahi</div>';
+    h+='<div style="color:var(--t3);font-size:12px;padding:8px 0">No direct downline</div>';
   } else {
     downPageData.forEach(function(d){
       var dSales=D.sales.filter(function(s){return s.commissions&&s.commissions.some(function(c){return c.id===d.id;});}).length;
@@ -8829,7 +8880,7 @@ function rpt1Profile(id){
     +'</tr></thead><tbody>';
 
   if(allSalesForProfile.length===0){
-    h+='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--t3)">Koi sale nahi</td></tr>';
+    h+='<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--t3)">No sales found</td></tr>';
   } else {
     visibleRows.forEach(function(row,i){
       var s=row.s;
@@ -8851,7 +8902,7 @@ function rpt1Profile(id){
   h+='</tbody></table></div>';
 
   if(moreCount>0){
-    h+='<div style="text-align:center;padding:10px 0 4px"><button class="btn bgh bsm" onclick="r1SalesShow+=15;render()">⬇ Load More ('+moreCount+' aur)</button></div>';
+    h+='<div style="text-align:center;padding:10px 0 4px"><button class="btn bgh bsm" onclick="r1SalesShow+=15;render()">⬇ Load More ('+moreCount+' more)</button></div>';
   }
   h+='</div>';
 
