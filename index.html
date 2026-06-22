@@ -512,7 +512,7 @@ function loadD(){
 }
 function saveD(){
   if(!isOnline()){
-    toast('📴 No internet connection — Changes will not be saved. Please connect first..',false);
+    toast('📴 No internet connection — Changes will not be saved. Please connect first.',false);
     return;
   }
   var ts=Date.now();
@@ -591,6 +591,286 @@ window.addEventListener('offline',function(){
   if(b)b.style.display='flex';
   toast('📴 Internet disconnected! Changes will not be saved.',false);
 });
+
+// ═══════════════════════════════════════════════════════
+// COMMISSION RECALCULATION ENGINE
+// Rule: slab = lifetime cumulative gaj (personal+team), but calculated
+// MONTH-WISE. Each month's sales all get the slab achieved by that
+// month's END cumulative total (previous months' total + this month's gaj).
+// Lifetime total carries forward to next month.
+// ═══════════════════════════════════════════════════════
+function monthKey(s){
+  var d=s.closeDate||s.bookingDate||'';
+  return d?d.substr(0,7):'0000-00'; // YYYY-MM
+}
+function computeRecalc(){
+  // Build a unified chronological timeline of GAJ EVENTS:
+  //  - sale events (add gaj to seller + upline chain)
+  //  - manual gaj events (add gaj only to that one associate, on its date)
+  // Process month by month. A manual add only affects sales on/after its month.
+
+  // 1. Manual gaj events per associate (with date). For old data without
+  //    gajHistory, treat the whole manualGaj as a base from the beginning.
+  var manualEvents=[]; // {date, assocId, amount}
+  var manualBaseNoDate={}; // assocId -> amount (legacy, no date)
+  D.associates.forEach(function(a){
+    if(a.gajHistory&&a.gajHistory.length){
+      a.gajHistory.forEach(function(h){
+        manualEvents.push({date:(h.date||'').substr(0,7),assocId:a.id,amount:h.amount||0});
+      });
+    } else if(a.manualGaj!==undefined&&a.manualGaj!==null&&a.manualGaj>0){
+      manualBaseNoDate[a.id]=a.manualGaj; // legacy: applied from start
+    } else {
+      // Infer legacy manual from totalGaj - sales-derived (applied from start)
+      var sd=0;var dl=getDownline(a.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
+      D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
+      var inf=Math.round(((a.totalGaj||0)-sd)*100)/100;
+      if(inf>0)manualBaseNoDate[a.id]=inf;
+    }
+  });
+
+  // 2. Sales grouped by closing month
+  var sorted=D.sales.slice().sort(function(a,b){
+    return (a.closeDate||a.bookingDate||'').localeCompare(b.closeDate||b.bookingDate||'');
+  });
+  var months={};var monthSet={};
+  sorted.forEach(function(s){var mk=monthKey(s);if(!months[mk]){months[mk]=[];}months[mk].push(s);monthSet[mk]=1;});
+  // include manual-event months too
+  manualEvents.forEach(function(e){monthSet[e.date]=1;});
+  var monthOrder=Object.keys(monthSet).sort();
+
+  // 3. Running cumulative gaj — start with legacy (no-date) base
+  var lifeGaj={};
+  D.associates.forEach(function(a){lifeGaj[a.id]=manualBaseNoDate[a.id]||0;});
+
+  var perAssoc={};
+  function addPer(id,name,oldV,newV){
+    if(!perAssoc[id])perAssoc[id]={name:name,old:0,new:0};
+    perAssoc[id].old+=oldV;perAssoc[id].new+=newV;
+  }
+  var resultSales=[];
+
+  monthOrder.forEach(function(mk){
+    var monthSales=months[mk]||[];
+
+    // Step A: this month's gaj events build month-end snapshot
+    var monthEnd={};Object.keys(lifeGaj).forEach(function(id){monthEnd[id]=lifeGaj[id];});
+    // dated manual adds for this month
+    manualEvents.forEach(function(e){
+      if(e.date===mk)monthEnd[e.assocId]=(monthEnd[e.assocId]||0)+e.amount;
+    });
+    // sales add gaj to seller + full chain
+    monthSales.forEach(function(s){
+      var sGaj=s.plotGaj||0;
+      getChain(s.sellerId).forEach(function(a){monthEnd[a.id]=(monthEnd[a.id]||0)+sGaj;});
+    });
+
+    // Step B: calc each sale at month-end slab
+    monthSales.forEach(function(s){
+      var sGaj=s.plotGaj||0;
+      var rawChain=getChain(s.sellerId);
+      var ch=rawChain.map(function(a){return {id:a.id,name:a.name,totalGaj:(monthEnd[a.id]||0)-sGaj};});
+      var bonusPct=(s.bonusPct!==undefined&&s.bonusPct!==null)?s.bonusPct:0;
+      var newCh=calcChain(sGaj,ch,0,s.bookingDate,s.closeDate,bonusPct);
+      var newDf=calcDefRecalc(ch,sGaj,s.bookingDate,s.closeDate,monthEnd);
+      var newCT=newCh.reduce(function(t,c){return t+c.total;},0);
+      var newDT=newDf.reduce(function(t,c){return t+c.amount;},0);
+      var oldCT=s.chainTotal||0,oldDT=s.defTotal||0;
+
+      (s.commissions||[]).forEach(function(c){addPer(c.id,c.name,c.total||0,0);});
+      (s.defCommissions||[]).forEach(function(c){addPer(c.id,c.name||'',c.amount||0,0);});
+      newCh.forEach(function(c){addPer(c.id,c.name,0,c.total||0);});
+      newDf.forEach(function(c){
+        var nm=(D.associates.find(function(a){return a.id===c.id;})||{}).name||'';
+        addPer(c.id,nm,0,c.amount||0);
+      });
+
+      resultSales.push({
+        saleId:s.id,projName:s.projName,plotNo:s.plotNo,
+        closeDate:s.closeDate||s.bookingDate||'',
+        oldTotal:oldCT+oldDT,newTotal:newCT+newDT,
+        commissions:newCh,defCommissions:newDf,
+        chainTotal:newCT,defTotal:newDT
+      });
+    });
+
+    // Step C: carry forward
+    lifeGaj=monthEnd;
+  });
+
+  return {sales:resultSales,perAssoc:perAssoc,finalGaj:lifeGaj};
+}
+
+function calcDefRecalc(ch,sGaj,bk,cl,gajSnapshot){
+  if(!ch||!ch.length)return [];
+  var wComm=new Set();
+  ch.forEach(function(a,i){
+    var myR=rOf((a.totalGaj||0)+sGaj);
+    var blR=i>0?rOf((ch[i-1].totalGaj||0)+sGaj):0;
+    if(myR-blR>0)wComm.add(a.id);
+  });
+  var up=getChain(ch[0].id).map(function(a){return {id:a.id,name:a.name,totalGaj:(gajSnapshot[a.id]||0)-sGaj};});
+  var DR={1:100,2:75,3:50};
+  var dep=0;var dc=[];
+  for(var i=1;i<up.length&&dep<15;i++){
+    var s=up[i];
+    if(wComm.has(s.id))continue;
+    var liveG=(s.totalGaj||0)+sGaj;
+    if(liveG<10000)continue;
+    dep++;
+    if(DR[dep]===undefined)break;
+    var amt=Math.round(sGaj*rOf(liveG)*DR[dep]/100/100)*100;
+    dc.push({id:s.id,amount:Math.max(0,amt),dep:dep});
+  }
+  return dc;
+}
+
+window.debugRecalcAssoc=function(assocIdOrName){
+  var a=D.associates.find(function(x){return x.id===assocIdOrName;});
+  if(!a)a=D.associates.find(function(x){return x.name===assocIdOrName||x.name.toLowerCase().indexOf((assocIdOrName||'').toLowerCase())>=0;});
+  if(!a){alert('Associate not found: '+assocIdOrName);return;}
+
+  // Replicate computeRecalc exactly, but capture rows where THIS assoc is in chain
+  var sorted=D.sales.slice().sort(function(x,y){return (x.closeDate||x.bookingDate||'').localeCompare(y.closeDate||y.bookingDate||'');});
+  var months={};var monthOrder=[];
+  sorted.forEach(function(s){var mk=(s.closeDate||s.bookingDate||'').substr(0,7);if(!months[mk]){months[mk]=[];monthOrder.push(mk);}months[mk].push(s);});
+
+  // manual base for all
+  var manualBase={};
+  D.associates.forEach(function(x){
+    if(x.manualGaj!==undefined&&x.manualGaj!==null){manualBase[x.id]=x.manualGaj;}
+    else{
+      var sd=0;var dl=getDownline(x.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
+      D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
+      manualBase[x.id]=Math.max(0,Math.round(((x.totalGaj||0)-sd)*100)/100);
+    }
+  });
+  var lifeGaj={};D.associates.forEach(function(x){lifeGaj[x.id]=manualBase[x.id]||0;});
+
+  var L=[];
+  L.push('═══ '+a.name+' ═══');
+  L.push('Manual base gaj: '+(manualBase[a.id]||0));
+  L.push('');
+  var totOld=0,totNew=0;
+
+  monthOrder.forEach(function(mk){
+    var ms=months[mk];
+    var monthEnd={};Object.keys(lifeGaj).forEach(function(id){monthEnd[id]=lifeGaj[id];});
+    ms.forEach(function(s){var sGaj=s.plotGaj||0;getChain(s.sellerId).forEach(function(c){monthEnd[c.id]=(monthEnd[c.id]||0)+sGaj;});});
+
+    var myRows=[];
+    ms.forEach(function(s){
+      var rawChain=getChain(s.sellerId);
+      if(!rawChain.some(function(c){return c.id===a.id;}))return;
+      var sGaj=s.plotGaj||0;
+      var ch=rawChain.map(function(c){return {id:c.id,name:c.name,totalGaj:(monthEnd[c.id]||0)-sGaj};});
+      var bonusPct=(s.bonusPct!==undefined&&s.bonusPct!==null)?s.bonusPct:0;
+      var newCh=calcChain(sGaj,ch,0,s.bookingDate,s.closeDate,bonusPct);
+      var myNew=(newCh.find(function(c){return c.id===a.id;})||{});
+      var oldC=((s.commissions||[]).find(function(c){return c.id===a.id;})||{}).total||0;
+      myRows.push({plot:s.projName+' #'+s.plotNo,gaj:sGaj,close:s.closeDate,
+        myGajAtSale:(monthEnd[a.id]||0),rate:myNew.myR||0,old:oldC,new:myNew.total||0});
+    });
+
+    if(myRows.length>0){
+      L.push('── '+mk+' (my month-end gaj: '+(monthEnd[a.id]||0)+', slab ₹'+rOf(monthEnd[a.id]||0)+'/gaj) ──');
+      myRows.forEach(function(r){
+        totOld+=r.old;totNew+=r.new;
+        L.push('  '+r.plot+' ('+r.gaj+'g): rate ₹'+r.rate+' | old ₹'+fmt(r.old)+' → new ₹'+fmt(r.new)+' ('+(r.new>=r.old?'+':'')+fmt(r.new-r.old)+')');
+      });
+    }
+    lifeGaj=monthEnd;
+  });
+
+  L.push('');
+  L.push('TOTAL: old ₹'+fmt(totOld)+' → new ₹'+fmt(totNew)+' (diff '+(totNew>=totOld?'+':'')+'₹'+fmt(totNew-totOld)+')');
+  L.push('Final lifetime gaj: '+(lifeGaj[a.id]||0));
+
+  console.log(L.join('\n'));
+  alert(L.join('\n'));
+};
+
+window.openRecalcModal=function(){
+  if(!SESSION||SESSION.role!=='admin'){toast('Admin access required!',false);return;}
+  var r=computeRecalc();
+  var rows=Object.keys(r.perAssoc).map(function(id){
+    var p=r.perAssoc[id];
+    // Prefer current associate name (commissions array may have stale name)
+    var liveA=D.associates.find(function(a){return a.id===id;});
+    return {id:id,name:(liveA?liveA.name:p.name),old:p.old,new:p.new,diff:p.new-p.old};
+  }).filter(function(x){return Math.abs(x.diff)>=1;})
+    .sort(function(a,b){return Math.abs(b.diff)-Math.abs(a.diff);});
+
+  var totalOld=0,totalNew=0;
+  Object.keys(r.perAssoc).forEach(function(id){totalOld+=r.perAssoc[id].old;totalNew+=r.perAssoc[id].new;});
+  var totalDiff=totalNew-totalOld;
+
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">🔄 Recalculate Commissions</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>';
+  html+='<div class="info ibl" style="font-size:12px;margin-bottom:12px">'
+    +'Recalculates every sale using <b>lifetime cumulative gaj</b> (personal + team), in closing-date order. '
+    +'Sale details (plot, gaj, dates) stay unchanged — only commission amounts update.</div>';
+
+  if(rows.length===0){
+    html+='<div class="empty" style="padding:24px">✅ All commissions already correct — no changes needed.</div>'
+      +'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn bgh" onclick="closeM()">Close</button></div>';
+    openM(html);
+    return;
+  }
+
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
+    +'<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">Current Total</div><div style="font-size:16px;font-weight:700">₹'+fmtL(totalOld)+'</div></div>'
+    +'<div style="background:var(--grb);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">After Recalc</div><div style="font-size:16px;font-weight:700;color:var(--gr)">₹'+fmtL(totalNew)+'</div></div>'
+    +'<div style="background:'+(totalDiff>=0?'var(--amb)':'var(--reb)')+';border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">Difference</div><div style="font-size:16px;font-weight:700;color:'+(totalDiff>=0?'var(--am)':'var(--re)')+'">'+(totalDiff>=0?'+':'')+'₹'+fmtL(Math.abs(totalDiff))+'</div></div>'
+    +'</div>';
+
+  html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px">'+rows.length+' associates affected <span style="font-weight:400;color:var(--t3)">(tap a name for plot-by-plot breakdown)</span>:</div>'
+    +'<div class="tw" style="max-height:280px;overflow-y:auto"><table style="table-layout:fixed;width:100%"><thead><tr>'
+    +'<th style="width:auto">Associate</th>'
+    +'<th style="width:90px;text-align:right">Current</th>'
+    +'<th style="width:90px;text-align:right">New</th>'
+    +'<th style="width:100px;text-align:right">Difference</th>'
+    +'</tr></thead><tbody>';
+  rows.forEach(function(x){
+    html+='<tr style="cursor:pointer" data-id="'+x.id+'" onclick="debugRecalcAssoc(this.dataset.id)" title="Click for plot-by-plot breakdown">'
+      +'<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:var(--bl);text-decoration:underline">'+esc(x.name)+'</span></td>'
+      +'<td style="text-align:right">₹'+fmt(Math.round(x.old))+'</td>'
+      +'<td style="text-align:right;font-weight:600">₹'+fmt(Math.round(x.new))+'</td>'
+      +'<td style="text-align:right;font-weight:700;color:'+(x.diff>=0?'var(--gr)':'var(--re)')+'">'+(x.diff>=0?'+':'')+'₹'+fmt(Math.round(x.diff))+'</td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div>';
+
+  html+='<div class="info iam" style="font-size:11px;margin-top:10px">⚠️ This updates commission on all sales. Paid amounts stay unchanged — if commission increased, the extra shows as pending. Take a backup first if unsure.</div>';
+  html+='<div style="display:flex;gap:8px;margin-top:12px">'
+    +'<button class="btn bbl" id="recalcConfirmBtn" onclick="applyRecalc(this)">✅ Confirm & Apply</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
+    +'</div>';
+  openM(html);
+};
+
+window.applyRecalc=function(btn){
+  if(btn){btn.disabled=true;btn.textContent='Applying...';}
+  var r=computeRecalc();
+  var saleMap={};
+  r.sales.forEach(function(rs){saleMap[rs.saleId]=rs;});
+  D.sales.forEach(function(s){
+    var rs=saleMap[s.id];
+    if(rs){
+      s.commissions=rs.commissions;
+      s.defCommissions=rs.defCommissions;
+      s.chainTotal=rs.chainTotal;
+      s.defTotal=rs.defTotal;
+    }
+  });
+  D.associates.forEach(function(a){a.salesGaj=selfGaj(a.id);});
+  saveD();
+  logAct('Commissions recalculated (lifetime cumulative slab)');
+  toast('✅ All commissions recalculated!');
+  closeM();
+  render();
+};
 
 function getChain(id){
   var ch=[];var visited={};
@@ -2176,7 +2456,7 @@ function expPayReport(){
   });
   var wb=XLSX.utils.book_new();
   var ws=XLSX.utils.aoa_to_sheet(rows);
-  XLSX.utils.book_append_sheet(wb,'Payment Report',ws);
+  XLSX.utils.book_append_sheet(wb,ws,'Payment Report');
   XLSX.writeFile(wb,'TrueStars_Payment_Report.xlsx');
 }
 
@@ -2832,7 +3112,7 @@ window.changeAdminPwd=function(){
   var auth=getAuth();
   auth.admin.pwd=hashPwd(p1);
   saveAuth(auth);
-  logAct('Admin password change kiya');
+  logAct('Admin password changed');
   toast('Admin password updated successfully! ✓');
 };
 window.deleteStaff=function(staffId){
@@ -3445,7 +3725,7 @@ window.editAssoc=function(id){
       return '<div class="fld" style="grid-column:1/-1"><label>Upliner</label>'
         +'<div style="position:relative">'
         +'<input id="eUpSrch" type="text" autocomplete="off" '
-        +'placeholder="🔍 Type naam ya — Top Level —" '
+        +'placeholder="🔍 Type a name or — Top Level —" '
         +'value="'+(a.parentId?(D.associates.find(function(x){return x.id===a.parentId;})||{name:''}).name:'')+'" '
         +'oninput="filterUpSrch(this.value,\''+id+'\')" onfocus="filterUpSrch(this.value,\''+id+'\')" '
         +'style="width:100%;font-size:13px;padding:8px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
@@ -3461,6 +3741,7 @@ window.editAssoc=function(id){
     +'<div class="info iam" style="margin-bottom:10px">'
     +'<div style="font-size:12px;font-weight:700;margin-bottom:6px">Add Sq.Yd (add to existing)</div>'
     +'<div class="fld" style="margin-bottom:6px"><label style="font-size:11px">Reason / Note *</label><input id="eAGReason" placeholder="e.g. Tour bonus, Manual correction..." style="font-size:12px"/></div>'
+    +'<div class="fld" style="margin-bottom:6px"><label style="font-size:11px">Date *</label><input id="eAGDate" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="font-size:12px;width:auto"/></div>'
     +'<div style="display:flex;gap:8px"><input id="eAG" type="number" min="0" placeholder="e.g. 200" oninput="prvG(\''+id+'\')"/>'
     +'<button class="btn bgh bsm" onclick="doAG(\''+id+'\')">+ Add</button></div>'
     +'<div style="font-size:11px;margin-top:4px;color:var(--t2)">Current <b>'+fmtG(a.totalGaj)+'</b> Sq.Yd + input = Total &nbsp;|&nbsp; Sales Sq.Yd (for Tour & Tab benefits): <b>'+(a.salesGaj||0)+'</b></div>'
@@ -3509,7 +3790,7 @@ window.prvG=function(id){
     pv.style.background='var(--amb)';
     pv.style.border='1px solid var(--am)';
     pv.style.color='var(--am)';
-    pv.innerHTML='⚠️ Result 0 Sq.Yd hoga — associate Trainee slab pe aa jaayega!';
+    pv.innerHTML='⚠️ Result will be 0 Sq.Yd — associate will drop to Trainee slab!';
     return;
   }
   // Normal preview
@@ -3533,9 +3814,15 @@ window.doAG=function(id){
   var i=D.associates.findIndex(function(x){return x.id===id;});if(i<0)return;
   var reason=((document.getElementById('eAGReason')||{}).value||'').trim();
   if(!reason){toast('⛔ Reason/Note is required!',false);document.getElementById('eAGReason').focus();return;}
+  var mDate=((document.getElementById('eAGDate')||{}).value||'')||new Date().toISOString().slice(0,10);
   var o=rOf(D.associates[i].totalGaj);
   var prevGaj=D.associates[i].totalGaj;
   // increase totalGaj (for slab) — salesGaj unchanged (for Tour/Tab)
+  // Track manual portion separately, WITH DATE, so recalc applies it
+  // chronologically (a manual add only affects sales on/after its date)
+  D.associates[i].manualGaj=Math.round(((D.associates[i].manualGaj||0)+v)*100)/100;
+  if(!D.associates[i].gajHistory)D.associates[i].gajHistory=[];
+  D.associates[i].gajHistory.push({date:mDate,amount:v,reason:reason,at:new Date().toISOString()});
   D.associates[i].totalGaj=Math.round((D.associates[i].totalGaj+v)*100)/100;
   var n=rOf(D.associates[i].totalGaj);
   logAct('Manual Sq.Yd: '+a.name+' | '+(v>0?'+':'')+v+' Sq.Yd | '+prevGaj+' → '+D.associates[i].totalGaj+' | Reason: '+reason);
@@ -4218,6 +4505,7 @@ function pgSalesRec(){
 
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     +'<h2 style="font-size:15px;font-weight:700">📋 Sales Record ('+D.sales.length+' total)</h2>'
+    +(SESSION&&SESSION.role==='admin'?'<button class="btn bsm" style="background:var(--am);color:#fff;border:none" onclick="openRecalcModal()">🔄 Recalculate Commissions</button>':'')
     +'</div>';
 
   // Filter bar
@@ -4603,7 +4891,7 @@ window.saveRefund=function(btn){
 window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dataset.sid:saleId;
   if(!can('sales_delete')){toast('You do not have permission to delete sales!',false);return;}
   var s=D.sales.find(function(x){return x.id===saleId;});if(!s)return;
-  if(!confirm('Sale will be deleted:\n\nProject: '+s.projName+'\nPlot: '+s.plotNo+'\nSeller: '+s.sellerName+'\n\nPlot wapas Available ho jaayega more associate ka Sq.Yd bhi wapas hoga. Confirm?'))return;
+  if(!confirm('Sale will be deleted:\n\nProject: '+s.projName+'\nPlot: '+s.plotNo+'\nSeller: '+s.sellerName+'\n\nThe plot will be set back to Available and the associate Sq.Yd will also be reversed. Confirm?'))return;
   // Restore plot status
   for(var pi=0;pi<D.projects.length;pi++){
     var pli=D.projects[pi].plots?D.projects[pi].plots.findIndex(function(pl){return pl.id===s.plotId;}):- 1;
@@ -7263,7 +7551,7 @@ window.deleteOffer=function(oid){
 function pgSearch(){
   var q=searchQ.trim().toLowerCase();
   if(!q)return '<div class="empty">Type something to search</div>';
-  if(q.length<2)return '<div class="empty">Kam se kam 2 characters type karein</div>';
+  if(q.length<2)return '<div class="empty">Type at least 2 characters</div>';
   var aRes=D.associates.filter(function(a){return a.name.toLowerCase().includes(q)||(a.phone||'').includes(q)||(a.rera||'').toLowerCase().includes(q)||(a.code||'').toLowerCase().includes(q);});
   var pRes=[];
   D.projects.forEach(function(p){if(p.plots)p.plots.forEach(function(pl){if(pl.plotNo.toLowerCase().includes(q)||(pl.facing||'').toLowerCase().includes(q))pRes.push(Object.assign({},pl,{projName:p.name}));});});
@@ -8238,12 +8526,12 @@ window.downloadAssocTemplate=function(){
     ['📋 TrueStars Associate Import Template - Instructions'],
     [''],
     ['Column','Required?','Description'],
-    ['Full Name','✅ Required','Associate ka pura naam'],
-    ['Father/Husband Name','✅ Required','Pita ya pati ka naam'],
+    ['Full Name','✅ Required','Full name of associate'],
+    ['Father/Husband Name','✅ Required','Father or Husband name'],
     ['Phone No','✅ Required','10 digit mobile number'],
     ['PAN No','✅ Required','10 character PAN (jaise ABCDE1234F)'],
-    ['Banking Name','✅ Required','Bank account mein naam'],
-    ['Bank Name','✅ Required','Bank ka naam'],
+    ['Banking Name','✅ Required','Name as in bank account'],
+    ['Bank Name','✅ Required','Bank name'],
     ['Account No','✅ Required','Bank account number'],
     ['IFSC Code','✅ Required','Bank IFSC code'],
     ['RERA No','Optional','Agent RERA number'],
