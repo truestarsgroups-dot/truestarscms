@@ -4142,61 +4142,50 @@ window.doTransfer=function(){
     D.associates[li].leftDate=leftDate;
   }
 
-  // ── Affected sales recalculate ──
+  // ── Affected sales: only those with booking AFTER left date ──
+  // (Sales on/before left date keep the left member — frozen.)
+  // For after-left sales, remove leftId from the frozen chainIds and, if the
+  // left member was the seller, promote their parent. Then recompute all
+  // commissions via the month-end engine (which uses frozen chainIds).
   var affected=D.sales.filter(function(s){
     if(!s.bookingDate||s.bookingDate<=leftDate)return false;
     var isSeller=s.sellerId===leftId;
+    var inChainIds=s.chainIds&&s.chainIds.indexOf(leftId)>=0;
     var inChain=s.commissions&&s.commissions.some(function(cm){return cm.id===leftId;});
-    var inDef=s.defCommissions&&s.defCommissions.some(function(cm){return cm.id===leftId;});
-    return isSeller||inChain||inDef;
+    return isSeller||inChainIds||inChain;
   });
 
   var recalcCount=0;
   affected.forEach(function(s){
     var si=D.sales.findIndex(function(x){return x.id===s.id;});
     if(si<0)return;
-
-    var isSeller=s.sellerId===leftId;
-
-    if(isSeller){
-      // Seller left ho gaya — upar wale ko seller banao
+    // If left member was the seller, promote their parent as new seller
+    if(s.sellerId===leftId){
       var newSeller=newParentId?D.associates.find(function(a){return a.id===newParentId;}):null;
       if(newSeller){
         D.sales[si].sellerName=newSeller.name;
         D.sales[si].sellerId=newSeller.id;
       }
     }
-
-    // Chain se leftId hatao + gaj reverse
-    var oldChain=s.commissions||[];
-    var newChain=oldChain.filter(function(cm){return cm.id!==leftId;});
-    var sGaj=s.plotGaj||0;
-
-    // Gaj reverse for left associate
-    var ai=D.associates.findIndex(function(a){return a.id===leftId;});
-    if(ai>=0){
-      D.associates[ai].totalGaj=Math.max(0,Math.round(((D.associates[ai].totalGaj||0)-sGaj)*100)/100);
-      D.associates[ai].salesGaj=Math.max(0,Math.round(((D.associates[ai].salesGaj||0)-sGaj)*100)/100);
+    // Remove leftId from frozen chainIds (after-left sales should not include them)
+    if(D.sales[si].chainIds&&D.sales[si].chainIds.length){
+      D.sales[si].chainIds=D.sales[si].chainIds.filter(function(id){return id!==leftId;});
+    } else if(D.sales[si].commissions){
+      // legacy: rebuild chainIds from commissions minus leftId
+      D.sales[si].chainIds=D.sales[si].commissions.map(function(cm){return cm.id;}).filter(function(id){return id!==leftId;});
     }
-
-    // Defence se bhi hatao
-    var newDef=(s.defCommissions||[]).filter(function(cm){return cm.id!==leftId;});
-
-    D.sales[si].commissions=newChain;
-    D.sales[si].defCommissions=newDef;
-
-    // Recalculate totals
-    D.sales[si].chainTotal=newChain.reduce(function(t,cm){return t+(cm.total||0);},0);
-    D.sales[si].defTotal=newDef.reduce(function(t,cm){return t+(cm.amount||0);},0);
-
     recalcCount++;
   });
+
+  // Recompute ALL commissions with month-end engine (frozen chains respected).
+  // Also resync associate totalGaj from scratch so left member's gaj is correct.
+  applyAllCommissions();
 
   saveD();
   closeM();
   var msg='✅ '+leftA.name+' marked as Left ('+leftDate+')';
   if(count>0)msg+=', '+count+' downline shifted';
-  if(recalcCount>0)msg+=', '+recalcCount+' sales recalculated';
+  if(recalcCount>0)msg+=', '+recalcCount+' after-left sales updated';
   toast(msg);
   render();
 };
