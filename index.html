@@ -592,285 +592,6 @@ window.addEventListener('offline',function(){
   toast('📴 Internet disconnected! Changes will not be saved.',false);
 });
 
-// ═══════════════════════════════════════════════════════
-// COMMISSION RECALCULATION ENGINE
-// Rule: slab = lifetime cumulative gaj (personal+team), but calculated
-// MONTH-WISE. Each month's sales all get the slab achieved by that
-// month's END cumulative total (previous months' total + this month's gaj).
-// Lifetime total carries forward to next month.
-// ═══════════════════════════════════════════════════════
-function monthKey(s){
-  var d=s.closeDate||s.bookingDate||'';
-  return d?d.substr(0,7):'0000-00'; // YYYY-MM
-}
-function computeRecalc(){
-  // Build a unified chronological timeline of GAJ EVENTS:
-  //  - sale events (add gaj to seller + upline chain)
-  //  - manual gaj events (add gaj only to that one associate, on its date)
-  // Process month by month. A manual add only affects sales on/after its month.
-
-  // 1. Manual gaj events per associate (with date). For old data without
-  //    gajHistory, treat the whole manualGaj as a base from the beginning.
-  var manualEvents=[]; // {date, assocId, amount}
-  var manualBaseNoDate={}; // assocId -> amount (legacy, no date)
-  D.associates.forEach(function(a){
-    if(a.gajHistory&&a.gajHistory.length){
-      a.gajHistory.forEach(function(h){
-        manualEvents.push({date:(h.date||'').substr(0,7),assocId:a.id,amount:h.amount||0});
-      });
-    } else if(a.manualGaj!==undefined&&a.manualGaj!==null&&a.manualGaj>0){
-      manualBaseNoDate[a.id]=a.manualGaj; // legacy: applied from start
-    } else {
-      // Infer legacy manual from totalGaj - sales-derived (applied from start)
-      var sd=0;var dl=getDownline(a.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
-      D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
-      var inf=Math.round(((a.totalGaj||0)-sd)*100)/100;
-      if(inf>0)manualBaseNoDate[a.id]=inf;
-    }
-  });
-
-  // 2. Sales grouped by closing month
-  var sorted=D.sales.slice().sort(function(a,b){
-    return (a.closeDate||a.bookingDate||'').localeCompare(b.closeDate||b.bookingDate||'');
-  });
-  var months={};var monthSet={};
-  sorted.forEach(function(s){var mk=monthKey(s);if(!months[mk]){months[mk]=[];}months[mk].push(s);monthSet[mk]=1;});
-  // include manual-event months too
-  manualEvents.forEach(function(e){monthSet[e.date]=1;});
-  var monthOrder=Object.keys(monthSet).sort();
-
-  // 3. Running cumulative gaj — start with legacy (no-date) base
-  var lifeGaj={};
-  D.associates.forEach(function(a){lifeGaj[a.id]=manualBaseNoDate[a.id]||0;});
-
-  var perAssoc={};
-  function addPer(id,name,oldV,newV){
-    if(!perAssoc[id])perAssoc[id]={name:name,old:0,new:0};
-    perAssoc[id].old+=oldV;perAssoc[id].new+=newV;
-  }
-  var resultSales=[];
-
-  monthOrder.forEach(function(mk){
-    var monthSales=months[mk]||[];
-
-    // Step A: this month's gaj events build month-end snapshot
-    var monthEnd={};Object.keys(lifeGaj).forEach(function(id){monthEnd[id]=lifeGaj[id];});
-    // dated manual adds for this month
-    manualEvents.forEach(function(e){
-      if(e.date===mk)monthEnd[e.assocId]=(monthEnd[e.assocId]||0)+e.amount;
-    });
-    // sales add gaj to seller + full chain
-    monthSales.forEach(function(s){
-      var sGaj=s.plotGaj||0;
-      getChain(s.sellerId).forEach(function(a){monthEnd[a.id]=(monthEnd[a.id]||0)+sGaj;});
-    });
-
-    // Step B: calc each sale at month-end slab
-    monthSales.forEach(function(s){
-      var sGaj=s.plotGaj||0;
-      var rawChain=getChain(s.sellerId);
-      var ch=rawChain.map(function(a){return {id:a.id,name:a.name,totalGaj:(monthEnd[a.id]||0)-sGaj};});
-      var bonusPct=(s.bonusPct!==undefined&&s.bonusPct!==null)?s.bonusPct:0;
-      var newCh=calcChain(sGaj,ch,0,s.bookingDate,s.closeDate,bonusPct);
-      var newDf=calcDefRecalc(ch,sGaj,s.bookingDate,s.closeDate,monthEnd);
-      var newCT=newCh.reduce(function(t,c){return t+c.total;},0);
-      var newDT=newDf.reduce(function(t,c){return t+c.amount;},0);
-      var oldCT=s.chainTotal||0,oldDT=s.defTotal||0;
-
-      (s.commissions||[]).forEach(function(c){addPer(c.id,c.name,c.total||0,0);});
-      (s.defCommissions||[]).forEach(function(c){addPer(c.id,c.name||'',c.amount||0,0);});
-      newCh.forEach(function(c){addPer(c.id,c.name,0,c.total||0);});
-      newDf.forEach(function(c){
-        var nm=(D.associates.find(function(a){return a.id===c.id;})||{}).name||'';
-        addPer(c.id,nm,0,c.amount||0);
-      });
-
-      resultSales.push({
-        saleId:s.id,projName:s.projName,plotNo:s.plotNo,
-        closeDate:s.closeDate||s.bookingDate||'',
-        oldTotal:oldCT+oldDT,newTotal:newCT+newDT,
-        commissions:newCh,defCommissions:newDf,
-        chainTotal:newCT,defTotal:newDT
-      });
-    });
-
-    // Step C: carry forward
-    lifeGaj=monthEnd;
-  });
-
-  return {sales:resultSales,perAssoc:perAssoc,finalGaj:lifeGaj};
-}
-
-function calcDefRecalc(ch,sGaj,bk,cl,gajSnapshot){
-  if(!ch||!ch.length)return [];
-  var wComm=new Set();
-  ch.forEach(function(a,i){
-    var myR=rOf((a.totalGaj||0)+sGaj);
-    var blR=i>0?rOf((ch[i-1].totalGaj||0)+sGaj):0;
-    if(myR-blR>0)wComm.add(a.id);
-  });
-  var up=getChain(ch[0].id).map(function(a){return {id:a.id,name:a.name,totalGaj:(gajSnapshot[a.id]||0)-sGaj};});
-  var DR={1:100,2:75,3:50};
-  var dep=0;var dc=[];
-  for(var i=1;i<up.length&&dep<15;i++){
-    var s=up[i];
-    if(wComm.has(s.id))continue;
-    var liveG=(s.totalGaj||0)+sGaj;
-    if(liveG<10000)continue;
-    dep++;
-    if(DR[dep]===undefined)break;
-    var amt=Math.round(sGaj*rOf(liveG)*DR[dep]/100/100)*100;
-    dc.push({id:s.id,amount:Math.max(0,amt),dep:dep});
-  }
-  return dc;
-}
-
-window.debugRecalcAssoc=function(assocIdOrName){
-  var a=D.associates.find(function(x){return x.id===assocIdOrName;});
-  if(!a)a=D.associates.find(function(x){return x.name===assocIdOrName||x.name.toLowerCase().indexOf((assocIdOrName||'').toLowerCase())>=0;});
-  if(!a){alert('Associate not found: '+assocIdOrName);return;}
-
-  // Replicate computeRecalc exactly, but capture rows where THIS assoc is in chain
-  var sorted=D.sales.slice().sort(function(x,y){return (x.closeDate||x.bookingDate||'').localeCompare(y.closeDate||y.bookingDate||'');});
-  var months={};var monthOrder=[];
-  sorted.forEach(function(s){var mk=(s.closeDate||s.bookingDate||'').substr(0,7);if(!months[mk]){months[mk]=[];monthOrder.push(mk);}months[mk].push(s);});
-
-  // manual base for all
-  var manualBase={};
-  D.associates.forEach(function(x){
-    if(x.manualGaj!==undefined&&x.manualGaj!==null){manualBase[x.id]=x.manualGaj;}
-    else{
-      var sd=0;var dl=getDownline(x.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
-      D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
-      manualBase[x.id]=Math.max(0,Math.round(((x.totalGaj||0)-sd)*100)/100);
-    }
-  });
-  var lifeGaj={};D.associates.forEach(function(x){lifeGaj[x.id]=manualBase[x.id]||0;});
-
-  var L=[];
-  L.push('═══ '+a.name+' ═══');
-  L.push('Manual base gaj: '+(manualBase[a.id]||0));
-  L.push('');
-  var totOld=0,totNew=0;
-
-  monthOrder.forEach(function(mk){
-    var ms=months[mk];
-    var monthEnd={};Object.keys(lifeGaj).forEach(function(id){monthEnd[id]=lifeGaj[id];});
-    ms.forEach(function(s){var sGaj=s.plotGaj||0;getChain(s.sellerId).forEach(function(c){monthEnd[c.id]=(monthEnd[c.id]||0)+sGaj;});});
-
-    var myRows=[];
-    ms.forEach(function(s){
-      var rawChain=getChain(s.sellerId);
-      if(!rawChain.some(function(c){return c.id===a.id;}))return;
-      var sGaj=s.plotGaj||0;
-      var ch=rawChain.map(function(c){return {id:c.id,name:c.name,totalGaj:(monthEnd[c.id]||0)-sGaj};});
-      var bonusPct=(s.bonusPct!==undefined&&s.bonusPct!==null)?s.bonusPct:0;
-      var newCh=calcChain(sGaj,ch,0,s.bookingDate,s.closeDate,bonusPct);
-      var myNew=(newCh.find(function(c){return c.id===a.id;})||{});
-      var oldC=((s.commissions||[]).find(function(c){return c.id===a.id;})||{}).total||0;
-      myRows.push({plot:s.projName+' #'+s.plotNo,gaj:sGaj,close:s.closeDate,
-        myGajAtSale:(monthEnd[a.id]||0),rate:myNew.myR||0,old:oldC,new:myNew.total||0});
-    });
-
-    if(myRows.length>0){
-      L.push('── '+mk+' (my month-end gaj: '+(monthEnd[a.id]||0)+', slab ₹'+rOf(monthEnd[a.id]||0)+'/gaj) ──');
-      myRows.forEach(function(r){
-        totOld+=r.old;totNew+=r.new;
-        L.push('  '+r.plot+' ('+r.gaj+'g): rate ₹'+r.rate+' | old ₹'+fmt(r.old)+' → new ₹'+fmt(r.new)+' ('+(r.new>=r.old?'+':'')+fmt(r.new-r.old)+')');
-      });
-    }
-    lifeGaj=monthEnd;
-  });
-
-  L.push('');
-  L.push('TOTAL: old ₹'+fmt(totOld)+' → new ₹'+fmt(totNew)+' (diff '+(totNew>=totOld?'+':'')+'₹'+fmt(totNew-totOld)+')');
-  L.push('Final lifetime gaj: '+(lifeGaj[a.id]||0));
-
-  console.log(L.join('\n'));
-  alert(L.join('\n'));
-};
-
-window.openRecalcModal=function(){
-  if(!SESSION||SESSION.role!=='admin'){toast('Admin access required!',false);return;}
-  var r=computeRecalc();
-  var rows=Object.keys(r.perAssoc).map(function(id){
-    var p=r.perAssoc[id];
-    // Prefer current associate name (commissions array may have stale name)
-    var liveA=D.associates.find(function(a){return a.id===id;});
-    return {id:id,name:(liveA?liveA.name:p.name),old:p.old,new:p.new,diff:p.new-p.old};
-  }).filter(function(x){return Math.abs(x.diff)>=1;})
-    .sort(function(a,b){return Math.abs(b.diff)-Math.abs(a.diff);});
-
-  var totalOld=0,totalNew=0;
-  Object.keys(r.perAssoc).forEach(function(id){totalOld+=r.perAssoc[id].old;totalNew+=r.perAssoc[id].new;});
-  var totalDiff=totalNew-totalOld;
-
-  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
-    +'<b style="font-size:15px">🔄 Recalculate Commissions</b>'
-    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>';
-  html+='<div class="info ibl" style="font-size:12px;margin-bottom:12px">'
-    +'Recalculates every sale using <b>lifetime cumulative gaj</b> (personal + team), in closing-date order. '
-    +'Sale details (plot, gaj, dates) stay unchanged — only commission amounts update.</div>';
-
-  if(rows.length===0){
-    html+='<div class="empty" style="padding:24px">✅ All commissions already correct — no changes needed.</div>'
-      +'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn bgh" onclick="closeM()">Close</button></div>';
-    openM(html);
-    return;
-  }
-
-  html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
-    +'<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">Current Total</div><div style="font-size:16px;font-weight:700">₹'+fmtL(totalOld)+'</div></div>'
-    +'<div style="background:var(--grb);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">After Recalc</div><div style="font-size:16px;font-weight:700;color:var(--gr)">₹'+fmtL(totalNew)+'</div></div>'
-    +'<div style="background:'+(totalDiff>=0?'var(--amb)':'var(--reb)')+';border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">Difference</div><div style="font-size:16px;font-weight:700;color:'+(totalDiff>=0?'var(--am)':'var(--re)')+'">'+(totalDiff>=0?'+':'')+'₹'+fmtL(Math.abs(totalDiff))+'</div></div>'
-    +'</div>';
-
-  html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px">'+rows.length+' associates affected <span style="font-weight:400;color:var(--t3)">(tap a name for plot-by-plot breakdown)</span>:</div>'
-    +'<div class="tw" style="max-height:280px;overflow-y:auto"><table style="table-layout:fixed;width:100%"><thead><tr>'
-    +'<th style="width:auto">Associate</th>'
-    +'<th style="width:90px;text-align:right">Current</th>'
-    +'<th style="width:90px;text-align:right">New</th>'
-    +'<th style="width:100px;text-align:right">Difference</th>'
-    +'</tr></thead><tbody>';
-  rows.forEach(function(x){
-    html+='<tr style="cursor:pointer" data-id="'+x.id+'" onclick="debugRecalcAssoc(this.dataset.id)" title="Click for plot-by-plot breakdown">'
-      +'<td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap"><span style="color:var(--bl);text-decoration:underline">'+esc(x.name)+'</span></td>'
-      +'<td style="text-align:right">₹'+fmt(Math.round(x.old))+'</td>'
-      +'<td style="text-align:right;font-weight:600">₹'+fmt(Math.round(x.new))+'</td>'
-      +'<td style="text-align:right;font-weight:700;color:'+(x.diff>=0?'var(--gr)':'var(--re)')+'">'+(x.diff>=0?'+':'')+'₹'+fmt(Math.round(x.diff))+'</td>'
-      +'</tr>';
-  });
-  html+='</tbody></table></div>';
-
-  html+='<div class="info iam" style="font-size:11px;margin-top:10px">⚠️ This updates commission on all sales. Paid amounts stay unchanged — if commission increased, the extra shows as pending. Take a backup first if unsure.</div>';
-  html+='<div style="display:flex;gap:8px;margin-top:12px">'
-    +'<button class="btn bbl" id="recalcConfirmBtn" onclick="applyRecalc(this)">✅ Confirm & Apply</button>'
-    +'<button class="btn bgh" onclick="closeM()">Cancel</button>'
-    +'</div>';
-  openM(html);
-};
-
-window.applyRecalc=function(btn){
-  if(btn){btn.disabled=true;btn.textContent='Applying...';}
-  var r=computeRecalc();
-  var saleMap={};
-  r.sales.forEach(function(rs){saleMap[rs.saleId]=rs;});
-  D.sales.forEach(function(s){
-    var rs=saleMap[s.id];
-    if(rs){
-      s.commissions=rs.commissions;
-      s.defCommissions=rs.defCommissions;
-      s.chainTotal=rs.chainTotal;
-      s.defTotal=rs.defTotal;
-    }
-  });
-  D.associates.forEach(function(a){a.salesGaj=selfGaj(a.id);});
-  saveD();
-  logAct('Commissions recalculated (lifetime cumulative slab)');
-  toast('✅ All commissions recalculated!');
-  closeM();
-  render();
-};
 
 function getChain(id){
   var ch=[];var visited={};
@@ -881,6 +602,35 @@ function getChain(id){
     ch.push(c);
     if(!c.parentId)break;
     c=D.associates.find(function(a){return a.id===c.parentId;});
+  }
+  return ch;
+}
+// Returns the effective parentId of an associate AS OF a given date,
+// using parentHistory. If on `date` the associate was still under a parent
+// who later left (parent-change happened AFTER date), return that old parent.
+function parentIdAtDate(a,date){
+  if(!a)return null;
+  if(!date||!a.parentHistory||!a.parentHistory.length)return a.parentId||null;
+  // parentHistory entries: {oldParentId,newParentId,date}. Find the earliest
+  // change whose date is AFTER the sale date — before that change, the old
+  // parent was effective.
+  var changesAfter=a.parentHistory.filter(function(h){return h.date>date;})
+    .sort(function(x,y){return x.date.localeCompare(y.date);});
+  if(changesAfter.length)return changesAfter[0].oldParentId; // parent before first post-date change
+  return a.parentId||null;
+}
+// Chain (seller→top) as it existed on a given date. Used for sales whose
+// booking date is BEFORE a member left, so the left member still appears.
+function getChainAtDate(id,date){
+  var ch=[];var visited={};
+  var c=D.associates.find(function(a){return a.id===id;});
+  while(c){
+    if(visited[c.id])break;
+    visited[c.id]=true;
+    ch.push(c);
+    var pid=parentIdAtDate(c,date);
+    if(!pid)break;
+    c=D.associates.find(function(a){return a.id===pid;});
   }
   return ch;
 }
@@ -987,6 +737,215 @@ function calcDef(ch,sGaj,bk,cl){
   return dc;
 }
 
+// ═══════════════════════════════════════════════════════
+// MONTH-END COMMISSION ENGINE
+// Company rule: slab is based on MONTH-END cumulative gaj
+// (lifetime: personal + team + manual, all months added up).
+// All sales in a month get the slab achieved by that month's END total.
+// Commission is NOT computed at sale-entry time; this engine recomputes
+// every sale's commission whenever sales change.
+//
+// It replays all sales in closing-date (month) order, building each
+// associate's cumulative gaj exactly as the real timeline did:
+//   - dated manual gaj (gajHistory) applied in its month
+//   - legacy manual gaj (no date) applied from the very start
+//   - each sale adds its gaj to seller + entire upline chain
+// For every sale, calcChain/calcDef get each chain member's gaj =
+// (month-end cumulative − this sale's gaj), so liveG = month-end total.
+// ═══════════════════════════════════════════════════════
+function monthKeyOf(s){
+  var d=s.closeDate||s.bookingDate||'';
+  return d?d.substr(0,7):'0000-00';
+}
+
+// Returns the chain (seller→top) for a sale. If the sale has a frozen
+// chainIds snapshot (members at sale time), use that so later hierarchy
+// changes / Left actions do NOT alter past sales. Otherwise build live.
+function chainForSale(s){
+  if(s.chainIds&&s.chainIds.length){
+    return s.chainIds.map(function(id){
+      var a=D.associates.find(function(x){return x.id===id;});
+      return a?a:{id:id,name:'(removed)',parentId:null,totalGaj:0};
+    });
+  }
+  // Legacy sales (no chainIds): reconstruct frozen members from stored
+  // commissions array (already frozen at entry time). Falls back to live.
+  if(s.commissions&&s.commissions.length){
+    return s.commissions.map(function(cm){
+      var a=D.associates.find(function(x){return x.id===cm.id;});
+      return a?a:{id:cm.id,name:cm.name||'(removed)',parentId:null,totalGaj:0};
+    });
+  }
+  return getChain(s.sellerId);
+}
+
+function computeAllCommissions(){
+  // 1. Manual gaj events (dated) + legacy (no-date) base
+  var manualEvents=[];
+  var legacyManual={};
+  D.associates.forEach(function(a){
+    if(a.gajHistory&&a.gajHistory.length){
+      a.gajHistory.forEach(function(h){
+        manualEvents.push({mk:(h.date||'').substr(0,7),assocId:a.id,amount:h.amount||0});
+      });
+    } else if(a.manualGaj!=null&&a.manualGaj>0){
+      legacyManual[a.id]=a.manualGaj;
+    } else {
+      var dl=getDownline(a.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
+      var sd=0;D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
+      var inf=Math.round(((a.totalGaj||0)-sd)*100)/100;
+      if(inf>0)legacyManual[a.id]=inf;
+    }
+  });
+
+  // 2. Group sales by closing month
+  var sorted=D.sales.slice().sort(function(a,b){
+    return (a.closeDate||a.bookingDate||'').localeCompare(b.closeDate||b.bookingDate||'');
+  });
+  var months={};var mset={};
+  sorted.forEach(function(s){var mk=monthKeyOf(s);if(!months[mk])months[mk]=[];months[mk].push(s);mset[mk]=1;});
+  manualEvents.forEach(function(e){mset[e.mk]=1;});
+  var monthOrder=Object.keys(mset).sort();
+
+  // 3. Running lifetime gaj — start with legacy manual base
+  var lifeGaj={};
+  D.associates.forEach(function(a){lifeGaj[a.id]=legacyManual[a.id]||0;});
+
+  var perSale={};
+
+  monthOrder.forEach(function(mk){
+    var msales=months[mk]||[];
+    // month-end snapshot
+    var monthEnd={};
+    Object.keys(lifeGaj).forEach(function(id){monthEnd[id]=lifeGaj[id];});
+    manualEvents.forEach(function(e){if(e.mk===mk)monthEnd[e.assocId]=(monthEnd[e.assocId]||0)+e.amount;});
+    msales.forEach(function(s){
+      var sGaj=s.plotGaj||0;
+      chainForSale(s).forEach(function(a){monthEnd[a.id]=(monthEnd[a.id]||0)+sGaj;});
+    });
+    // calc each sale at month-end slab
+    msales.forEach(function(s){
+      var sGaj=s.plotGaj||0;
+      var rawChain=chainForSale(s);
+      var ch=rawChain.map(function(a){return {id:a.id,name:a.name,totalGaj:(monthEnd[a.id]||0)-sGaj};});
+      var bonusPct=(s.bonusPct!=null)?s.bonusPct:0;
+      var newCh=calcChain(sGaj,ch,0,s.bookingDate,s.closeDate,bonusPct);
+      var newDf=calcDefSnapshot(rawChain,ch,sGaj,s.bookingDate,s.closeDate,monthEnd);
+      var cT=newCh.reduce(function(t,c){return t+c.total;},0);
+      var dT=newDf.reduce(function(t,c){return t+c.amount;},0);
+      perSale[s.id]={commissions:newCh,defCommissions:newDf,chainTotal:cT,defTotal:dT};
+    });
+    lifeGaj=monthEnd;
+  });
+
+  return {perSale:perSale,finalGaj:lifeGaj};
+}
+
+// Defence calc with gaj snapshot — mirrors original calcDef exactly
+// (rates are ₹ per gaj: 100/75/50/35).
+function calcDefSnapshot(rawChain,ch,sGaj,bk,cl,snap){
+  if(!ch||!ch.length)return [];
+  var wComm=new Set();
+  ch.forEach(function(a,i){
+    var myR=rOf((a.totalGaj||0)+sGaj);
+    var blR=i>0?rOf((ch[i-1].totalGaj||0)+sGaj):0;
+    if(myR-blR>0)wComm.add(a.id);
+  });
+  var up=rawChain.map(function(a){return {id:a.id,name:a.name,totalGaj:(snap[a.id]||0)-sGaj};});
+  var DR={1:100,2:75,3:50};
+  var dep=0;var dc=[];
+  for(var i=1;i<up.length&&dep<15;i++){
+    var s=up[i];
+    if(wComm.has(s.id))continue;
+    var liveG=(s.totalGaj||0)+sGaj;
+    if(liveG<10000)continue;
+    dep++;
+    var rate=DR[dep]||35;
+    var baseAmt=rate*sGaj;
+    dc.push({id:s.id,name:s.name,depth:dep,rate:rate,baseAmt:baseAmt,cAdj:0,cPct:0,amount:Math.max(0,baseAmt),totalGaj:liveG,des:dOf(liveG)});
+  }
+  return dc;
+}
+
+// Apply computed commissions to all sales. Called after any sale add/delete.
+function applyAllCommissions(){
+  var r=computeAllCommissions();
+  D.sales.forEach(function(s){
+    var rs=r.perSale[s.id];
+    if(rs){
+      s.commissions=rs.commissions;
+      s.defCommissions=rs.defCommissions;
+      s.chainTotal=rs.chainTotal;
+      s.defTotal=rs.defTotal;
+    }
+  });
+}
+
+// One-time preview modal — shows current vs new (month-end) totals per associate
+window.openMonthEndModal=function(){
+  if(!SESSION||SESSION.role!=='admin'){toast('Admin access required!',false);return;}
+  var r=computeAllCommissions();
+  // current totals per associate (from existing stored commissions)
+  var cur={},nw={},names={};
+  D.sales.forEach(function(s){
+    (s.commissions||[]).forEach(function(c){cur[c.id]=(cur[c.id]||0)+(c.total||0);names[c.id]=c.name;});
+    (s.defCommissions||[]).forEach(function(c){cur[c.id]=(cur[c.id]||0)+(c.amount||0);if(c.name)names[c.id]=c.name;});
+    var rs=r.perSale[s.id];
+    if(rs){
+      (rs.commissions||[]).forEach(function(c){nw[c.id]=(nw[c.id]||0)+(c.total||0);names[c.id]=c.name;});
+      (rs.defCommissions||[]).forEach(function(c){nw[c.id]=(nw[c.id]||0)+(c.amount||0);if(c.name)names[c.id]=c.name;});
+    }
+  });
+  var ids={};Object.keys(cur).forEach(function(k){ids[k]=1;});Object.keys(nw).forEach(function(k){ids[k]=1;});
+  var rows=Object.keys(ids).map(function(id){
+    var liveA=D.associates.find(function(a){return a.id===id;});
+    return {name:liveA?liveA.name:(names[id]||id),old:cur[id]||0,new:nw[id]||0,diff:(nw[id]||0)-(cur[id]||0)};
+  }).filter(function(x){return Math.abs(x.diff)>=1;}).sort(function(a,b){return Math.abs(b.diff)-Math.abs(a.diff);});
+
+  var totOld=0,totNew=0;Object.keys(ids).forEach(function(id){totOld+=cur[id]||0;totNew+=nw[id]||0;});
+
+  var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">'
+    +'<b style="font-size:15px">🔄 Apply Month-End Commission</b>'
+    +'<button class="btn bgh bsm" onclick="closeM()">✕</button></div>';
+  html+='<div class="info ibl" style="font-size:12px;margin-bottom:12px">Recomputes every sale using the <b>month-end total gaj</b> rule. Sale details (plot, gaj, dates) stay unchanged — only commission amounts update.</div>';
+
+  if(rows.length===0){
+    html+='<div class="empty" style="padding:24px">✅ All commissions already match month-end rule — no changes needed.</div>'
+      +'<div style="display:flex;gap:8px;margin-top:12px"><button class="btn bgh" onclick="closeM()">Close</button></div>';
+    openM(html);return;
+  }
+
+  html+='<div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:12px">'
+    +'<div style="background:var(--bg3);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">Current Total</div><div style="font-size:16px;font-weight:700">₹'+fmtL(totOld)+'</div></div>'
+    +'<div style="background:var(--grb);border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">After</div><div style="font-size:16px;font-weight:700;color:var(--gr)">₹'+fmtL(totNew)+'</div></div>'
+    +'<div style="background:'+(totNew-totOld>=0?'var(--amb)':'var(--reb)')+';border-radius:8px;padding:10px;text-align:center"><div style="font-size:11px;color:var(--t3)">Difference</div><div style="font-size:16px;font-weight:700;color:'+(totNew-totOld>=0?'var(--am)':'var(--re)')+'">'+(totNew-totOld>=0?'+':'')+'₹'+fmtL(Math.abs(totNew-totOld))+'</div></div>'
+    +'</div>';
+  html+='<div style="font-size:12px;font-weight:700;margin-bottom:6px">'+rows.length+' associates affected:</div>'
+    +'<div class="tw" style="max-height:280px;overflow-y:auto"><table style="table-layout:fixed;width:100%"><thead><tr>'
+    +'<th style="width:auto">Associate</th><th style="width:90px;text-align:right">Current</th><th style="width:90px;text-align:right">New</th><th style="width:100px;text-align:right">Difference</th></tr></thead><tbody>';
+  rows.forEach(function(x){
+    html+='<tr><td style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+esc(x.name)+'</td>'
+      +'<td style="text-align:right">₹'+fmt(Math.round(x.old))+'</td>'
+      +'<td style="text-align:right;font-weight:600">₹'+fmt(Math.round(x.new))+'</td>'
+      +'<td style="text-align:right;font-weight:700;color:'+(x.diff>=0?'var(--gr)':'var(--re)')+'">'+(x.diff>=0?'+':'')+'₹'+fmt(Math.round(x.diff))+'</td></tr>';
+  });
+  html+='</tbody></table></div>';
+  html+='<div class="info iam" style="font-size:11px;margin-top:10px">⚠️ Updates commission on all sales. Paid amounts stay unchanged — extra shows as pending. Take a backup first if unsure.</div>';
+  html+='<div style="display:flex;gap:8px;margin-top:12px">'
+    +'<button class="btn bbl" id="meConfirmBtn" onclick="applyMonthEnd(this)">✅ Confirm & Apply</button>'
+    +'<button class="btn bgh" onclick="closeM()">Cancel</button></div>';
+  openM(html);
+};
+
+window.applyMonthEnd=function(btn){
+  if(btn){btn.disabled=true;btn.textContent='Applying...';}
+  applyAllCommissions();
+  saveD();
+  logAct('Month-end commission applied to all sales');
+  toast('✅ All commissions updated to month-end rule!');
+  closeM();render();
+};
+
 // ─── UI HELPERS ───────────────────────────────────────
 function toast(msg,ok){
   if(ok===undefined)ok=true;
@@ -1001,12 +960,13 @@ function toast(msg,ok){
   clearTimeout(window._tT);
   window._tT=setTimeout(function(){t.classList.remove('show');},3200);
 }
-function openM(html){
+function openM(html,wide){
   var mbox=document.getElementById('mbox');
   mbox.innerHTML=html;
+  mbox.style.maxWidth=wide?'860px':'';
   document.getElementById('modal').classList.add('open');
 }
-function closeM(){document.getElementById('modal').classList.remove('open');}
+function closeM(){document.getElementById('modal').classList.remove('open');var mb=document.getElementById('mbox');if(mb)mb.style.maxWidth='';}
 document.addEventListener('click',function(e){if(e.target.id==='modal')closeM();});
 
 // ─── STATE ────────────────────────────────────────────
@@ -1133,7 +1093,7 @@ function renderSalesTable(){
     pageData.forEach(function(s,i){
       var sNo=(srPage-1)*PER_PAGE+i+1;
       html+='<tr><td style="color:var(--t3)">'+sNo+'</td><td><b>'+s.projName+'</b></td>'
-        +'<td><span class="badge bbl2">'+s.plotNo+'</span></td><td>'+(s.partyName||'—')+'</td>'
+        +'<td><span class="badge bbl2" data-sid="'+s.id+'" onclick="showChainPopup(this.dataset.sid)" style="cursor:pointer;text-decoration:underline" title="Chain detail dekhein">'+s.plotNo+' 🔗</span></td><td>'+(s.partyName||'—')+'</td>'
         +'<td>'+(isLeft(s.sellerName)?'<span style="color:var(--re)">'+esc(s.sellerName)+'</span>'+leftBadge(s.sellerName):esc(s.sellerName||'—'))+'</td><td style="color:var(--pu);font-weight:700">'+fmtG(s.plotGaj)+'</td>'
         +'<td>'+(s.bookingDate||'—')+'</td><td>'+(s.closeDate||'—')+'</td>'
         +'<td style="color:var(--gr);font-weight:700">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</td>'
@@ -1343,45 +1303,56 @@ window.showChainPopup=function(saleId){
       +'👤 <b>Buyer:</b> '+esc(s.partyName)+'</div>';
   }
 
-  // Chain Commission table
+  // Chain Commission table — full breakdown
   if(s.commissions&&s.commissions.length>0){
+    var dayCnt=daysBetween(s.bookingDate,s.closeDate);
+    var clPct=closingPct(dayCnt);
     html+='<div style="font-size:12px;font-weight:600;color:var(--bl);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">⛓️ Chain Commission</div>';
-    html+='<div class="tw" style="margin-bottom:12px"><table><thead><tr>'
-      +'<th>#</th><th>Name</th><th>Level</th><th>Sq.Yd</th><th>Rate</th><th>Amount</th></tr></thead><tbody>';
+    // info line: bonuses applied
+    html+='<div style="font-size:11px;color:var(--t2);margin-bottom:6px;display:flex;flex-wrap:wrap;gap:6px">'
+      +(dayCnt!==null?'<span class="badge '+(clPct>0?'bgn':clPct<0?'bam':'bbl2')+'">'+dayCnt+' din · '+(clPct>0?'+10% Time Bonus':clPct<0?'-10% Time Penalty':'No Time Bonus')+'</span>':'')
+      +((s.bonusPct||0)>0?'<span class="badge bpu">+'+s.bonusPct+'% Rate Bonus</span>':'<span class="badge bbl2">No Rate Bonus</span>')
+      +'</div>';
+    html+='<div class="tw" style="margin-bottom:12px;overflow-x:auto"><table style="font-size:12px"><thead><tr>'
+      +'<th>#</th><th>Name</th><th>Slab</th><th>Diff Rate</th><th>Base ₹</th><th>Rate Bonus</th><th>Time Adj</th><th>Final ₹</th></tr></thead><tbody>';
     s.commissions.forEach(function(cm,i){
       var isLeftM=cm.name&&cm.name.includes('(Left)');
       var isFirstSeller=(i===0);
       html+='<tr style="'+(isFirstSeller?'background:var(--grb)':i%2===0?'':'background:var(--bg3)')+'">'
         +'<td>'+(i+1)+'</td>'
-        +'<td><b>'+(isLeftM?'<span style="color:var(--re)">'+esc(cm.name)+'</span>'+leftBadge(cm.name):esc(cm.name||'—'))+'</b>'+(isFirstSeller?' 🌟 <span style="font-size:10px;color:var(--gr)">Seller</span>':'')+'</td>'
-        +'<td style="color:var(--t2);font-size:12px">'+(cm.depth!==undefined?'D'+cm.depth:'—')+'</td>'
-        +'<td style="color:var(--pu);font-weight:700">'+(cm.gaj||s.plotGaj)+'</td>'
-        +'<td style="font-size:12px">₹'+(cm.rate||0)+'/Sq.Yd</td>'
+        +'<td><b>'+(isLeftM?'<span style="color:var(--re)">'+esc(cm.name)+'</span>'+leftBadge(cm.name):esc(cm.name||'—'))+'</b>'+(isFirstSeller?' 🌟':'')
+          +'<div style="font-size:10px;color:var(--t2)">'+dOf(cm.newG!=null?cm.newG:cm.curG)+'</div></td>'
+        +'<td style="font-size:11px">₹'+(cm.myR||0)+'/gaj</td>'
+        +'<td style="font-size:11px">₹'+(cm.diff||0)+'/gaj</td>'
+        +'<td>₹'+fmt(cm.base||0)+'</td>'
+        +'<td style="color:var(--pu);font-size:11px">'+((cm.rB||0)>0?'+₹'+fmt(cm.rB):'—')+'</td>'
+        +'<td style="font-size:11px;color:'+((cm.cA||0)>0?'var(--gr)':(cm.cA||0)<0?'var(--am)':'var(--t3)')+'">'+((cm.cA||0)>0?'+₹'+fmt(cm.cA):(cm.cA||0)<0?'-₹'+fmt(Math.abs(cm.cA)):'—')+'</td>'
         +'<td style="color:var(--gr);font-weight:700">₹'+fmt(cm.total||0)+'</td>'
         +'</tr>';
     });
     html+='<tr style="background:var(--bg3);font-weight:700;border-top:2px solid var(--bd)">'
-      +'<td colspan="5" style="font-size:12px">Chain Total</td>'
+      +'<td colspan="7" style="font-size:12px">Chain Total</td>'
       +'<td style="color:var(--gr)">₹'+fmt(s.chainTotal||0)+'</td></tr>';
     html+='</tbody></table></div>';
   }
 
   // Defence Commission table
   if(s.defCommissions&&s.defCommissions.length>0){
-    html+='<div style="font-size:12px;font-weight:600;color:var(--pu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">🛡️ Defence Commission</div>';
+    html+='<div style="font-size:12px;font-weight:600;color:var(--pu);margin-bottom:6px;text-transform:uppercase;letter-spacing:.4px">🛡️ Defence Commission <span style="font-weight:400;text-transform:none;color:var(--t3)">(same-slab uplines get fixed ₹/gaj)</span></div>';
     html+='<div class="tw" style="margin-bottom:12px"><table><thead><tr>'
-      +'<th>#</th><th>Name</th><th>Level</th><th>Amount</th></tr></thead><tbody>';
+      +'<th>#</th><th>Name</th><th>Depth · Rate</th><th>Sq.Yd</th><th>Amount</th></tr></thead><tbody>';
     s.defCommissions.forEach(function(cm,i){
       var isLeftM=cm.name&&cm.name.includes('(Left)');
       html+='<tr style="background:var(--pub)">'
         +'<td>'+(i+1)+'</td>'
         +'<td><b>'+(isLeftM?'<span style="color:var(--re)">'+esc(cm.name)+'</span>'+leftBadge(cm.name):esc(cm.name||'—'))+'</b></td>'
-        +'<td style="color:var(--t2);font-size:12px">'+(cm.depth!==undefined?'D'+cm.depth:'—')+'</td>'
+        +'<td style="font-size:11px"><span class="badge bpu">D'+(cm.depth||'?')+'</span> ₹'+(cm.rate||0)+'/gaj</td>'
+        +'<td style="color:var(--pu);font-weight:700">'+fmtG(s.plotGaj)+'</td>'
         +'<td style="color:var(--pu);font-weight:700">₹'+fmt(cm.amount||0)+'</td>'
         +'</tr>';
     });
     html+='<tr style="background:var(--pub);font-weight:700;border-top:2px solid var(--bd)">'
-      +'<td colspan="3" style="font-size:12px">Defence Total</td>'
+      +'<td colspan="4" style="font-size:12px">Defence Total</td>'
       +'<td style="color:var(--pu)">₹'+fmt(s.defTotal||0)+'</td></tr>';
     html+='</tbody></table></div>';
   }
@@ -1392,7 +1363,7 @@ window.showChainPopup=function(saleId){
     +'<span style="font-size:16px;font-weight:700;color:var(--gr)">₹'+fmt((s.chainTotal||0)+(s.defTotal||0))+'</span>'
     +'</div>';
 
-  openM(html);
+  openM(html,true);
 };
 // ──────────────────────────────────────────────────────────
 
@@ -1570,7 +1541,7 @@ function rpt4Pay(){
 
   // Filters
   html+='<div style="display:flex;gap:8px;margin-bottom:10px;flex-wrap:wrap;align-items:center">'
-    +'<input type="text" placeholder="🔍 Associate search..." value="'+esc(r4PaySearch)+'" oninput="r4PaySearch=this.value;render()" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
+    +'<input type="text" id="payAssocSearch" placeholder="🔍 Associate search..." value="'+esc(r4PaySearch)+'" oninput="r4PaySearch=this.value;_paySearchFocus=true;render()" style="flex:1;min-width:160px;font-size:13px;padding:7px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)"/>'
     +'<select onchange="r4PayStatus=this.value;render()" style="font-size:13px;padding:7px 10px;border:.5px solid var(--bd);border-radius:8px;background:var(--bg);color:var(--tx)">'
     +'<option value="">All Status</option>'
     +'<option value="pending"'+(r4PayStatus==='pending'?' selected':'')+'>🟡 Pending</option>'
@@ -2862,6 +2833,13 @@ function render(){
   }
 
   bindAll();
+
+  // Restore focus to payment associate search after render (avoids focus loss on typing)
+  if(window._paySearchFocus){
+    window._paySearchFocus=false;
+    var psi=document.getElementById('payAssocSearch');
+    if(psi){psi.focus();var v=psi.value;psi.value='';psi.value=v;} // cursor to end
+  }
 }
 
 // ─── BACKUP / RESTORE ─────────────────────────────────
@@ -2961,6 +2939,7 @@ function pgSettings(){
   html+='<div style="font-size:12px;color:var(--t2);margin-bottom:8px">Associates, Sales, Payments ka complete health check — mismatches, orphans, duplicates sab ek jagah.</div>';
   html+='<div id="scannerResult" style="display:none"></div>';
   html+='</div>';
+
 
   // ── Security Card ──
   html+='<div class="card" style="margin-bottom:12px">';
@@ -3166,6 +3145,69 @@ function pgDash(){
     +'<div class="stat" style="background:var(--reb);border-color:#F09595"><div class="sl" style="color:var(--re)">⏳ Pending</div><div class="sv" style="font-size:18px;color:var(--re)">₹'+fmtL(totalPending)+'</div><div style="font-size:10px;color:var(--re);margin-top:1px">₹'+fmt(Math.round(totalPending))+' unpaid</div></div>'
     +'<div class="stat"><div class="sl">📅 This Month</div><div class="sv" style="color:var(--am)">'+thisMonClose+'</div><div style="font-size:10px;color:var(--t3);margin-top:1px">closings · '+thisMonBook+' bookings</div></div>'
     +'</div>';
+
+  // ── Slab Upgrades this month ──
+  // For each associate: slab at start of this month vs slab now.
+  // If higher now, it upgraded during this month.
+  var upgrades=[];
+  (function(){
+    var nowMonth=nowM; // YYYY-MM
+    // Build gaj at start-of-month and gaj now, per associate.
+    // Replay sales + manual gaj up to (but not including) this month = start gaj.
+    // Everything = now gaj.
+    var startGaj={},nowGaj={};
+    D.associates.forEach(function(a){startGaj[a.id]=0;nowGaj[a.id]=0;});
+    // manual gaj
+    D.associates.forEach(function(a){
+      if(a.gajHistory&&a.gajHistory.length){
+        a.gajHistory.forEach(function(h){
+          var mk=(h.date||'').substr(0,7);
+          nowGaj[a.id]=(nowGaj[a.id]||0)+(h.amount||0);
+          if(mk<nowMonth)startGaj[a.id]=(startGaj[a.id]||0)+(h.amount||0);
+        });
+      } else if(a.manualGaj!=null&&a.manualGaj>0){
+        startGaj[a.id]=(startGaj[a.id]||0)+a.manualGaj;
+        nowGaj[a.id]=(nowGaj[a.id]||0)+a.manualGaj;
+      } else {
+        var dl=getDownline(a.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
+        var sd=0;D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
+        var inf=Math.max(0,Math.round(((a.totalGaj||0)-sd)*100)/100);
+        startGaj[a.id]=(startGaj[a.id]||0)+inf;nowGaj[a.id]=(nowGaj[a.id]||0)+inf;
+      }
+    });
+    // sales gaj → seller + chain
+    D.sales.forEach(function(s){
+      var mk=(s.closeDate||s.bookingDate||'').substr(0,7);
+      var g=s.plotGaj||0;
+      getChain(s.sellerId).forEach(function(a){
+        nowGaj[a.id]=(nowGaj[a.id]||0)+g;
+        if(mk<nowMonth)startGaj[a.id]=(startGaj[a.id]||0)+g;
+      });
+    });
+    D.associates.forEach(function(a){
+      var sStart=rOf(startGaj[a.id]||0), sNow=rOf(nowGaj[a.id]||0);
+      if(sNow>sStart){
+        upgrades.push({name:a.name,id:a.id,fromR:sStart,toR:sNow,
+          fromDes:dOf(startGaj[a.id]||0),toDes:dOf(nowGaj[a.id]||0),gaj:nowGaj[a.id]||0});
+      }
+    });
+    upgrades.sort(function(x,y){return y.toR-x.toR;});
+  })();
+
+  if(upgrades.length>0){
+    html+='<div class="card" style="margin-bottom:16px;border-left:3px solid var(--gr)">'
+      +'<div class="ct" style="margin-bottom:10px">🎉 Slab Upgrades — '+nowM+' ('+upgrades.length+')</div>'
+      +'<div class="tw"><table><thead><tr><th>Associate</th><th>From</th><th>To</th><th>Total Gaj</th></tr></thead><tbody>';
+    upgrades.forEach(function(u){
+      html+='<tr>'
+        +'<td><b>'+(isLeft(u.name)?'<span style="color:var(--re)">'+esc(u.name)+'</span>'+leftBadge(u.name):esc(u.name))+'</b></td>'
+        +'<td style="font-size:12px;color:var(--t2)">'+u.fromDes+' (₹'+u.fromR+')</td>'
+        +'<td style="font-size:12px;color:var(--gr);font-weight:600">'+u.toDes+' (₹'+u.toR+') ⬆</td>'
+        +'<td style="color:var(--pu);font-weight:600">'+fmtG(u.gaj)+'</td>'
+        +'</tr>';
+    });
+    html+='</tbody></table></div></div>';
+  }
 
   // Project Progress + Top Associates
   html+='<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:16px">';
@@ -3741,7 +3783,7 @@ window.editAssoc=function(id){
     +'<div class="info iam" style="margin-bottom:10px">'
     +'<div style="font-size:12px;font-weight:700;margin-bottom:6px">Add Sq.Yd (add to existing)</div>'
     +'<div class="fld" style="margin-bottom:6px"><label style="font-size:11px">Reason / Note *</label><input id="eAGReason" placeholder="e.g. Tour bonus, Manual correction..." style="font-size:12px"/></div>'
-    +'<div class="fld" style="margin-bottom:6px"><label style="font-size:11px">Date *</label><input id="eAGDate" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="font-size:12px;width:auto"/></div>'
+    +'<div class="fld" style="margin-bottom:6px"><label style="font-size:11px">Date</label><input id="eAGDate" type="date" value="'+new Date().toISOString().slice(0,10)+'" style="font-size:12px;width:auto"/></div>'
     +'<div style="display:flex;gap:8px"><input id="eAG" type="number" min="0" placeholder="e.g. 200" oninput="prvG(\''+id+'\')"/>'
     +'<button class="btn bgh bsm" onclick="doAG(\''+id+'\')">+ Add</button></div>'
     +'<div style="font-size:11px;margin-top:4px;color:var(--t2)">Current <b>'+fmtG(a.totalGaj)+'</b> Sq.Yd + input = Total &nbsp;|&nbsp; Sales Sq.Yd (for Tour & Tab benefits): <b>'+(a.salesGaj||0)+'</b></div>'
@@ -3826,6 +3868,8 @@ window.doAG=function(id){
   D.associates[i].totalGaj=Math.round((D.associates[i].totalGaj+v)*100)/100;
   var n=rOf(D.associates[i].totalGaj);
   logAct('Manual Sq.Yd: '+a.name+' | '+(v>0?'+':'')+v+' Sq.Yd | '+prevGaj+' → '+D.associates[i].totalGaj+' | Reason: '+reason);
+  // Manual gaj changes the slab → recompute month-end commissions
+  applyAllCommissions();
   saveD();toast(v+' Sq.Yd added! Total: '+D.associates[i].totalGaj+(n>o?' 🎉 Slab Upgrade!':''));closeM();render();
 };
 window.saveAInfo=function(id){
@@ -4078,10 +4122,16 @@ window.doTransfer=function(){
   var directChildren=D.associates.filter(function(a){return a.parentId===leftId;});
   var count=directChildren.length;
 
-  // Shift all direct children to leftA's parent
+  // Shift all direct children to leftA's parent.
+  // Record parent-change history so chains for sales BEFORE the Left date
+  // can be reconstructed (the child was under leftA back then).
   directChildren.forEach(function(child){
     var ci=D.associates.findIndex(function(a){return a.id===child.id;});
-    if(ci>=0)D.associates[ci].parentId=newParentId;
+    if(ci>=0){
+      if(!D.associates[ci].parentHistory)D.associates[ci].parentHistory=[];
+      D.associates[ci].parentHistory.push({oldParentId:leftId,newParentId:newParentId,date:leftDate});
+      D.associates[ci].parentId=newParentId;
+    }
   });
 
   // Mark left associate name + save left date
@@ -4306,7 +4356,7 @@ window.savePlE=function(projId,plotId,locked){
 // ═══════════════════════════════════════════════════════
 function pgSale(){
   if(!can('newsale'))return '<div class="empty">⛔ You do not have permission to create a New Sale.</div>';
-  var steps=[{n:1,l:'Project & Plot'},{n:2,l:'Associate & Dates'},{n:3,l:'Commission Review'}];
+  var steps=[{n:1,l:'Project & Plot'},{n:2,l:'Associate & Dates'},{n:3,l:'Confirm Sale'}];
   var sh='<div style="display:flex;align-items:center;gap:0;margin-bottom:18px;padding:0 4px">'+steps.map(function(s,si){
     var done=sStep>s.n, active=sStep===s.n;
     var circleStyle=done?'background:var(--gr);border-color:var(--gr);color:#fff':active?'background:var(--bl);border-color:var(--bl);color:#fff':'background:#fff;border-color:var(--bd);color:var(--t3)';
@@ -4342,7 +4392,7 @@ function sS1(){
 }
 
 function sS2(){
-  var ch=sD.assocId?getChain(sD.assocId):[];
+  var ch=sD.assocId?getChainAtDate(sD.assocId,sD.bookingDate):[];
   var proj=D.projects.find(function(p){return p.id===sD.projId;});
   var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
   var sGaj=plot?(plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj):0;
@@ -4425,50 +4475,53 @@ function sS2(){
 }
 
 function sS3(){
-  if(!sCh.length){sStep=2;render();return '';}
   var proj=D.projects.find(function(p){return p.id===sD.projId;});
   var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
-  var cT=sCh.reduce(function(s,c){return s+c.total;},0);
-  var dT=sDf.reduce(function(s,c){return s+c.amount;},0);
-  var c0=sCh[0];
-  var sGaj=plot?(plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj):0;
-  var payDt=nextPayDate(sD.bookingDate);
-  
-  var html='<div class="card"><div class="ct">Step 3 — Commission Review & Confirm</div>'
-    +'<div class="info ibl" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">'
+  if(!plot){sStep=1;render();return '';}
+  var ch=sD.assocId?getChainAtDate(sD.assocId,sD.bookingDate):[];
+  if(!ch.length){sStep=2;render();return '';}
+  var sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
+  var seller=ch[0];
+  var d=daysBetween(sD.bookingDate,sD.closeDate);
+  var cPct=closingPct(d);
+
+  var html='<div class="card"><div class="ct">Step 3 — Confirm Sale</div>'
+    +'<div class="info ibl" style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:12px">'
     +'<span>🏗️ <b>'+(proj?proj.name:'')+'</b></span>'
     +'<span>Plot: <b>'+(plot?plot.plotNo:'')+'</b></span>'
     +'<span>Saleable: <b style="color:var(--pu)">'+sGaj+'Sq.Yd</b></span>'
-    +'<span>Seller: <b>'+sCh[0].name+'</b></span>'
-    +(sD.partyName?'<span>Buyer: <b>'+sD.partyName+'</b></span>':'')
-    +(c0.rPct>0?'<span class="badge bpu">+'+c0.rPct+'% Commission Bonus</span>':'')
-    +(c0.days!==null?'<span class="badge '+(c0.cPct>0?'bgn':c0.cPct<0?'bam':'bbl2')+'">'+c0.days+' din · '+(c0.cPct>0?'+10% Bonus':c0.cPct<0?'-10% Penalty':'Normal')+'</span>':'')
+    +'<span>Seller: <b>'+esc(seller.name)+'</b></span>'
+    +(sD.partyName?'<span>Buyer: <b>'+esc(sD.partyName)+'</b></span>':'')
+    +(d!==null?'<span class="badge '+(cPct>0?'bgn':cPct<0?'bam':'bbl2')+'">'+d+' din · '+(cPct>0?'+10% Bonus':cPct<0?'-10% Penalty':'Normal')+'</span>':'')
     +'</div>';
-  
-  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:6px">💰 Brokerage Detail</div>'
-    +'<div class="tw" style="margin-bottom:12px"><table><thead><tr><th>Associate</th><th>Slab</th><th>Diff</th><th>Base ₹</th><th>Rate Bonus</th><th>Close Adj</th><th>Final ₹</th></tr></thead><tbody>';
-  sCh.forEach(function(c,i){
-    html+='<tr style="'+(i===0?'background:var(--grb)':'')+'"><td><b>'+(isLeft(c.name)?'<span style="color:var(--re)">'+esc(c.name)+'</span>'+leftBadge(c.name):esc(c.name))+'</b>'+(i===0?' 🌟':'')
-      +'<div style="font-size:11px;color:var(--t2)">'+dOf(c.curG)+(c.up?' → <b style="color:var(--gr)">'+dOf(c.newG)+' ⬆</b>':'')+'</div></td>'
-      +'<td>₹'+c.myR+'/Sq.Yd</td><td>₹'+c.diff+'/Sq.Yd</td><td>₹'+fmt(c.base)+'</td>'
-      +'<td style="color:var(--pu)">'+(c.rB>0?'+₹'+fmt(c.rB):'—')+'</td>'
-      +'<td style="color:'+(c.cA>0?'var(--gr)':c.cA<0?'var(--am)':'var(--t3)')+'">'+( c.cA>0?'+₹'+fmt(c.cA):c.cA<0?'-₹'+fmt(Math.abs(c.cA)):'—')+'</td>'
-      +'<td style="font-weight:700;color:var(--bl)">₹'+fmt(c.total)+'</td></tr>';
+
+  // Sale summary (no commission — that is computed month-end on Brokerage)
+  html+='<div class="tw" style="margin-bottom:12px"><table><tbody>'
+    +'<tr><td style="font-weight:600;width:140px">Project</td><td>'+(proj?esc(proj.name):'—')+'</td></tr>'
+    +'<tr><td style="font-weight:600">Plot No</td><td>'+(plot?esc(String(plot.plotNo)):'—')+'</td></tr>'
+    +'<tr><td style="font-weight:600">Saleable Sq.Yd</td><td>'+sGaj+'</td></tr>'
+    +'<tr><td style="font-weight:600">Seller</td><td>'+esc(seller.name)+'</td></tr>'
+    +'<tr><td style="font-weight:600">Booking Date</td><td>'+(sD.bookingDate||'—')+'</td></tr>'
+    +'<tr><td style="font-weight:600">Close Date</td><td>'+(sD.closeDate||'—')+'</td></tr>'
+    +(sD.partyName?'<tr><td style="font-weight:600">Buyer</td><td>'+esc(sD.partyName)+'</td></tr>':'')
+    +'</tbody></table></div>';
+
+  html+='<div class="info iam" style="font-size:12px;margin-bottom:12px">💡 Commission is <b>not</b> calculated here. It is computed automatically on the <b>month-end total gaj</b> and shown in the <b>💰 Brokerage</b> page — all sales in a month use the slab reached by that month\'s total.</div>';
+
+  // Chain preview — who this sale's gaj will be added to (seller + upline)
+  html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:6px">👥 This sale adds '+sGaj+' Sq.Yd to:</div>'
+    +'<div class="tw" style="margin-bottom:12px"><table><thead><tr><th>#</th><th>Associate</th><th>Role</th><th>Sq.Yd Added</th></tr></thead><tbody>';
+  ch.forEach(function(a,i){
+    var roleLabel=i===0?'🌟 Seller':'⬆ Upline (Level '+i+')';
+    html+='<tr style="'+(i===0?'background:var(--grb)':'')+'">'
+      +'<td>'+(i+1)+'</td>'
+      +'<td><b>'+(isLeft(a.name)?'<span style="color:var(--re)">'+esc(a.name)+'</span>'+leftBadge(a.name):esc(a.name))+'</b></td>'
+      +'<td style="font-size:11px;color:var(--t2)">'+roleLabel+'</td>'
+      +'<td style="color:var(--pu);font-weight:700">+'+fmtG(sGaj)+' Sq.Yd</td>'
+      +'</tr>';
   });
-  // add Defence rows to the same table
-  sDf.forEach(function(c){
-    html+='<tr style="background:var(--pub)"><td><b>'+(isLeft(c.name)?'<span style="color:var(--re)">'+esc(c.name)+'</span>'+leftBadge(c.name):esc(c.name))+'</b>'
-      +'<div style="font-size:11px;color:var(--t2)">'+c.des+' · '+c.totalGaj+' Sq.Yd</div></td>'
-      +'<td style="font-size:11px"><span class="badge bpu">D'+c.depth+'</span> ₹'+c.rate+'/Sq.Yd</td>'
-      +'<td>—</td>'
-      +'<td>₹'+fmt(c.baseAmt||c.amount)+'</td>'
-      +'<td style="color:var(--pu)">—</td>'
-      +'<td style="color:'+(c.cAdj>0?'var(--gr)':c.cAdj<0?'var(--am)':'var(--t3)')+'">'+( c.cAdj>0?'+₹'+fmt(c.cAdj):c.cAdj<0?'-₹'+fmt(Math.abs(c.cAdj)):'—')+'</td>'
-      +'<td style="font-weight:700;color:var(--pu)">₹'+fmt(c.amount)+'</td></tr>';
-  });
-  html+='<tr style="background:var(--bg3);font-weight:700"><td colspan="6">Grand Total</td><td style="color:var(--gr);font-size:15px">₹'+fmt(cT+dT)+'</td></tr>';
   html+='</tbody></table></div>';
-  
+  html+='<div class="info ibl" style="font-size:11px;margin-bottom:12px">ℹ️ This sale\'s gaj is added to the seller and the whole upline chain. Final commission for the whole month is shown in Brokerage.</div>';
 
   html+='<div style="display:flex;gap:8px"><button class="btn bgh" onclick="sStep=2;render()">← Back</button><button class="btn bgr" id="sConf">✅ Confirm & Save Sale</button></div></div>';
   return html;
@@ -4505,7 +4558,6 @@ function pgSalesRec(){
 
   var html='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;flex-wrap:wrap;gap:8px">'
     +'<h2 style="font-size:15px;font-weight:700">📋 Sales Record ('+D.sales.length+' total)</h2>'
-    +(SESSION&&SESSION.role==='admin'?'<button class="btn bsm" style="background:var(--am);color:#fff;border:none" onclick="openRecalcModal()">🔄 Recalculate Commissions</button>':'')
     +'</div>';
 
   // Filter bar
@@ -4670,30 +4722,19 @@ window.editSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.datas
     D.sales[si].remarks=document.getElementById('esRmk').value.trim();
 
     if(dateChanged){
-      // Recalculate commission with new dates
+      // Date change can move the sale to a different month — recompute
+      // ALL commissions with the month-end engine so slabs stay correct.
       var proj=D.projects.find(function(p){return p.id===s.projId;});
-      var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===s.plotId;}):null;
-      var sGaj=plot?(plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj):(s.plotGaj||0);
-      if(!s.sellerId){return;} // sellerId missing guard
-      var ch=getChain(s.sellerId);
+      var oldChainTotal=(s.chainTotal||0)+(s.defTotal||0);
       var bonusPct=getProjBonus(proj,newBk||s.bookingDate);
-      var newChain=calcChain(sGaj,ch,0,newBk||s.bookingDate,newCl||s.closeDate,bonusPct);
-      var newDef=calcDef(ch,sGaj,newBk||s.bookingDate,newCl||s.closeDate);
-      var oldChainTotal=s.chainTotal||0;
-      var newChainTotal=newChain.reduce(function(t,c){return t+(c.total||0);},0);
-      var newDefTotal=newDef.reduce(function(t,c){return t+(c.amount||0);},0);
-
-      // Gaj difference update (gaj same rehta hai, commission change hoti hai)
       D.sales[si].bookingDate=newBk;
       D.sales[si].closeDate=newCl;
-      D.sales[si].commissions=newChain;
-      D.sales[si].defCommissions=newDef;
-      D.sales[si].chainTotal=newChainTotal;
-      D.sales[si].defTotal=newDefTotal;
       D.sales[si].bonusPct=bonusPct;
-
-      var diff=newChainTotal-oldChainTotal;
-      var diffMsg=diff>0?'+₹'+fmt(diff)+' zyada':diff<0?'-₹'+fmt(Math.abs(diff))+' kam':'no change';
+      applyAllCommissions();
+      var ns=D.sales[si];
+      var newTotal=(ns.chainTotal||0)+(ns.defTotal||0);
+      var diff=newTotal-oldChainTotal;
+      var diffMsg=diff>0?'+₹'+fmt(diff)+' more':diff<0?'-₹'+fmt(Math.abs(diff))+' less':'no change';
       saveD();
       logAct('Sale Edit + Recalc: '+s.projName+' Plot '+s.plotNo+' | Commission: '+diffMsg);
       toast('✅ Sale updated! Commission recalculated ('+diffMsg+')');
@@ -4967,6 +5008,8 @@ window.deleteSaleRec=function(saleId){saleId=typeof saleId==='object'?saleId.dat
   if(!D.deleted.sales)D.deleted.sales=[];
   if(s)D.deleted.sales.push(Object.assign({},s,{deletedAt:new Date().toISOString(),deletedBy:SESSION?SESSION.name:'Admin'}));
   D.sales=D.sales.filter(function(x){return x.id!==saleId;});
+  // Recompute month-end commissions after delete (month slab may drop)
+  applyAllCommissions();
   saveD();logAct('Sale Soft Delete: '+(s?s.projName+' | Plot '+s.plotNo:''));toast('Sale deleted! You can restore it from Settings. ✓');closeM();render();
 };
 
@@ -5609,17 +5652,24 @@ function rpt4(){
 
   var html='';
 
-  // ── Sub-tabs — not shown on Payment tab ──
-  if(TAB!=='payment'){
+  // ── Sub-tabs — shown on Brokerage page only (not Payment) ──
+  if(TAB==='brokerage'){
+    if(r4Tab!=='assoc'&&r4Tab!=='plot'&&r4Tab!=='leg')r4Tab='assoc';
     html+='<div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">';
     [['assoc','👥 Associate Wise'],['plot','🗺️ Plot Wise'],['leg','📋 Associate Sales']].forEach(function(t){
       var active=r4Tab===t[0];
-      html+='<button onclick="r4Tab=\''+t[0]+'\';r4PayAssoc=\'\';r4MonF=\'\';r4ProjF=\'\';r4AssocF=\'\';r4SecF=\'\';r4LegAssocF=\'\';render()" class="btn '+(active?'bbl':'bgh')+' " style="font-size:13px">'+t[1]+'</button>';
+      html+='<button onclick="r4Tab=\''+t[0]+'\';r4PayAssoc=\'\';r4MonF=\'\';r4ProjF=\'\';r4AssocF=\'\';r4SecF=\'\';r4LegAssocF=\'\';render()" class="btn '+(active?'bbl':'bgh')+'" style="font-size:13px">'+t[1]+'</button>';
     });
     html+='<button class="btn bbl bsm" onclick="r4Tab===\'assoc\'?expBrokerage():r4Tab===\'plot\'?expBroPlot():r4Tab===\'leg\'?expBroLeg():expPayReport()" style="margin-left:auto">📥 Excel Export</button>';
     html+='</div>';
-  } else {
+  } else if(TAB==='payment'){
     html+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn bbl bsm" onclick="expPayReport()">📥 Excel Export</button></div>';
+  } else {
+    // other (reports sub-views) — default assoc, export only
+    if(r4Tab!=='assoc'&&r4Tab!=='plot'&&r4Tab!=='leg')r4Tab='assoc';
+    html+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px">';
+    html+='<button class="btn bbl bsm" onclick="r4Tab===\'assoc\'?expBrokerage():r4Tab===\'plot\'?expBroPlot():r4Tab===\'leg\'?expBroLeg():expPayReport()">📥 Excel Export</button>';
+    html+='</div>';
   }
 
   // ── Filters ──
@@ -7904,7 +7954,7 @@ function bindAll(){
     if(!(sD.partyName&&sD.partyName.trim())){toast('⛔ Party Name (Buyer) is required!',false);return;}
     if(sD.closeDate&&sD.bookingDate&&new Date(sD.closeDate)<new Date(sD.bookingDate)){toast('Closing date cannot be before booking date!',false);return;}
     var sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
-    var ch=getChain(sD.assocId);
+    var ch=getChainAtDate(sD.assocId,sD.bookingDate);
     // Use current project rate — this will be stored with sale
     sD.bonusPct=getProjBonus(proj,sD.bookingDate);
     sCh=calcChain(sGaj,ch,0,sD.bookingDate,sD.closeDate,sD.bonusPct);
@@ -7921,7 +7971,8 @@ function bindAll(){
     var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
     if(!proj||!plot){el.disabled=false;el.textContent='✅ Confirm & Save Sale';return;}
     // ── Fresh recalculate sCh — avoid stale commission ──
-    var _ch=getChain(sD.assocId);
+    // Chain as of booking date — a member who left AFTER this date still appears.
+    var _ch=getChainAtDate(sD.assocId,sD.bookingDate);
     var _sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
     sD.bonusPct=getProjBonus(proj,sD.bookingDate);
     sCh=calcChain(_sGaj,_ch,0,sD.bookingDate,sD.closeDate,sD.bonusPct);
@@ -7948,10 +7999,18 @@ function bindAll(){
     });
     var cT=sCh.reduce(function(s,c){return s+c.total;},0);
     var dT=sDf.reduce(function(s,c){return s+c.amount;},0);
-    D.sales.unshift({id:uid(),projId:proj.id,projName:proj.name,plotId:plot.id,plotNo:plot.plotNo,plotSizeGaj:plot.sizeGaj,plotGaj:sGaj,sellerName:sCh[0]?sCh[0].name:'',sellerId:sD.assocId,partyName:sD.partyName||'',remarks:sD.remarks||'',bookingDate:sD.bookingDate||'',closeDate:sD.closeDate||'',bonusPct:sD.bonusPct||0,commissions:sCh,defCommissions:sDf,chainTotal:cT,defTotal:dT,createdAt:new Date().toISOString()});
+    var _frozenChainIds=getChainAtDate(sD.assocId,sD.bookingDate).map(function(a){return a.id;});
+    D.sales.unshift({id:uid(),projId:proj.id,projName:proj.name,plotId:plot.id,plotNo:plot.plotNo,plotSizeGaj:plot.sizeGaj,plotGaj:sGaj,sellerName:sCh[0]?sCh[0].name:'',sellerId:sD.assocId,chainIds:_frozenChainIds,partyName:sD.partyName||'',remarks:sD.remarks||'',bookingDate:sD.bookingDate||'',closeDate:sD.closeDate||'',bonusPct:sD.bonusPct||0,commissions:sCh,defCommissions:sDf,chainTotal:cT,defTotal:dT,createdAt:new Date().toISOString()});
+    // ── MONTH-END COMMISSION: recompute all sales so this month's slab
+    //    applies to ALL sales in the month (company rule). This may upgrade
+    //    earlier sales in the same month automatically.
+    applyAllCommissions();
     saveD();
-    var up=sCh.filter(function(c){return c.up;}).map(function(c){return c.name;});
-    toast('Sale saved! Brokerage: ₹'+fmt(cT+dT)+(up.length?' 🎉 Upgrade:'+up.join(','):''));
+    // Read back this sale's final (month-end) totals for the toast
+    var savedSale=D.sales[0];
+    var fCT=savedSale.chainTotal||0,fDT=savedSale.defTotal||0;
+    var up=(savedSale.commissions||[]).filter(function(c){return c.up;}).map(function(c){return c.name;});
+    toast('Sale saved! Brokerage: ₹'+fmt(fCT+fDT)+(up.length?' 🎉 Upgrade:'+up.join(','):''));
     sStep=1;sD={};sCh=[];sDf=[];render();
   });
 }
