@@ -629,8 +629,18 @@ function getChainAtDate(id,date){
     visited[c.id]=true;
     ch.push(c);
     var pid=parentIdAtDate(c,date);
-    if(!pid)break;
-    c=D.associates.find(function(a){return a.id===pid;});
+    var next=pid?D.associates.find(function(a){return a.id===pid;}):null;
+    // FIX: if the historical parent id no longer exists at all (fully
+    // deleted from D.associates — not just marked "(Left)"), don't
+    // truncate the whole upline here. Fall back to this member's current
+    // live parentId so Sitaram/Truestatrs-style ancestors above a deleted
+    // link still get their commission credit, instead of the chain
+    // silently ending right after the seller.
+    if(!next&&pid){
+      next=c.parentId?D.associates.find(function(a){return a.id===c.parentId;}):null;
+    }
+    if(!next)break;
+    c=next;
   }
   return ch;
 }
