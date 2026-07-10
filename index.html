@@ -516,8 +516,8 @@ function saveD(){
     return;
   }
   var ts=Date.now();
-  window._localTs=ts;
-  // Only Firebase — no localStorage for data
+  // NOTE: do NOT set window._localTs here — fbSave checks it against remote
+  // to detect concurrent edits, and fbDoSave sets it only after a real save.
   clearTimeout(window._saveDebounce);
   window._saveDebounce=setTimeout(function(){fbSave(ts);},400);
 }
@@ -781,16 +781,25 @@ function chainForSale(s){
 
 function computeAllCommissions(){
   // 1. Manual gaj events (dated) + legacy (no-date) base
+  // IMPORTANT: an associate can have BOTH an old undated manualGaj total AND
+  // newer dated gajHistory entries. We must count both — the undated remainder
+  // (manualGaj − sum(gajHistory)) is treated as present from the very start.
   var manualEvents=[];
   var legacyManual={};
   D.associates.forEach(function(a){
+    var histSum=0;
     if(a.gajHistory&&a.gajHistory.length){
       a.gajHistory.forEach(function(h){
+        histSum+=(h.amount||0);
         manualEvents.push({mk:(h.date||'').substr(0,7),assocId:a.id,amount:h.amount||0});
       });
-    } else if(a.manualGaj!=null&&a.manualGaj>0){
-      legacyManual[a.id]=a.manualGaj;
-    } else {
+    }
+    if(a.manualGaj!=null&&a.manualGaj>0){
+      // Undated remainder present before any dated history entry
+      var rem=Math.round((a.manualGaj-histSum)*100)/100;
+      if(rem>0)legacyManual[a.id]=rem;
+    } else if(!a.gajHistory||!a.gajHistory.length){
+      // No manual field at all — infer from totalGaj minus sales-derived gaj
       var dl=getDownline(a.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
       var sd=0;D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
       var inf=Math.round(((a.totalGaj||0)-sd)*100)/100;
@@ -2938,6 +2947,15 @@ function pgSettings(){
   html+='</div>';
   html+='<div style="font-size:12px;color:var(--t2);margin-bottom:8px">Associates, Sales, Payments ka complete health check — mismatches, orphans, duplicates sab ek jagah.</div>';
   html+='<div id="scannerResult" style="display:none"></div>';
+  html+='</div>';
+
+  // ── One-time: Apply Month-End Commission to existing data ──
+  html+='<div class="card" style="margin-bottom:12px;border-left:3px solid var(--am)">';
+  html+='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">';
+  html+='<div class="ct" style="margin:0">🔄 Apply Month-End Commission</div>';
+  html+='<button class="btn bsm" style="background:var(--am);color:#fff;border:none" onclick="openMonthEndModal()">▶ Recalculate All</button>';
+  html+='</div>';
+  html+='<div style="font-size:12px;color:var(--t2)">Recomputes every sale using the <b>month-end total gaj</b> rule (manual gaj + sales gaj). Sale details stay unchanged — only commission amounts update. <b style="color:var(--am)">Take a backup first.</b></div>';
   html+='</div>';
 
 
@@ -5650,6 +5668,7 @@ function rpt4(){
       html+='<button onclick="r4Tab=\''+t[0]+'\';r4PayAssoc=\'\';r4MonF=\'\';r4ProjF=\'\';r4AssocF=\'\';r4SecF=\'\';r4LegAssocF=\'\';render()" class="btn '+(active?'bbl':'bgh')+'" style="font-size:13px">'+t[1]+'</button>';
     });
     html+='<button class="btn bbl bsm" onclick="r4Tab===\'assoc\'?expBrokerage():r4Tab===\'plot\'?expBroPlot():r4Tab===\'leg\'?expBroLeg():expPayReport()" style="margin-left:auto">📥 Excel Export</button>';
+    html+='<button class="btn bsm" style="background:var(--gr);color:#fff;border:none" onclick="expFullDetail()">📊 Full Detail Excel</button>';
     html+='</div>';
   } else if(TAB==='payment'){
     html+='<div style="display:flex;justify-content:flex-end;margin-bottom:12px"><button class="btn bbl bsm" onclick="expPayReport()">📥 Excel Export</button></div>';
@@ -6428,6 +6447,197 @@ function rpt4Leg(){
   return html;
 }
 
+
+// ═══════════════════════════════════════════════════════
+// FULL DETAIL EXPORT — one workbook, 4 sheets:
+//   1. Gaj Data         (every sale's gaj)
+//   2. Commission Detail (sale-wise full breakdown: slab/diff/bonus/defence)
+//   3. Associate Wise   (each associate's total commission, paid, pending)
+//   4. Summary          (month-wise totals)
+// Respects current Month (r4MonF) and Project (r4ProjF) filters.
+// ═══════════════════════════════════════════════════════
+function expFullDetail(){
+  if(!window.XLSX){toast('XLSX library not loaded',false);return;}
+  var wb=XLSX.utils.book_new();
+
+  // Filtered sales (current page filters)
+  var sales=D.sales.filter(function(sl){
+    if(r4ProjF&&sl.projId!==r4ProjF)return false;
+    if(r4MonF){var d=getFilterDate(sl);if(!(d&&d.startsWith(r4MonF)))return false;}
+    return true;
+  }).slice().sort(function(a,b){
+    return (a.closeDate||a.bookingDate||'').localeCompare(b.closeDate||b.bookingDate||'');
+  });
+
+  // ── SHEET 1: Gaj Data ──────────────────────────────
+  var g=[['#','Month','Project','Plot No','Plot Size','Saleable Sq.Yd','Seller','Buyer','Booking Date','Closing Date']];
+  sales.forEach(function(sl,i){
+    var mon=(getFilterDate(sl)||'').substr(0,7);
+    g.push([i+1,mon,sl.projName,sl.plotNo,sl.plotSizeGaj||sl.plotGaj,sl.plotGaj,sl.sellerName||'',sl.partyName||'',sl.bookingDate||'',sl.closeDate||'']);
+  });
+  var totGaj=sales.reduce(function(s,sl){return s+(sl.plotGaj||0);},0);
+  g.push(['','','','','TOTAL',Math.round(totGaj*100)/100,'','','','']);
+  var wsG=XLSX.utils.aoa_to_sheet(g);
+  xlStyle(wb,wsG,[{wch:4},{wch:9},{wch:22},{wch:9},{wch:11},{wch:13},{wch:20},{wch:22},{wch:12},{wch:12}],'2E7D32');
+  XLSX.utils.book_append_sheet(wb,wsG,'Gaj Data');
+
+  // ── SHEET 2: Commission Detail (sale-wise full breakdown) ──
+  var c=[['#','Month','Project','Plot No','Sq.Yd','Associate','Type','Slab (Rs/gaj)','Diff Rate','Base Rs','Rate Bonus','Time Adj','Final Rs']];
+  var ci=0;var commGrand=0;
+  sales.forEach(function(sl){
+    var mon=(getFilterDate(sl)||'').substr(0,7);
+    // chain rows
+    (sl.commissions||[]).forEach(function(cm){
+      ci++;commGrand+=(cm.total||0);
+      c.push([ci,mon,sl.projName,sl.plotNo,sl.plotGaj,cm.name||'',
+        'Chain','₹'+(cm.myR||0),'₹'+(cm.diff||0),Math.round(cm.base||0),
+        Math.round(cm.rB||0),Math.round(cm.cA||0),Math.round(cm.total||0)]);
+    });
+    // defence rows
+    (sl.defCommissions||[]).forEach(function(dm){
+      ci++;commGrand+=(dm.amount||0);
+      c.push([ci,mon,sl.projName,sl.plotNo,sl.plotGaj,dm.name||'',
+        'Defence D'+(dm.depth||'?'),'₹'+(dm.rate||0)+'/gaj','—',Math.round(dm.amount||0),
+        '—','—',Math.round(dm.amount||0)]);
+    });
+  });
+  c.push(['','','','','','','','','','','','GRAND TOTAL',Math.round(commGrand)]);
+  var wsC=XLSX.utils.aoa_to_sheet(c);
+  xlStyle(wb,wsC,[{wch:4},{wch:9},{wch:20},{wch:9},{wch:9},{wch:22},{wch:12},{wch:13},{wch:11},{wch:12},{wch:12},{wch:11},{wch:13}],'1A6FC4');
+  XLSX.utils.book_append_sheet(wb,wsC,'Commission Detail');
+
+  // ── SHEET 3: Associate Wise ────────────────────────
+  var paidMap={};
+  (D.payments||[]).forEach(function(p){var aid=p.assocId||p.associateId;if(aid)paidMap[aid]=(paidMap[aid]||0)+(p.paid||p.amount||0);});
+  var aMap={};
+  sales.forEach(function(sl){
+    (sl.commissions||[]).forEach(function(cm){
+      if(!aMap[cm.id])aMap[cm.id]={name:cm.name,total:0};
+      aMap[cm.id].total+=(cm.total||0);
+    });
+    (sl.defCommissions||[]).forEach(function(dm){
+      if(!aMap[dm.id])aMap[dm.id]={name:dm.name,total:0};
+      aMap[dm.id].total+=(dm.amount||0);
+    });
+  });
+  var a=[['#','Associate','Phone','RERA','Designation','Total Commission','Paid','Pending']];
+  var aList=Object.keys(aMap).map(function(id){
+    var liveA=D.associates.find(function(x){return x.id===id;})||{};
+    var tot=aMap[id].total, paid=paidMap[id]||0;
+    return {name:liveA.name||aMap[id].name,phone:liveA.phone||'',rera:liveA.rera||'',
+      des:dOf(liveA.totalGaj||0),total:tot,paid:paid,pending:Math.max(0,tot-paid)};
+  }).filter(function(x){return x.total>0;}).sort(function(x,y){return y.total-x.total;});
+  aList.forEach(function(x,i){
+    a.push([i+1,x.name,x.phone,x.rera,x.des,Math.round(x.total),Math.round(x.paid),Math.round(x.pending)]);
+  });
+  var tT=aList.reduce(function(s,x){return s+x.total;},0),
+      tP=aList.reduce(function(s,x){return s+x.paid;},0),
+      tPd=aList.reduce(function(s,x){return s+x.pending;},0);
+  a.push(['','GRAND TOTAL','','','',Math.round(tT),Math.round(tP),Math.round(tPd)]);
+  var wsA=XLSX.utils.aoa_to_sheet(a);
+  xlStyle(wb,wsA,[{wch:4},{wch:26},{wch:14},{wch:18},{wch:20},{wch:16},{wch:14},{wch:14}],'6A3FB0');
+  XLSX.utils.book_append_sheet(wb,wsA,'Associate Wise');
+
+  // ── SHEET 4: Summary (month-wise) ──────────────────
+  var mMap={};
+  sales.forEach(function(sl){
+    var mon=(getFilterDate(sl)||'').substr(0,7)||'—';
+    if(!mMap[mon])mMap[mon]={sales:0,gaj:0,comm:0};
+    mMap[mon].sales++;
+    mMap[mon].gaj+=(sl.plotGaj||0);
+    mMap[mon].comm+=((sl.chainTotal||0)+(sl.defTotal||0));
+  });
+  var sm=[['Month','Sales Count','Total Sq.Yd','Total Brokerage (Rs.)']];
+  Object.keys(mMap).sort().forEach(function(m){
+    sm.push([m,mMap[m].sales,Math.round(mMap[m].gaj*100)/100,Math.round(mMap[m].comm)]);
+  });
+  var smS=Object.values(mMap).reduce(function(s,m){return s+m.sales;},0),
+      smG=Object.values(mMap).reduce(function(s,m){return s+m.gaj;},0),
+      smC=Object.values(mMap).reduce(function(s,m){return s+m.comm;},0);
+  sm.push(['GRAND TOTAL',smS,Math.round(smG*100)/100,Math.round(smC)]);
+  var wsS=XLSX.utils.aoa_to_sheet(sm);
+  xlStyle(wb,wsS,[{wch:12},{wch:13},{wch:14},{wch:20}],'C2410C');
+  XLSX.utils.book_append_sheet(wb,wsS,'Summary');
+
+  // ── SHEET 5: Associate Leg-wise (chain/downline per associate) ──
+  var lg=[['#','Associate','Designation','Direct Upline','Total Team Size','Personal Gaj','Team Gaj','Total Gaj','Current Slab (Rs/gaj)']];
+  D.associates.forEach(function(a,i){
+    var parent=a.parentId?D.associates.find(function(x){return x.id===a.parentId;}):null;
+    var dl=getDownline(a.id);
+    var teamSize=dl.length-1; // exclude self
+    var pers=selfGaj(a.id);
+    var team=subtreeGaj(a.id)-pers;
+    lg.push([i+1,a.name,dOf(a.totalGaj||0),parent?parent.name:'— (Top)',teamSize,
+      Math.round(pers*100)/100,Math.round(team*100)/100,Math.round((a.totalGaj||0)*100)/100,rOf(a.totalGaj||0)]);
+  });
+  var wsLg=XLSX.utils.aoa_to_sheet(lg);
+  xlStyle(wb,wsLg,[{wch:4},{wch:26},{wch:20},{wch:24},{wch:14},{wch:13},{wch:13},{wch:13},{wch:18}],'0E7490');
+  XLSX.utils.book_append_sheet(wb,wsLg,'Associate Leg-wise');
+
+  // ── SHEET 6: Plot Sale-wise (each sale full row) ──
+  var pl=[['#','Month','Project','Plot No','Plot Size','Saleable Sq.Yd','Buyer','Seller','Booking Date','Closing Date','Days','Chain Comm','Defence Comm','Total Brokerage','Bonus %']];
+  sales.forEach(function(sl,i){
+    var mon=(getFilterDate(sl)||'').substr(0,7);
+    var days=daysBetween(sl.bookingDate,sl.closeDate);
+    pl.push([i+1,mon,sl.projName,sl.plotNo,sl.plotSizeGaj||sl.plotGaj,sl.plotGaj,sl.partyName||'',sl.sellerName||'',
+      sl.bookingDate||'',sl.closeDate||'',days!=null?days:'',Math.round(sl.chainTotal||0),Math.round(sl.defTotal||0),
+      Math.round((sl.chainTotal||0)+(sl.defTotal||0)),(sl.bonusPct||0)]);
+  });
+  var plTot=sales.reduce(function(s,sl){return s+((sl.chainTotal||0)+(sl.defTotal||0));},0);
+  pl.push(['','','','','','','','','','','','','TOTAL',Math.round(plTot),'']);
+  var wsPl=XLSX.utils.aoa_to_sheet(pl);
+  xlStyle(wb,wsPl,[{wch:4},{wch:9},{wch:20},{wch:9},{wch:11},{wch:13},{wch:22},{wch:20},{wch:12},{wch:12},{wch:7},{wch:13},{wch:13},{wch:15},{wch:9}],'B45309');
+  XLSX.utils.book_append_sheet(wb,wsPl,'Plot Sale-wise');
+
+  // ── SHEET 7: Payment Detail ──
+  var pay=[['#','Date','Associate','Project','Plot No','Amount Paid','Net Paid','Mode','UTR/Ref','Note','Marked By']];
+  var payList=(D.payments||[]).slice().sort(function(a,b){return (b.payDate||'').localeCompare(a.payDate||'');});
+  payList.forEach(function(p,i){
+    pay.push([i+1,p.payDate||'',p.assocName||'',p.projName||'',p.plotNo||'',
+      Math.round(p.paid||p.amount||0),Math.round(p.netPaid!=null?p.netPaid:(p.paid||p.amount||0)),
+      p.mode||'',p.utr||'',p.note||'',p.markedBy||'']);
+  });
+  var payTot=payList.reduce(function(s,p){return s+(p.paid||p.amount||0);},0);
+  pay.push(['','','','','TOTAL',Math.round(payTot),'','','','','']);
+  var wsPay=XLSX.utils.aoa_to_sheet(pay);
+  xlStyle(wb,wsPay,[{wch:4},{wch:12},{wch:24},{wch:20},{wch:9},{wch:13},{wch:12},{wch:10},{wch:16},{wch:24},{wch:16}],'15803D');
+  XLSX.utils.book_append_sheet(wb,wsPay,'Payment Detail');
+
+  // ── SHEET 8: Pending Payments (with bank details) ──
+  var pend=[['#','Associate','Phone','Designation','Total Commission','Paid','Pending','Bank Name','A/C No','IFSC','A/C Holder']];
+  var pendList=aList.map(function(x){
+    var liveA=D.associates.find(function(z){return z.name===x.name;})||{};
+    return {name:x.name,phone:x.phone,des:x.des,total:x.total,paid:x.paid,pending:x.pending,
+      bankName:liveA.bankName||'',accNo:liveA.accNo||'',ifsc:liveA.ifsc||'',holder:liveA.bankingName||''};
+  }).filter(function(x){return x.pending>0;}).sort(function(a,b){return b.pending-a.pending;});
+  pendList.forEach(function(x,i){
+    pend.push([i+1,x.name,x.phone,x.des,Math.round(x.total),Math.round(x.paid),Math.round(x.pending),
+      x.bankName,x.accNo,x.ifsc,x.holder]);
+  });
+  var pendTot=pendList.reduce(function(s,x){return s+x.pending;},0);
+  pend.push(['','GRAND TOTAL PENDING','','','','',Math.round(pendTot),'','','','']);
+  var wsPend=XLSX.utils.aoa_to_sheet(pend);
+  xlStyle(wb,wsPend,[{wch:4},{wch:26},{wch:14},{wch:20},{wch:16},{wch:14},{wch:14},{wch:18},{wch:18},{wch:14},{wch:22}],'B91C1C');
+  XLSX.utils.book_append_sheet(wb,wsPend,'Pending Payments');
+
+  // ── SHEET 9: Projects & Plots ──
+  var pp=[['#','Project','Plot No','Plot Size','Saleable','Facing','Location','Status']];
+  var ppi=0;
+  D.projects.forEach(function(p){
+    (p.plots||[]).forEach(function(pl2){
+      ppi++;
+      pp.push([ppi,p.name,pl2.plotNo,pl2.sizeGaj,(pl2.saleableGaj!=null?pl2.saleableGaj:pl2.sizeGaj),
+        pl2.facing||'',pl2.location||'',pl2.status||'available']);
+    });
+  });
+  var wsPp=XLSX.utils.aoa_to_sheet(pp);
+  xlStyle(wb,wsPp,[{wch:4},{wch:22},{wch:9},{wch:11},{wch:11},{wch:12},{wch:16},{wch:12}],'4338CA');
+  XLSX.utils.book_append_sheet(wb,wsPp,'Projects & Plots');
+
+  var fname='TrueStars_Full_Detail'+(r4MonF?'_'+r4MonF:'')+(r4ProjF?'_proj':'')+'.xlsx';
+  XLSX.writeFile(wb,fname);
+  toast('✅ Full Excel ready! 9 sheets — '+sales.length+' sales, '+aList.length+' associates 📊');
+}
 
 function expBrokerage(){
   if(!window.XLSX){toast('XLSX library not loaded',false);return;}
@@ -8381,8 +8591,66 @@ function fbSave(ts){
   if(!_fbReady||!_fbDB)return;
   ts=ts||Date.now();
   fbStatus('sync');
+  // ── OVERWRITE PROTECTION (multi-user safe) ──
+  // Before overwriting, check the remote timestamp. If someone else saved
+  // AFTER our last known sync, warn the user instead of silently overwriting
+  // their data. The real-time listener keeps _localTs updated, so normally
+  // this is already fresh; this is a final guard against a race.
+  _fbDB.collection('appdata').doc('main').get().then(function(doc){
+    var remoteTs=(doc.exists&&doc.data()&&doc.data().ts)||0;
+    if(remoteTs>(window._localTs||0)){
+      // Remote is newer than what we have — someone else changed data.
+      fbStatus('err');
+      if(!window._saveConflictShown){
+        window._saveConflictShown=true;
+        var n=document.createElement('div');
+        n.style.cssText='position:fixed;top:70px;left:50%;transform:translateX(-50%);background:#fff;border:2px solid var(--am);border-radius:12px;padding:16px 20px;font-size:13px;z-index:99999;box-shadow:0 6px 24px rgba(0,0,0,.2);max-width:360px;text-align:center';
+        n.innerHTML='<div style="font-size:15px;font-weight:700;color:var(--am);margin-bottom:8px">⚠️ Kisi aur ne data update kiya</div>'
+          +'<div style="color:var(--t2);margin-bottom:12px;line-height:1.5">Aapke save karne se pehle kisi doosre user ne changes kiye hain. Overwrite se bachne ke liye pehle latest data load karein, phir apna change dobara karein.</div>'
+          +'<button onclick="window._saveConflictShown=false;this.parentNode.remove();fbForceReload()" style="background:var(--bl);color:#fff;border:none;border-radius:8px;padding:10px 16px;font-size:13px;font-weight:600;cursor:pointer">🔄 Latest Load Karein</button>';
+        document.body.appendChild(n);
+      }
+      return;
+    }
+    // Safe to save
+    fbDoSave(ts);
+  }).catch(function(){
+    // If the check fails (offline etc), fall back to normal save
+    fbDoSave(ts);
+  });
+}
+
+// Force reload latest data from Firebase (used after save conflict)
+window.fbForceReload=function(){
+  if(!_fbReady||!_fbDB)return;
+  fbStatus('sync');
+  _fbDB.collection('appdata').doc('main').get().then(function(doc){
+    if(doc.exists){
+      var r=doc.data();
+      if(r&&r.ts){
+        window._localTs=r.ts;
+        if(r.projects)D.projects=r.projects;
+        if(r.associates)D.associates=r.associates;
+        if(r.sales)D.sales=r.sales;
+        if(r.offers)D.offers=r.offers||[];
+        if(r.deleted)D.deleted=r.deleted;
+        if(r.transfers)D.transfers=r.transfers;
+        if(r.payments)D.payments=r.payments;
+        if(r.advances)D.advances=r.advances;
+        if(r.config)D.config=r.config;
+      }
+    }
+    fbStatus('ok');
+    render();
+    toast('✅ Latest data loaded! Ab apna change dobara karein.',true);
+  }).catch(function(){fbStatus('err');});
+}
+
+function fbDoSave(ts){
+  if(!_fbReady||!_fbDB)return;
+  ts=ts||Date.now();
+  fbStatus('sync');
   // Direct overwrite — save D data as-is to Firebase
-  // No merge — deleted items should not come back
   var clean=JSON.parse(JSON.stringify({
     projects:D.projects||[],
     associates:D.associates||[],
@@ -8395,6 +8663,7 @@ function fbSave(ts){
     config:D.config||{},
     ts:ts
   }));
+  window._localTs=ts; // our save becomes the new baseline
   _fbDB.collection('appdata').doc('main').set(clean)
     .then(function(){fbStatus('ok');})
     .catch(function(e){fbStatus('err');console.error('fbSave error:',e.code,e.message);});
