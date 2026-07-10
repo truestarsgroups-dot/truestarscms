@@ -781,20 +781,45 @@ function chainForSale(s){
 
 function computeAllCommissions(){
   // 1. Manual gaj events (dated) + legacy (no-date) base
+  // FIX: previously, once an associate had ANY dated gajHistory entries,
+  // the code went into the "manualEvents" branch and completely SKIPPED
+  // legacyManual — so if a chunk of their manual gaj was never recorded
+  // as a dated event (e.g. it came from an import, or from before dated
+  // tracking existed), that chunk silently vanished the moment they got
+  // a second/later manual Sq.Yd update. Result: the slab used for
+  // commission calc would drop back as if only sales gaj (or only the
+  // latest manual delta) counted, ignoring earlier manual gaj.
+  // Now: gajHistory events are always summed AND compared against the
+  // associate's true total manual gaj (a.manualGaj). Any portion of
+  // a.manualGaj not covered by dated events is added as an undated
+  // (from-the-very-start) legacy amount — so no manual gaj is ever lost,
+  // no matter how many times it has been added/updated.
   var manualEvents=[];
   var legacyManual={};
   D.associates.forEach(function(a){
+    var trackedSum=0;
     if(a.gajHistory&&a.gajHistory.length){
       a.gajHistory.forEach(function(h){
         manualEvents.push({mk:(h.date||'').substr(0,7),assocId:a.id,amount:h.amount||0});
+        trackedSum+=h.amount||0;
       });
-    } else if(a.manualGaj!=null&&a.manualGaj>0){
-      legacyManual[a.id]=a.manualGaj;
-    } else {
+    }
+    var mg=a.manualGaj||0;
+    var untracked=Math.round((mg-trackedSum)*100)/100;
+    if(untracked>0){
+      // manual gaj that exists on the associate but has no dated event
+      // (older data / import) — count it from the very start so it's
+      // never lost, regardless of later manual updates.
+      legacyManual[a.id]=(legacyManual[a.id]||0)+untracked;
+    }
+    if((!a.gajHistory||!a.gajHistory.length)&&mg<=0){
+      // Fully untracked legacy case: no gajHistory, no manualGaj field at
+      // all, but totalGaj is higher than what sales alone account for
+      // (very old data). Infer the difference as a from-start legacy base.
       var dl=getDownline(a.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
       var sd=0;D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
       var inf=Math.round(((a.totalGaj||0)-sd)*100)/100;
-      if(inf>0)legacyManual[a.id]=inf;
+      if(inf>0)legacyManual[a.id]=(legacyManual[a.id]||0)+inf;
     }
   });
 
@@ -865,6 +890,29 @@ function calcDefSnapshot(rawChain,ch,sGaj,bk,cl,snap){
     dc.push({id:s.id,name:s.name,depth:dep,rate:rate,baseAmt:baseAmt,cAdj:0,cPct:0,amount:Math.max(0,baseAmt),totalGaj:liveG,des:dOf(liveG)});
   }
   return dc;
+}
+
+// Preview a hypothetical (not-yet-saved) sale's commission using the SAME
+// month-end engine as applyAllCommissions() — so what "Calculate Commission"
+// shows during New Sale Entry EXACTLY matches what gets saved after
+// Confirm (same manual-gaj handling, same month-end slab logic).
+function previewSaleCommission(assocId,bookingDate,closeDate,plotGaj,bonusPct){
+  var tempId='__preview_'+Date.now()+'_'+Math.random().toString(36).slice(2);
+  var chainIds=getChainAtDate(assocId,bookingDate).map(function(a){return a.id;});
+  var tempSale={id:tempId,sellerId:assocId,chainIds:chainIds,plotGaj:plotGaj||0,
+    bookingDate:bookingDate||'',closeDate:closeDate||'',bonusPct:bonusPct||0};
+  D.sales.push(tempSale);
+  var r;
+  try{
+    r=computeAllCommissions();
+  } finally {
+    var pi=D.sales.findIndex(function(s){return s.id===tempId;});
+    if(pi>=0)D.sales.splice(pi,1);
+  }
+  var rs=r.perSale[tempId];
+  return rs?{commissions:rs.commissions,defCommissions:rs.defCommissions,
+    chainTotal:rs.chainTotal,defTotal:rs.defTotal}
+    :{commissions:[],defCommissions:[],chainTotal:0,defTotal:0};
 }
 
 // Apply computed commissions to all sales. Called after any sale add/delete.
@@ -7943,11 +7991,14 @@ function bindAll(){
     if(!(sD.partyName&&sD.partyName.trim())){toast('⛔ Party Name (Buyer) is required!',false);return;}
     if(sD.closeDate&&sD.bookingDate&&new Date(sD.closeDate)<new Date(sD.bookingDate)){toast('Closing date cannot be before booking date!',false);return;}
     var sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
-    var ch=getChainAtDate(sD.assocId,sD.bookingDate);
     // Use current project rate — this will be stored with sale
     sD.bonusPct=getProjBonus(proj,sD.bookingDate);
-    sCh=calcChain(sGaj,ch,0,sD.bookingDate,sD.closeDate,sD.bonusPct);
-    sDf=calcDef(ch,sGaj,sD.bookingDate,sD.closeDate);
+    // ── Preview via the real month-end engine (manual gaj + all fixes
+    //    applied) so this shows the TRUE final commission, not a stale
+    //    live-totalGaj estimate. ──
+    var prev=previewSaleCommission(sD.assocId,sD.bookingDate,sD.closeDate,sGaj,sD.bonusPct);
+    sCh=prev.commissions;
+    sDf=prev.defCommissions;
     sStep=3;render();
   });
   
@@ -7960,12 +8011,13 @@ function bindAll(){
     var plot=proj&&proj.plots?proj.plots.find(function(pl){return pl.id===sD.plotId;}):null;
     if(!proj||!plot){el.disabled=false;el.textContent='✅ Confirm & Save Sale';return;}
     // ── Fresh recalculate sCh — avoid stale commission ──
-    // Chain as of booking date — a member who left AFTER this date still appears.
-    var _ch=getChainAtDate(sD.assocId,sD.bookingDate);
+    // Same month-end preview engine as Calculate button, so the amount
+    // seen just before saving is the same one that gets stored below.
     var _sGaj=plot.saleableGaj!=null?plot.saleableGaj:plot.sizeGaj;
     sD.bonusPct=getProjBonus(proj,sD.bookingDate);
-    sCh=calcChain(_sGaj,_ch,0,sD.bookingDate,sD.closeDate,sD.bonusPct);
-    sDf=calcDef(_ch,_sGaj,sD.bookingDate,sD.closeDate);
+    var _prev=previewSaleCommission(sD.assocId,sD.bookingDate,sD.closeDate,_sGaj,sD.bonusPct);
+    sCh=_prev.commissions;
+    sDf=_prev.defCommissions;
     if(!sCh.length){toast('⛔ Commission could not be calculated — please check associate and dates!',false);return;}
     // ── Duplicate sale check ──
     var dupSale=D.sales.find(function(s){
