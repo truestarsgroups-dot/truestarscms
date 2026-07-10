@@ -781,19 +781,20 @@ function chainForSale(s){
 
 function computeAllCommissions(){
   // 1. Manual gaj events (dated) + legacy (no-date) base
-  // FIX: previously, once an associate had ANY dated gajHistory entries,
-  // the code went into the "manualEvents" branch and completely SKIPPED
-  // legacyManual — so if a chunk of their manual gaj was never recorded
-  // as a dated event (e.g. it came from an import, or from before dated
-  // tracking existed), that chunk silently vanished the moment they got
-  // a second/later manual Sq.Yd update. Result: the slab used for
-  // commission calc would drop back as if only sales gaj (or only the
-  // latest manual delta) counted, ignoring earlier manual gaj.
-  // Now: gajHistory events are always summed AND compared against the
-  // associate's true total manual gaj (a.manualGaj). Any portion of
-  // a.manualGaj not covered by dated events is added as an undated
-  // (from-the-very-start) legacy amount — so no manual gaj is ever lost,
-  // no matter how many times it has been added/updated.
+  // FIX (v2): Relying on a.manualGaj as "the total manual gaj" isn't safe —
+  // it can itself under-report (e.g. an early manual add that predates the
+  // gajHistory feature, or was entered through an older path, never got
+  // folded into a.manualGaj). The one number that's always kept correct
+  // and up to date is a.totalGaj (it's incremented directly on every
+  // manual add AND every sale). So here we treat a.totalGaj as ground
+  // truth and reconcile from it:
+  //   trueManualTotal = a.totalGaj − (gaj from sales in this associate's
+  //                     own subtree)
+  //   missing         = trueManualTotal − (sum of dated gajHistory events)
+  // Any positive "missing" is added as an undated, from-the-very-start
+  // legacy base. This way the full manual gaj always ends up counted in
+  // the slab used for commission calc, no matter how many times it was
+  // added/updated or whether every addition was individually dated.
   var manualEvents=[];
   var legacyManual={};
   D.associates.forEach(function(a){
@@ -804,22 +805,12 @@ function computeAllCommissions(){
         trackedSum+=h.amount||0;
       });
     }
-    var mg=a.manualGaj||0;
-    var untracked=Math.round((mg-trackedSum)*100)/100;
-    if(untracked>0){
-      // manual gaj that exists on the associate but has no dated event
-      // (older data / import) — count it from the very start so it's
-      // never lost, regardless of later manual updates.
-      legacyManual[a.id]=(legacyManual[a.id]||0)+untracked;
-    }
-    if((!a.gajHistory||!a.gajHistory.length)&&mg<=0){
-      // Fully untracked legacy case: no gajHistory, no manualGaj field at
-      // all, but totalGaj is higher than what sales alone account for
-      // (very old data). Infer the difference as a from-start legacy base.
-      var dl=getDownline(a.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
-      var sd=0;D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
-      var inf=Math.round(((a.totalGaj||0)-sd)*100)/100;
-      if(inf>0)legacyManual[a.id]=(legacyManual[a.id]||0)+inf;
+    var dl=getDownline(a.id);var ids={};dl.forEach(function(z){ids[z.id]=1;});
+    var sd=0;D.sales.forEach(function(s){if(ids[s.sellerId])sd+=(s.plotGaj||0);});
+    var trueManualTotal=Math.round(((a.totalGaj||0)-sd)*100)/100;
+    var missing=Math.round((trueManualTotal-trackedSum)*100)/100;
+    if(missing>0.01){
+      legacyManual[a.id]=(legacyManual[a.id]||0)+missing;
     }
   });
 
