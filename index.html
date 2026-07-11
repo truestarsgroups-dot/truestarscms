@@ -4548,14 +4548,21 @@ function sS3(){
 
   // Chain preview — who this sale's gaj will be added to (seller + upline)
   html+='<div style="font-size:13px;font-weight:700;color:var(--bl);margin-bottom:6px">👥 This sale adds '+sGaj+' Sq.Yd to:</div>'
-    +'<div class="tw" style="margin-bottom:12px"><table><thead><tr><th>#</th><th>Associate</th><th>Role</th><th>Sq.Yd Added</th></tr></thead><tbody>';
+    +'<div class="tw" style="margin-bottom:12px"><table><thead><tr><th>#</th><th>Associate</th><th>Role</th><th>Sq.Yd Added</th><th>New Total Gaj</th><th>Slab Reached</th></tr></thead><tbody>';
   ch.forEach(function(a,i){
     var roleLabel=i===0?'🌟 Seller':'⬆ Upline (Level '+i+')';
+    // sCh (from Calculate step, using the real month-end engine) holds the
+    // authoritative new total + rate per associate, in the same order as ch.
+    var cc=sCh&&sCh[i]&&sCh[i].id===a.id?sCh[i]:null;
+    var newG=cc?cc.newG:(a.totalGaj||0)+sGaj;
+    var slab=slabOf(newG);
     html+='<tr style="'+(i===0?'background:var(--grb)':'')+'">'
       +'<td>'+(i+1)+'</td>'
       +'<td><b>'+(isLeft(a.name)?'<span style="color:var(--re)">'+esc(a.name)+'</span>'+leftBadge(a.name):esc(a.name))+'</b></td>'
       +'<td style="font-size:11px;color:var(--t2)">'+roleLabel+'</td>'
       +'<td style="color:var(--pu);font-weight:700">+'+fmtG(sGaj)+' Sq.Yd</td>'
+      +'<td>'+fmtG(newG)+' Sq.Yd</td>'
+      +'<td><span class="badge bbl2">L'+slab.l+'</span> '+esc(slab.des)+' <b style="color:var(--gr)">₹'+slab.rate+'/gaj</b></td>'
       +'</tr>';
   });
   html+='</tbody></table></div>';
